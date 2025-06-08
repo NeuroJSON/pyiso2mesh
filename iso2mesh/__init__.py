@@ -87,6 +87,7 @@ from .iso2mesh_core import (
     sms,
     smoothsurf,
     fillsurf,
+    binsurface,
     vol2restrictedtri,
     removeisolatednode,
 )

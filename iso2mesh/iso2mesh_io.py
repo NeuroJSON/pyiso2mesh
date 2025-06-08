@@ -111,8 +111,9 @@ def saveoff(v, f, fname):
             fid.write(f"{len(v)}\t{len(f)}\t0\n")
             for vertex in v:
                 fid.write(f"{vertex[0]:.16f}\t{vertex[1]:.16f}\t{vertex[2]:.16f}\n")
-            face = [[len(f[0])] + list(face_row) for face_row in f]
-            format_str = "\t".join(["%d"] * len(face[0])) + "\n"
+            face = np.hstack((f.shape[1] * np.ones([f.shape[0],1]), f - 1))
+            print(face)
+            format_str = "%d\t" * f.shape[1] + "\n"
             for face_row in face:
                 fid.write(format_str % tuple(face_row))
     except IOError:
@@ -431,7 +432,6 @@ def mcpath(fname, ext=None):
     if os.path.isdir(tempname):
         binname = os.path.join(tempname, "iso2mesh-1.9.8", "bin", fname)
         if ext:
-            print(binname)
             if os.path.isfile(binname + ext):
                 binname = binname + ext
             else:

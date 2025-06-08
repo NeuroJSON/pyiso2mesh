@@ -9,6 +9,7 @@ __all__ = [
     "sms",
     "smoothsurf",
     "fillsurf",
+    "binsurface",
     "vol2restrictedtri",
     "removeisolatednode",
 ]
@@ -731,97 +732,105 @@ def surf2vol(node, face, xi, yi, zi, **kwargs):
 
 def binsurface(img, nface=3):
     """
+    node, elem = binsurface(img, nface)
+
     Fast isosurface extraction from 3D binary images.
 
     Parameters:
-    img: a 3D binary image
-    nface:
-        - 3 or ignored: triangular faces
-        - 4: square faces
-        - 0: return a boundary mask image via node
+        img: 3D binary NumPy array
+        nface:
+            = 3 or omitted: triangular faces
+            = 4: square (quad) faces
+            = 0: return boundary mask image via `node`
+            = 'iso': use marching cubes (`isosurface` equivalent)
 
     Returns:
-    node: node coordinates, 3 columns for x, y, z
-    elem: surface mesh face element list
+        node: (N, 3) array of vertex coordinates
+        elem: (M, 3) or (M, 4) array of face elements (1-based indices)
     """
+    if isinstance(nface, str) and nface == 'iso':
+        from skimage.measure import marching_cubes
+        verts, faces, _, _ = marching_cubes(img, level=0.5)
+        node = verts[:, [1, 0, 2]] - 0.5  # reorder to match MATLAB
+        elem = faces + 1  # 1-based indexing
+        return node, elem
 
-    dim = img.shape
+    dim = list(img.shape)
     if len(dim) < 3:
-        dim = (*dim, 1)
+        dim += [1]
+    newdim = [d + 1 for d in dim]
 
-    newdim = np.array(dim) + 1
-
-    # Find the jumps (0->1 or 1->0) for all directions
+    # Compute differences in each direction
     d1 = np.diff(img, axis=0)
     d2 = np.diff(img, axis=1)
     d3 = np.diff(img, axis=2)
 
-    ix, iy = np.where((d1 == 1) | (d1 == -1))
-    jx, jy = np.where((d2 == 1) | (d2 == -1))
-    kx, ky = np.where((d3 == 1) | (d3 == -1))
+    pos = np.where((d1 == 1) | (d1 == -1))
+    ix = pos[0]
+    iy_raw = pos[1]
+    pos= np.where((d2 == 1) | (d2 == -1))
+    jx = pos[0]
+    jy_raw = pos[1]
+    pos = np.where((d3 == 1) | (d3 == -1))
+    kx = pos[0]
+    ky_raw = pos[1]
 
-    # Compensate for dimension reduction due to diff
+    # Adjust indices and wrap them to 3D
     ix = ix + 1
-    iy, iz = np.unravel_index(iy, dim[1:])
-    iy = np.ravel_multi_index((iy, iz), newdim[1:])
+    iy, iz = np.unravel_index(iy_raw, dim[1:])
+    iy2 = np.ravel_multi_index((iy, iz), newdim[1:], order='F')
 
-    jy, jz = np.unravel_index(jy, (dim[1] - 1, dim[2]))
-    jy = np.ravel_multi_index((jy + 1, jz), newdim[1:])
+    jy, jz = np.unravel_index(jy_raw, (dim[1]-1, dim[2]))
+    jy = jy + 1
+    jy2 = np.ravel_multi_index((jy, jz), newdim[1:], order='F')
 
-    ky, kz = np.unravel_index(ky, (dim[1], dim[2] - 1))
-    ky = np.ravel_multi_index((ky, kz + 1), newdim[1:])
+    ky, kz = np.unravel_index(ky_raw, (dim[1], dim[2]-1))
+    kz = kz + 1
+    ky2 = np.ravel_multi_index((ky, kz), newdim[1:], order='F')
 
-    id1 = np.ravel_multi_index((ix, iy), newdim)
-    id2 = np.ravel_multi_index((jx, jy), newdim)
-    id3 = np.ravel_multi_index((kx, ky), newdim)
+    id1 = np.ravel_multi_index((ix, iy, iz), newdim, order='F')
+    id2 = np.ravel_multi_index((jx, jy, jz), newdim, order='F')
+    id3 = np.ravel_multi_index((kx, ky, kz), newdim, order='F')
 
     if nface == 0:
-        elem = np.vstack((id1, id2, id3)).T
-        node = np.zeros(newdim)
-        node[elem] = 1
+        elem = np.concatenate([id1, id2, id3])
+        node = np.zeros(newdim, dtype=np.uint8)
+        node.flat[elem] = 1
         node = node[1:-1, 1:-1, 1:-1] - 1
         return node, elem
 
-    # Generate triangles or boxes based on nface
     xy = newdim[0] * newdim[1]
 
-    if nface == 3:
-        elem = np.vstack(
-            [
-                [id1, id1 + newdim[0], id1 + newdim[0] + xy],
-                [id1, id1 + newdim[0] + xy, id1 + xy],
-            ]
-        ).T
-        elem = np.vstack(
-            [elem, [id2, id2 + 1, id2 + 1 + xy], [id2, id2 + 1 + xy, id2 + xy]]
-        )
-        elem = np.vstack(
-            [
-                elem,
-                [id3, id3 + 1, id3 + 1 + newdim[0]],
-                [id3, id3 + 1 + newdim[0], id3 + newdim[0]],
-            ]
-        )
-    else:
-        elem = np.vstack(
-            [
-                [id1, id1 + newdim[0], id1 + newdim[0] + xy, id1 + xy],
-                [id2, id2 + 1, id2 + 1 + xy, id2 + xy],
-                [id3, id3 + 1, id3 + 1 + newdim[0], id3 + newdim[0]],
-            ]
-        )
+    if nface == 3:  # triangles
+        elem = np.vstack([
+            np.column_stack([id1, id1 + newdim[0], id1 + newdim[0] + xy]),
+            np.column_stack([id1, id1 + newdim[0] + xy, id1 + xy]),
+            np.column_stack([id2, id2 + 1, id2 + 1 + xy]),
+            np.column_stack([id2, id2 + 1 + xy, id2 + xy]),
+            np.column_stack([id3, id3 + 1, id3 + 1 + newdim[0]]),
+            np.column_stack([id3, id3 + 1 + newdim[0], id3 + newdim[0]])
+        ])
+    else:  # quads
+        elem = np.vstack([
+            np.column_stack([id1, id1 + newdim[0], id1 + newdim[0] + xy, id1 + xy]),
+            np.column_stack([id2, id2 + 1, id2 + 1 + xy, id2 + xy]),
+            np.column_stack([id3, id3 + 1, id3 + 1 + newdim[0], id3 + newdim[0]])
+        ])
 
-    # Compress node indices
-    nodemap = np.zeros(np.max(elem) + 1, dtype=int)
-    nodemap[elem.ravel(order="F")] = 1
-    id = np.nonzero(nodemap)[0]
+    # Compress the node indices
+    maxid = elem.max() + 1
+    nodemap = np.zeros(maxid, dtype=int)
+    nodemap[elem.ravel(order='F')] = 1
+    id = np.where(nodemap)[0]
+
+    # Reindex elem to be compact and 1-based
     nodemap = np.zeros_like(nodemap)
-    nodemap[id] = np.arange(1, len(id) + 1)
+    nodemap[id] = np.arange(1, len(id) + 1)  # 1-based
     elem = nodemap[elem]
 
-    # Create coordinates
-    xi, yi, zi = np.unravel_index(id, newdim)
-    node = np.vstack([xi, yi, zi]).T - 1
+    # Create node coordinates
+    xi, yi, zi = np.unravel_index(id, newdim, order='F')
+    node = np.column_stack([xi, yi, zi]) - 1
 
     if nface == 3:
         node, elem = meshcheckrepair(node, elem)
@@ -1126,12 +1135,11 @@ def meshcheckrepair(node, elem, opt=None, *args):
 
     if opt in (None, "deep"):
         exesuff = im.fallbackexeext(im.getexeext(), "jmeshlib")
-        print(exesuff)
         im.deletemeshfile(im.mwpath("post_sclean.off"))
         im.saveoff(node[:, :3], elem[:, :3], im.mwpath("pre_sclean.off"))
         if ".exe" not in exesuff:
             status, output = subprocess.getstatusoutput(
-                f'"{im.mcpath("jmeshlib")}{exesuff}" "{im.mwpath("pre_sclean.off")}" "{im.mwpath("post_sclean.off")}"'
+                f'"{im.mcpath("jmeshlib","{exesuff}")}" "{im.mwpath("pre_sclean.off")}" "{im.mwpath("post_sclean.off")}"'
             )
         else:
             status, output = subprocess.getstatusoutput(
@@ -1227,9 +1235,9 @@ def removedupnodes(node, elem, tol=0):
     newnode, I, J = np.unique(node, axis=0, return_index=True, return_inverse=True)
 
     if isinstance(elem, list):
-        newelem = [J[e] for e in elem]
+        newelem = [J[e - 1] for e in elem]
     else:
-        newelem = J[elem]
+        newelem = J[elem - 1]
 
     return newnode, newelem
 

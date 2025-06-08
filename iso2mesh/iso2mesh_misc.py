@@ -18,6 +18,7 @@ import sys
 import numpy as np
 import os
 import iso2mesh as im
+import shutil
 
 ##====================================================================================
 ## implementations
@@ -54,27 +55,27 @@ def fallbackexeext(exesuffix, exename):
     """
     exesuff = exesuffix
     if exesuff == ".mexa64" and not os.path.isfile(
-        im.mcpath(exename) + exesuff
+        im.mcpath(exename, exesuff)
     ):  # fall back to i386 linux
         exesuff = ".mexglx"
     if exesuff == ".mexmaci64" and not os.path.isfile(
-        im.mcpath(exename) + exesuff
+        im.mcpath(exename, exesuff)
     ):  # fall back to i386 mac
         exesuff = ".mexmaci"
     if exesuff == ".mexmaci" and not os.path.isfile(
-        im.mcpath(exename) + exesuff
+        im.mcpath(exename, exesuff)
     ):  # fall back to ppc mac
         exesuff = ".mexmac"
-    if not os.path.isfile(im.mcpath(exename) + exesuff) and not os.path.isfile(
+    if not os.path.isfile(im.mcpath(exename, exesuff)) and not os.path.isfile(
         os.path.join(im.mcpath(exename))
     ):  # fall back to OS native package
         exesuff = ""
 
-    if not os.path.isfile(im.mcpath(exename) + exesuff) and not os.path.isfile(
+    if not os.path.isfile(im.mcpath(exename, exesuff)) and not os.path.isfile(
         im.mcpath(exename)
     ):
-        # if subprocess.call(['which', exename]) == 0:
-        #    return
+        if shutil.which(exename):
+           return exesuff
         raise FileNotFoundError(
             f"The following executable:\n\t{im.mcpath(exename)}{getexeext()}\n"
             "is missing. Please download it from "
