@@ -356,47 +356,56 @@ def nodevolume(node, elem, evol=None):
 
 def elemvolume(node, elem, option=None):
     """
-    Calculate the volume for a list of simplices (elements).
+    vol = elemvolume(node, elem, option=None)
+    Calculate volume of tetrahedral elements.
 
-    Parameters:
-    node : numpy.ndarray
-        Node coordinates.
-    elem : numpy.ndarray
-        Element table of a mesh.
-    option : str, optional
-        If 'signed', the volume is the raw determinant; otherwise, absolute values are returned.
-
-    Returns:
-    vol : numpy.ndarray
-        Volume values for all elements.
+    node : (N x 3) array of node coordinates
+    elem : (M x K) integer array of element connectivity (1-based indices)
+           Supported K = 4 (tetrahedra), 3 (triangles), 2 (segments).
+    option: None or 'signed'. If 'signed', returns signed volume; otherwise absolute volume.
     """
+    node = np.asarray(node, dtype=float)
+    elem = np.asarray(elem, dtype=int)
 
-    if elem.shape[1] == node.shape[1]:  # For 2D elements (triangles)
-        enum = elem.shape[0]
-        vol = np.zeros(enum)
-        acol = np.ones(3)  # Column of ones for determinant computation
-
-        for i in range(enum):
-            e1 = np.linalg.det(np.c_[node[elem[i, :], 1], node[elem[i, :], 2], acol])
-            e2 = np.linalg.det(np.c_[node[elem[i, :], 2], node[elem[i, :], 0], acol])
-            e3 = np.linalg.det(np.c_[node[elem[i, :], 0], node[elem[i, :], 1], acol])
-            vol[i] = np.sqrt(e1 * e1 + e2 * e2 + e3 * e3) * 0.5
+    # Determine element type by number of columns
+    nelem, nN = elem.shape
+    if nN == 4:  # tetrahedron
+        vol = np.zeros(nelem)
+        for i in range(nelem):
+            # Convert indices from 1-based to 0-based
+            inds = elem[i, :] - 1
+            # Coordinates for this tetrahedron
+            a = node[inds[0], :]
+            b = node[inds[1], :]
+            c = node[inds[2], :]
+            d = node[inds[3], :]
+            # Compute volume via determinant: |det([b-a, c-a, d-a])| / 6
+            M = np.stack((b - a, c - a, d - a), axis=1)
+            detM = np.linalg.det(M)
+            vol[i] = detM / 6.0
+        if option != "signed":
+            vol = np.abs(vol)
         return vol
 
-    dim = elem.shape[1]  # For higher-dimensional elements (3D tetrahedra)
-    enum = elem.shape[0]
-    vol = np.zeros(enum)
+    elif nN == 3:  # triangle area * thickness=1
+        vol = np.zeros(nelem)
+        for i in range(nelem):
+            inds = elem[i, :] - 1
+            a, b, c = node[inds, :]
+            # Triangle "volume" computed as area of triangle (norm of cross product /2)
+            vol[i] = np.linalg.norm(np.cross(b - a, c - a)) / 2.0
+        return vol
 
-    for i in range(enum):
-        detmat = np.vstack([node[elem[i, :], :].T, np.ones(dim)])
-        vol[i] = np.linalg.det(detmat)
+    elif nN == 2:  # segment length
+        vol = np.zeros(nelem)
+        for i in range(nelem):
+            inds = elem[i, :] - 1
+            a, b = node[inds, :]
+            vol[i] = np.linalg.norm(b - a)
+        return vol
 
-    if option == "signed":
-        vol /= np.prod(np.arange(1, node.shape[1] + 1))
     else:
-        vol = np.abs(vol) / np.prod(np.arange(1, node.shape[1] + 1))
-
-    return vol
+        raise ValueError(f"Unsupported element with {nN} nodes per element")
 
 #_________________________________________________________________________________________________________
 
@@ -418,6 +427,7 @@ def neighborelem(elem, nn):
     conn = [[] for _ in range(nn)]
     dim = elem.shape
 
+    elem = elem - 1
     # Loop through each element and populate the conn list
     for i in range(dim[0]):
         for j in range(dim[1]):
@@ -1562,7 +1572,9 @@ def meshreorient(node, elem):
     evol = elemvolume(node, elem, 'signed')
     # Make sure all elements are positive in volume
     idx = np.where(evol < 0)[0]
-    elem[idx[:,np.newaxis], np.tile(np.array([-2, -1]), (len(idx),2))] = elem[idx[:,np.newaxis], np.tile(np.array([-1, -2]), (len(idx),2))]
+
+    # Reorder the last two nodes for elements with negative volume
+    elem[np.ix_(idx, [-2, -1])] = elem[np.ix_(idx, [-1, -2])]
     newelem = elem
 
     return newelem, evol, idx
