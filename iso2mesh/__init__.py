@@ -23,7 +23,7 @@ from .iso2mesh_primitive import (
     meshasphere,
 )
 
-from .iso2mesh_utils import  (
+from .iso2mesh_utils import (
     finddisconnsurf,
     surfedge,
     volface,
@@ -55,6 +55,8 @@ from .iso2mesh_utils import  (
     insurface,
     advancefront,
     meshreorient,
+    mesheuler,
+    raytrace,
 )
 
 from .iso2mesh_misc import (
@@ -80,11 +82,15 @@ from .iso2mesh_io import (
 )
 
 from .iso2mesh_core import (
+    s2m,
     surf2mesh,
     sms,
+    smoothsurf,
+    fillsurf,
     vol2restrictedtri,
     removeisolatednode,
 )
+
 __version__ = "0.1.0"
 __all__ = [
     "meshgrid5",
@@ -148,8 +154,11 @@ __all__ = [
     "meshabox",
     "meshacylinder",
     "meshanellip",
+    "s2m",
     "surf2mesh",
     "sms",
+    "smoothsurf",
+    "fillsurf",
     "rotatevec3d",
     "readoff",
     "vol2restrictedtri",
@@ -157,5 +166,7 @@ __all__ = [
     "meshunitsphere",
     "fallbackexeext",
     "meshasphere",
+    "mesheuler",
+    "raytrace",
 ]
 __license__ = """GNU General Public License v3 and later"""

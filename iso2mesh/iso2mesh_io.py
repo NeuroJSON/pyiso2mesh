@@ -30,7 +30,7 @@ from datetime import datetime
 import os
 import re
 import iso2mesh as im
-import tempfile
+import shutil
 
 ##====================================================================================
 ## implementations
@@ -87,7 +87,9 @@ def saveinr(vol, fname):
     # Close the file
     fid.close()
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def saveoff(v, f, fname):
     """
@@ -104,19 +106,21 @@ def saveoff(v, f, fname):
          fname: output file name
     """
     try:
-        with open(fname, 'wt') as fid:
-            fid.write('OFF\n')
+        with open(fname, "wt") as fid:
+            fid.write("OFF\n")
             fid.write(f"{len(v)}\t{len(f)}\t0\n")
             for vertex in v:
                 fid.write(f"{vertex[0]:.16f}\t{vertex[1]:.16f}\t{vertex[2]:.16f}\n")
             face = [[len(f[0])] + list(face_row) for face_row in f]
-            format_str = '\t'.join(['%d'] * len(face[0])) + '\n'
+            format_str = "\t".join(["%d"] * len(face[0])) + "\n"
             for face_row in face:
                 fid.write(format_str % tuple(face_row))
     except IOError:
-        raise PermissionError('You do not have permission to save mesh files.')
+        raise PermissionError("You do not have permission to save mesh files.")
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def saveasc(v, f, fname):
     """
@@ -356,7 +360,9 @@ def readmedit(filename):
 
     return node, elem, face
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def mwpath(fname=""):
     """
@@ -379,7 +385,7 @@ def mwpath(fname=""):
     # Get the current user's name for Linux/Unix/Mac/Windows
     username = os.getenv("USER") or os.getenv("UserName", "")
     if username:
-        username = f"iso2mesh-{username}"
+        username = f"pyiso2mesh-{username}"
 
     tempname = ""
 
@@ -398,7 +404,9 @@ def mwpath(fname=""):
 
     return tempname
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def mcpath(fname, ext=None):
     """
@@ -414,24 +422,53 @@ def mcpath(fname, ext=None):
     str
         Full file name located in the bin directory.
     """
-    binname = ''
+    binname = ""
 
     # the bin folder under iso2mesh is searched first
-    tempname = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', fname)
-    if os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')):
+    # tempname = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', fname)
+    tempname = os.path.join(os.path.expanduser("~"), "pyiso2mesh-tools")
+
+    if os.path.isdir(tempname):
+        binname = os.path.join(tempname, "iso2mesh-1.9.8", "bin", fname)
         if ext:
-            if os.path.isfile(tempname + ext):
-                binname = tempname + ext
+            print(binname)
+            if os.path.isfile(binname + ext):
+                binname = binname + ext
             else:
-                binname = fname  # use binary without suffix on system PATH
+                binname = fname + ext
         else:
-            binname = tempname
-    else:
+            if not os.path.isfile(binname):
+                binname = fname
+    elif shutil.which(fname):
         binname = fname
+    else:
+        import urllib.request
+        import zipfile
+
+        print("Iso2mesh meshing utilities do not exist locally, downloading now ...")
+        os.makedirs(tempname)
+        binurl = "https://github.com/fangq/iso2mesh/archive/refs/tags/v1.9.8.zip"
+        filehandle, _ = urllib.request.urlretrieve(binurl)
+
+        with zipfile.ZipFile(filehandle, "r") as zip_ref:
+            for file in zip_ref.namelist():
+                if file.startswith("iso2mesh-1.9.8/bin/"):
+                    zip_ref.extract(file, tempname)
+                    extractfile = os.path.join(tempname, file)
+                    print("Extracting " + extractfile)
+                    if os.path.isfile(extractfile):
+                        print("Setting permission " + extractfile)
+                        os.chmod(extractfile, 0o755)
+
+        tempname = os.path.join(tempname, "pyiso2mesh-tools", "iso2mesh-1.9.8", "bin")
 
     # on 64bit windows machine, try 'exename_x86-64.exe' first
-    if os.name == 'nt' and '64' in os.environ['PROCESSOR_ARCHITECTURE'] and not re.search(r'_x86-64$', fname):
-        w64bin = re.sub(r'(\.[eE][xX][eE])?$', '_x86-64.exe', binname)
+    if (
+        os.name == "nt"
+        and "64" in os.environ["PROCESSOR_ARCHITECTURE"]
+        and not re.search(r"_x86-64$", fname)
+    ):
+        w64bin = re.sub(r"(\.[eE][xX][eE])?$", "_x86-64.exe", binname)
         if os.path.isfile(w64bin):
             binname = w64bin
 
@@ -441,7 +478,9 @@ def mcpath(fname, ext=None):
 
     return binname
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def deletemeshfile(fname):
     """
@@ -460,14 +499,18 @@ def deletemeshfile(fname):
         if os.path.exists(fname):
             os.remove(fname)
     except Exception as e:
-        raise PermissionError("You do not have permission to delete temporary files. If you are working in a multi-user "
-                              "environment, such as Unix/Linux and there are other users using iso2mesh, "
-                              "you may need to define ISO2MESH_SESSION='yourstring' to make your output "
-                              "files different from others; if you do not have permission to "
-                              f"{os.getcwd()} as the temporary directory, you have to define "
-                              "ISO2MESH_TEMP='/path/you/have/write/permission' in Python base workspace.") from e
+        raise PermissionError(
+            "You do not have permission to delete temporary files. If you are working in a multi-user "
+            "environment, such as Unix/Linux and there are other users using iso2mesh, "
+            "you may need to define ISO2MESH_SESSION='yourstring' to make your output "
+            "files different from others; if you do not have permission to "
+            f"{os.getcwd()} as the temporary directory, you have to define "
+            "ISO2MESH_TEMP='/path/you/have/write/permission' in Python base workspace."
+        ) from e
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def readtetgen(fstub):
     """
@@ -489,10 +532,10 @@ def readtetgen(fstub):
     read node file
     """
     try:
-        with open(f"{fstub}.node", 'rb') as fp:
+        with open(f"{fstub}.node", "rb") as fp:
             dim = [int(x) for x in next(fp).split()]
             if len(dim) < 4:
-                raise ValueError('wrong node file')
+                raise ValueError("wrong node file")
             node = np.array([])
             for ii in range(dim[0]):
                 row = [float(x) for x in next(fp).split()]
@@ -501,30 +544,30 @@ def readtetgen(fstub):
             idx = node[:, 1]
             node = node[:, 1:4]
     except FileNotFoundError:
-        raise FileNotFoundError('node file is missing!')
+        raise FileNotFoundError("node file is missing!")
 
     # read element file
     try:
-        with open(f"{fstub}.ele", 'rb') as fp:
+        with open(f"{fstub}.ele", "rb") as fp:
             dim = [int(x) for x in next(fp).split()]
             if len(dim) < 3:
-                raise ValueError('wrong elem file')
+                raise ValueError("wrong elem file")
             elem = np.array([])
             for ii in range(dim[0]):
                 row = [int(x) for x in next(fp).split()]
                 elem = np.append(elem, row)
-            elem = elem.reshape(dim[0], dim[1]+dim[2]+1)
+            elem = elem.reshape(dim[0], dim[1] + dim[2] + 1)
             elem = elem[:, 1:].astype(int)
-            #elem[:, :dim[1]] += (1 - idx[0])
+            # elem[:, :dim[1]] += (1 - idx[0])
     except FileNotFoundError:
-        raise FileNotFoundError('elem file is missing!')
+        raise FileNotFoundError("elem file is missing!")
 
     # read surface mesh file
     try:
-        with open(f"{fstub}.face", 'rb') as fp:
+        with open(f"{fstub}.face", "rb") as fp:
             dim = [int(x) for x in next(fp).split()]
             if len(dim) < 2:
-                raise ValueError('wrong surface file')
+                raise ValueError("wrong surface file")
             face = np.array([])
             for ii in range(dim[0]):
                 row = [int(x) for x in next(fp).split()]
@@ -532,13 +575,15 @@ def readtetgen(fstub):
             face = face.reshape(dim[0], 5)
             face = np.hstack((face[:, 1:-1], face[:, -1:])).astype(int)
     except FileNotFoundError:
-        raise FileNotFoundError('surface data file is missing!')
+        raise FileNotFoundError("surface data file is missing!")
 
     elem[:, :4], evol, idx = im.meshreorient(node[:, :3], elem[:, :4])
 
     return node, elem, face
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
     """
@@ -560,12 +605,28 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
     if forcebox != None:
         dobbx = any([forcebox])
 
-    faceid = f[:,3] if not isinstance(f, list) and len(f.shape)>1 and f.shape[1] == 4 else None
-    f = f[:,:3] if not isinstance(f, list) and len(f.shape)>1 and f.shape[1] == 4 else f
+    faceid = (
+        f[:, 3]
+        if not isinstance(f, list) and len(f.shape) > 1 and f.shape[1] == 4
+        else None
+    )
+    f = (
+        f[:, :3]
+        if not isinstance(f, list) and len(f.shape) > 1 and f.shape[1] == 4
+        else f
+    )
 
     # Check and process node sizes if v has 4 columns
-    nodesize = v[:, 3] if not isinstance(v, list) and len(v.shape)>1 and v.shape[1] == 4 else None
-    v = v[:, :3] if not isinstance(v, list) and len(v.shape)>1 and v.shape[1] == 4 else v
+    nodesize = (
+        v[:, 3]
+        if not isinstance(v, list) and len(v.shape) > 1 and v.shape[1] == 4
+        else None
+    )
+    v = (
+        v[:, :3]
+        if not isinstance(v, list) and len(v.shape) > 1 and v.shape[1] == 4
+        else v
+    )
 
     # Handle edges
     edges = im.surfedge(f)[0] if not isinstance(f, list) else []
@@ -576,14 +637,14 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
     if len(edges) > 0:
         loops = im.extractloops(edges)
         if len(loops) < 3:
-            raise ValueError('Degenerated loops detected')
+            raise ValueError("Degenerated loops detected")
         seg = [0] + list(np.where(np.isnan(loops))[0].tolist())
         segnum = len(seg) - 1
         newloops = []
         for i in range(segnum):
             if seg[i + 1] - (seg[i] + 1) == 0:
                 continue
-            oneloop = loops[seg[i] + 1:seg[i + 1] - 1]
+            oneloop = loops[seg[i] + 1 : seg[i + 1] - 1]
             if oneloop[0] == oneloop[-1]:
                 oneloop = oneloop[:-1]
             newloops.extend([np.nan] + bbxflatsegment(node, oneloop))
@@ -595,12 +656,14 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
         loopcount = np.zeros(bbxnum)
         loopid = np.zeros(segnum)
         for i in range(segnum):  # walk through the edge loops
-            subloop = loops[seg[i] + 1:seg[i + 1] - 1]
+            subloop = loops[seg[i] + 1 : seg[i + 1] - 1]
             if not subloop:
                 continue
             loopvert.append(subloop)
             loopnum += 1
-            boxfacet = np.where(np.sum(np.abs(np.diff(v[subloop, :])), axis=1) < 1e-8)[0]  # find a flat loop
+            boxfacet = np.where(np.sum(np.abs(np.diff(v[subloop, :])), axis=1) < 1e-8)[
+                0
+            ]  # find a flat loop
             if len(boxfacet) == 1:  # if the loop is flat along x/y/z dir
                 bf = boxfacet[0]  # no degeneracy allowed
                 if np.sum(np.abs(v[subloop[0], bf] - p0[bf])) < 1e-2:
@@ -618,135 +681,203 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
 
     if dobbx or len(edges) > 0:
         nn = v.shape[0]
-        boxnode = np.array([
-            p0,
-            [p1[0], p0[1], p0[2]],
-            [p1[0], p1[1], p0[2]],
-            [p0[0], p1[1], p0[2]],
-            [p0[0], p0[1], p1[2]],
-            [p1[0], p0[1], p1[2]],
-            [p1[0], p1[1], p1[2]],
-            [p0[0], p1[1], p1[2]]
-        ])
-        boxelem = np.array([
-            [4, nn, nn + 3, nn + 7, nn + 4],  # x=xmin
-            [4, nn, nn + 1, nn + 5, nn + 4],  # y=ymin
-            [4, nn, nn + 1, nn + 2, nn + 3],  # z=zmin
-            [4, nn + 1, nn + 2, nn + 6, nn + 5],  # x=xmax
-            [4, nn + 2, nn + 3, nn + 7, nn + 6],  # y=ymax
-            [4, nn + 4, nn + 5, nn + 6, nn + 7]   # z=zmax
-        ])
+        boxnode = np.array(
+            [
+                p0,
+                [p1[0], p0[1], p0[2]],
+                [p1[0], p1[1], p0[2]],
+                [p0[0], p1[1], p0[2]],
+                [p0[0], p0[1], p1[2]],
+                [p1[0], p0[1], p1[2]],
+                [p1[0], p1[1], p1[2]],
+                [p0[0], p1[1], p1[2]],
+            ]
+        )
+        boxelem = np.array(
+            [
+                [4, nn, nn + 3, nn + 7, nn + 4],  # x=xmin
+                [4, nn, nn + 1, nn + 5, nn + 4],  # y=ymin
+                [4, nn, nn + 1, nn + 2, nn + 3],  # z=zmin
+                [4, nn + 1, nn + 2, nn + 6, nn + 5],  # x=xmax
+                [4, nn + 2, nn + 3, nn + 7, nn + 6],  # y=ymax
+                [4, nn + 4, nn + 5, nn + 6, nn + 7],  # z=zmax
+            ]
+        )
 
         node = np.vstack((v, boxnode)) if v.size > 0 else boxnode
 
     node = np.hstack((np.arange(node.shape[0])[:, np.newaxis], node))
 
-    with open(fname, 'wt') as fp:
-        fp.write('#node list\n{} 3 0 0\n'.format(len(node)))
-        np.savetxt(fp, node, fmt='%d %.16f %.16f %.16f')
+    with open(fname, "wt") as fp:
+        fp.write("#node list\n{} 3 0 0\n".format(len(node)))
+        np.savetxt(fp, node, fmt="%d %.16f %.16f %.16f")
 
         if not isinstance(f, list):
-            fp.write('#facet list\n{} 1\n'.format(len(f) + bbxnum + len(loopvert)))
-            elem = np.hstack((3 * np.ones((len(f), 1)), f)) if f.size > 1 else np.array([])
+            fp.write("#facet list\n{} 1\n".format(len(f) + bbxnum + len(loopvert)))
+            elem = (
+                np.hstack((3 * np.ones((len(f), 1)), f)) if f.size > 1 else np.array([])
+            )
             if elem.size > 0:
                 if faceid is not None and len(faceid) == elem.shape[0]:
                     for i in range(len(faceid)):
-                        fp.write('1 0 {} \n{} {} {} {}\n'.format(faceid[i], *elem[i]))
+                        fp.write("1 0 {} \n{} {} {} {}\n".format(faceid[i], *elem[i]))
                 else:
                     for i in range(elem.shape[0]):
-                        fp.write('1 0\n{} {} {} {}\n'.format(*elem[i]))
+                        fp.write("1 0\n{} {} {} {}\n".format(*elem[i]))
 
             if loopvert:
                 for i in range(len(loopvert)):  # walk through the edge loops
                     subloop = loopvert[i] - 1
-                    fp.write('1 0 {}\n{}'.format(i, len(subloop)))
-                    fp.write('\t{}'.format('\t'.join(map(str, subloop))))
-                    fp.write('\n')
+                    fp.write("1 0 {}\n{}".format(i, len(subloop)))
+                    fp.write("\t{}".format("\t".join(map(str, subloop))))
+                    fp.write("\n")
         else:  # if the surface is recorded as a cell array
             totalplc = 0
             for i in range(len(f)):
                 if not isinstance(f[i], list):
                     totalplc += f[i].shape[0]
                 else:
-                    totalplc += len(f[i][0])#.shape[0]
-            fp.write('#facet list\n{} 1\n'.format(totalplc + bbxnum))
+                    totalplc += len(f[i][0])  # .shape[0]
+            fp.write("#facet list\n{} 1\n".format(totalplc + bbxnum))
             for i in range(len(f)):
                 plcs = f[i]
                 faceid = -1
-                if isinstance(plcs, list):  # if each face is a cell, use plc{2} for face id
+                if isinstance(
+                    plcs, list
+                ):  # if each face is a cell, use plc{2} for face id
                     if len(plcs) > 1:
                         faceid = int(plcs[1][0])
                     plcs = plcs[0]
                 for row in range(len(plcs)):
                     plc = np.array(plcs[row])
-                    if np.any(np.isnan(plc)):  # we use nan to separate outer contours and holes
+                    if np.any(
+                        np.isnan(plc)
+                    ):  # we use nan to separate outer contours and holes
                         holeid = np.where(np.isnan(plc))[0]
                         if faceid > 0:
-                            fp.write('{} {} {}\n{}'.format(len(holeid) + 1, len(holeid), faceid, holeid[0] - 1))
+                            fp.write(
+                                "{} {} {}\n{}".format(
+                                    len(holeid) + 1, len(holeid), faceid, holeid[0] - 1
+                                )
+                            )
                         else:
-                            fp.write('{} {}\n{}'.format(len(holeid) + 1, len(holeid), holeid[0] - 1))
-                        fp.write('\t{}'.format('\t'.join(map(str, plc[:holeid[0] - 1] - 1))))
-                        fp.write('\t1\n')
+                            fp.write(
+                                "{} {}\n{}".format(
+                                    len(holeid) + 1, len(holeid), holeid[0] - 1
+                                )
+                            )
+                        fp.write(
+                            "\t{}".format("\t".join(map(str, plc[: holeid[0] - 1] - 1)))
+                        )
+                        fp.write("\t1\n")
                         for j in range(len(holeid)):
                             if j == len(holeid) - 1:
-                                fp.write('{}\t{}'.format(len(plc[holeid[j] + 1:]), '\t'.join(map(str, plc[holeid[j] + 1:] - 1))))
+                                fp.write(
+                                    "{}\t{}".format(
+                                        len(plc[holeid[j] + 1 :]),
+                                        "\t".join(map(str, plc[holeid[j] + 1 :] - 1)),
+                                    )
+                                )
                             else:
-                                fp.write('{}\t{}'.format(len(plc[holeid[j] + 1:holeid[j + 1] - 1]), '\t'.join(map(str, plc[holeid[j] + 1:holeid[j + 1] - 1] - 1))))
-                            fp.write('\t1\n')
+                                fp.write(
+                                    "{}\t{}".format(
+                                        len(plc[holeid[j] + 1 : holeid[j + 1] - 1]),
+                                        "\t".join(
+                                            map(
+                                                str,
+                                                plc[holeid[j] + 1 : holeid[j + 1] - 1]
+                                                - 1,
+                                            )
+                                        ),
+                                    )
+                                )
+                            fp.write("\t1\n")
                         for j in range(len(holeid)):
                             if j == len(holeid) - 1:
-                                fp.write('{} {:.16f} {:.16f} {:.16f}\n'.format(j, np.mean(node[plc[holeid[j] + 1:], 1:4], axis=0)))
+                                fp.write(
+                                    "{} {:.16f} {:.16f} {:.16f}\n".format(
+                                        j,
+                                        np.mean(
+                                            node[plc[holeid[j] + 1 :], 1:4], axis=0
+                                        ),
+                                    )
+                                )
                             else:
-                                fp.write('{} {:.16f} {:.16f} {:.16f}\n'.format(j, np.mean(node[plc[holeid[j] + 1:holeid[j + 1] - 1], 1:4], axis=0)))
+                                fp.write(
+                                    "{} {:.16f} {:.16f} {:.16f}\n".format(
+                                        j,
+                                        np.mean(
+                                            node[
+                                                plc[holeid[j] + 1 : holeid[j + 1] - 1],
+                                                1:4,
+                                            ],
+                                            axis=0,
+                                        ),
+                                    )
+                                )
                     else:
                         if faceid > 0:
-                            fp.write('1 0 {}\n{}'.format(faceid, len(plc)))
+                            fp.write("1 0 {}\n{}".format(faceid, len(plc)))
                         else:
-                            fp.write('1 0\n{}'.format(len(plc)))
-                        fp.write('\t{}'.format('\t'.join(map(str, plc))))
-                        fp.write('\t1\n')
+                            fp.write("1 0\n{}".format(len(plc)))
+                        fp.write("\t{}".format("\t".join(map(str, plc))))
+                        fp.write("\t1\n")
 
         if dobbx or edges:
             for i in range(bbxnum):
-                fp.write('{} {} 1\n'.format(1 + loopcount[i], loopcount[i]))
-                fp.write('{} {} {} {} {}\n'.format(*boxelem[i, :]))
+                fp.write("{} {} 1\n".format(1 + loopcount[i], loopcount[i]))
+                fp.write("{} {} {} {} {}\n".format(*boxelem[i, :]))
                 if edges and loopcount[i] and np.any(loopid == i):
                     endid = np.where(loopid == i)[0]
                     for k in endid:
                         j = endid[k]
-                        subloop = loops[seg[j] + 1:seg[j + 1] - 1]
-                        fp.write('{} '.format(len(subloop)))
-                        fp.write('{} '.format(' '.join(map(str, subloop - 1))))
-                        fp.write('\n')
+                        subloop = loops[seg[j] + 1 : seg[j + 1] - 1]
+                        fp.write("{} ".format(len(subloop)))
+                        fp.write("{} ".format(" ".join(map(str, subloop - 1))))
+                        fp.write("\n")
                     for k in endid:
                         j = endid[k]
-                        subloop = loops[seg[j] + 1:seg[j + 1] - 1]
-                        fp.write('{} {:.16f} {:.16f} {:.16f}\n'.format(k, internalpoint(v, subloop)))
+                        subloop = loops[seg[j] + 1 : seg[j + 1] - 1]
+                        fp.write(
+                            "{} {:.16f} {:.16f} {:.16f}\n".format(
+                                k, internalpoint(v, subloop)
+                            )
+                        )
 
         if all(holelist.shape):
-            fp.write('#hole list\n{}\n'.format(holelist.shape[0]))
+            fp.write("#hole list\n{}\n".format(holelist.shape[0]))
             for i in range(holelist.shape[0]):
-                fp.write('{} {:.16f} {:.16f} {:.16f}\n'.format(i + 1, *holelist[i, :]))
+                fp.write("{} {:.16f} {:.16f} {:.16f}\n".format(i + 1, *holelist[i, :]))
         else:
-            fp.write('#hole list\n0\n')
+            fp.write("#hole list\n0\n")
 
         if regionlist.shape[0]:
-            fp.write('#region list\n{}\n'.format(regionlist.shape[0]))
+            fp.write("#region list\n{}\n".format(regionlist.shape[0]))
             if regionlist.shape[1] == 3:
                 for i in range(regionlist.shape[0]):
-                    fp.write('{} {:.16f} {:.16f} {:.16f} {}\n'.format(i + 1, *regionlist[i, :], i + 1))
+                    fp.write(
+                        "{} {:.16f} {:.16f} {:.16f} {}\n".format(
+                            i + 1, *regionlist[i, :], i + 1
+                        )
+                    )
             elif regionlist.shape[1] == 4:
                 for i in range(regionlist.shape[0]):
-                    fp.write('{} {:.16f} {:.16f} {:.16f} {} {:.16f}\n'.format(i + 1, *regionlist[i, :3], i + 1, regionlist[i, 3]))
+                    fp.write(
+                        "{} {:.16f} {:.16f} {:.16f} {} {:.16f}\n".format(
+                            i + 1, *regionlist[i, :3], i + 1, regionlist[i, 3]
+                        )
+                    )
 
         if nodesize:
             if len(nodesize) + len(forcebox) == node.shape[0]:
                 nodesize = np.concatenate((nodesize, forcebox))
-            with open(fname.replace('.poly', '.mtr'), 'wt') as fid:
-                fid.write('{} 1\n'.format(len(nodesize)))
-                np.savetxt(fid, nodesize, fmt='%.16f')
+            with open(fname.replace(".poly", ".mtr"), "wt") as fid:
+                fid.write("{} 1\n".format(len(nodesize)))
+                np.savetxt(fid, nodesize, fmt="%.16f")
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def readoff(fname):
     """
@@ -762,36 +893,42 @@ def readoff(fname):
     node = []
     elem = []
 
-    with open(fname, 'rb') as fid:
-        line = fid.readline().decode('utf-8').strip()
-        dim = re.search('[0-9.]+ [0-9.]+ [0-9.]+', line)
+    with open(fname, "rb") as fid:
+        line = fid.readline().decode("utf-8").strip()
+        dim = re.search("[0-9.]+ [0-9.]+ [0-9.]+", line)
         line = nonemptyline(fid)
 
         if not dim:
-            dim = np.fromstring(re.search('[0-9.]+ [0-9.]+ [0-9.]+', line).group(), sep=' ', dtype=int)
+            dim = np.fromstring(
+                re.search("[0-9.]+ [0-9.]+ [0-9.]+", line).group(), sep=" ", dtype=int
+            )
             line = nonemptyline(fid)
         else:
-            dim = np.fromstring(dim.group(), sep=' ', dtype=int)
+            dim = np.fromstring(dim.group(), sep=" ", dtype=int)
 
         nodalcount = 3
         if line:
-            val = np.fromstring(line, sep=' ', count=-1, dtype=float)
+            val = np.fromstring(line, sep=" ", count=-1, dtype=float)
             nodalcount = len(val)
         else:
             return node, elem
 
-        node = np.fromfile(fid, dtype=float, sep =' ', count=(nodalcount * (dim[0] - 1))).reshape(-1, nodalcount)
+        node = np.fromfile(
+            fid, dtype=float, sep=" ", count=(nodalcount * (dim[0] - 1))
+        ).reshape(-1, nodalcount)
         node = np.vstack((val, node))
 
         line = nonemptyline(fid)
         facetcount = 4
         if line:
-            val = np.fromstring(line, sep=' ', count=-1, dtype=float)
+            val = np.fromstring(line, sep=" ", count=-1, dtype=float)
             facetcount = len(val)
         else:
             return node, elem
 
-        elem = np.fromfile(fid, dtype=float, sep=' ',count=(facetcount * (dim[1] - 1))).reshape(-1, facetcount)
+        elem = np.fromfile(
+            fid, dtype=float, sep=" ", count=(facetcount * (dim[1] - 1))
+        ).reshape(-1, facetcount)
         elem = np.vstack((val, elem))
 
     elem = elem[:, 1:]
@@ -805,6 +942,7 @@ def readoff(fname):
 
     return node, elem
 
+
 """
 def nonemptyline(fid):
     line = fid.readline().decode('utf-8').strip()
@@ -813,15 +951,16 @@ def nonemptyline(fid):
     return line
 """
 
-def nonemptyline(fid):
-    str_ = ''
-    if fid == 0:
-        raise ValueError('invalid file')
 
-    while (not re.search(r'\S', str_) or re.search(r'^#', str_)) and not fid.closed:
-        str_ = fid.readline().decode('utf-8').strip()
+def nonemptyline(fid):
+    str_ = ""
+    if fid == 0:
+        raise ValueError("invalid file")
+
+    while (not re.search(r"\S", str_) or re.search(r"^#", str_)) and not fid.closed:
+        str_ = fid.readline().decode("utf-8").strip()
         if not isinstance(str_, str):
-            str_ = ''
+            str_ = ""
             return str_
 
     return str_

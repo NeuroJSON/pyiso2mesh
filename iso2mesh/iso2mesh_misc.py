@@ -2,7 +2,7 @@
 Iso2Mesh for Python - Primitive shape meshing functions
 
 Copyright (c) 2024 Edward Xu <xu.ed at neu.edu>
-              2019-2024 Qianqian Fang <q.fang at neu.edu>
+              2024-2025 Qianqian Fang <q.fang at neu.edu>
 """
 
 __all__ = [
@@ -23,21 +23,23 @@ import iso2mesh as im
 ## implementations
 ##====================================================================================
 
-def getexeext():
 
-    ext = '.exe'
-    if sys.platform=='linux':
-        ext = '.mexa64'
-    elif 'win' in sys.platform:
-        ext = '.exe'
-    elif sys.platform == 'aarch64':
-        ext = '.mexmaca64'
+def getexeext():
+    ext = ".exe"
+    if sys.platform == "linux":
+        ext = ".mexa64"
+    elif "win" in sys.platform:
+        ext = ".exe"
+    elif sys.platform == "aarch64":
+        ext = ".mexmaca64"
     else:
-        print('Unable to find extension type')
+        print("Unable to find extension type")
 
     return ext
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def fallbackexeext(exesuffix, exename):
     """
@@ -51,25 +53,40 @@ def fallbackexeext(exesuffix, exename):
         exesuff: file extension for iso2mesh tool binaries
     """
     exesuff = exesuffix
-    if exesuff == '.mexa64' and not os.path.isfile(im.mcpath(exename)+exesuff):  # fall back to i386 linux
-        exesuff = '.mexglx'
-    if exesuff == '.mexmaci64' and not os.path.isfile(im.mcpath(exename)+exesuff):  # fall back to i386 mac
-        exesuff = '.mexmaci'
-    if exesuff == '.mexmaci' and not os.path.isfile(im.mcpath(exename)+exesuff):  # fall back to ppc mac
-        exesuff = '.mexmac'
-    if not os.path.isfile(im.mcpath(exename)+exesuff) and not os.path.isfile(os.path.join(im.mcpath(exename))):  # fall back to OS native package
-        exesuff = ''
+    if exesuff == ".mexa64" and not os.path.isfile(
+        im.mcpath(exename) + exesuff
+    ):  # fall back to i386 linux
+        exesuff = ".mexglx"
+    if exesuff == ".mexmaci64" and not os.path.isfile(
+        im.mcpath(exename) + exesuff
+    ):  # fall back to i386 mac
+        exesuff = ".mexmaci"
+    if exesuff == ".mexmaci" and not os.path.isfile(
+        im.mcpath(exename) + exesuff
+    ):  # fall back to ppc mac
+        exesuff = ".mexmac"
+    if not os.path.isfile(im.mcpath(exename) + exesuff) and not os.path.isfile(
+        os.path.join(im.mcpath(exename))
+    ):  # fall back to OS native package
+        exesuff = ""
 
-    if not os.path.isfile(im.mcpath(exename)+exesuff) and not os.path.isfile(im.mcpath(exename)):
-        #if subprocess.call(['which', exename]) == 0:
+    if not os.path.isfile(im.mcpath(exename) + exesuff) and not os.path.isfile(
+        im.mcpath(exename)
+    ):
+        # if subprocess.call(['which', exename]) == 0:
         #    return
-        raise FileNotFoundError(f'The following executable:\n\t{im.mcpath(exename)}{getexeext()}\n'
-                                'is missing. Please download it from '
-                                'https://github.com/fangq/iso2mesh/tree/master/bin/ '
-                                'and save it to the above path, then rerun the script.\n')
+        raise FileNotFoundError(
+            f"The following executable:\n\t{im.mcpath(exename)}{getexeext()}\n"
+            "is missing. Please download it from "
+            "https://github.com/fangq/iso2mesh/tree/master/bin/ "
+            "and save it to the above path, then rerun the script.\n"
+        )
 
     return exesuff
-#_________________________________________________________________________________________________________
+
+
+# _________________________________________________________________________________________________________
+
 
 def rotatevec3d(pt, v1, u1=None, p0=None):
     """
@@ -109,7 +126,9 @@ def rotatevec3d(pt, v1, u1=None, p0=None):
 
     return newpt
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def rotmat2vec(u, v):
     """
@@ -136,10 +155,7 @@ def rotmat2vec(u, v):
 
     # Rodrigues's formula:
     costheta = np.dot(u1, v1)
-    R = np.array([[0, -k[2], k[1]],
-                  [k[2], 0, -k[0]],
-                  [-k[1], k[0], 0]])
-    R = costheta * np.eye(3) + R + np.outer(k, k) * (1 - costheta) / np.sum(k ** 2)
+    R = np.array([[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]])
+    R = costheta * np.eye(3) + R + np.outer(k, k) * (1 - costheta) / np.sum(k**2)
 
     return R, s
-

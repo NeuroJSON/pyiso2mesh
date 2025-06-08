@@ -1,7 +1,7 @@
 """@package docstring
 Iso2Mesh for Python - Mesh data queries and manipulations
 
-Copyright (c) 2024 Qianqian Fang <q.fang at neu.edu>
+Copyright (c) 2024-2025 Qianqian Fang <q.fang at neu.edu>
 """
 
 __all__ = [
@@ -36,6 +36,8 @@ __all__ = [
     "insurface",
     "advancefront",
     "meshreorient",
+    "mesheuler",
+    "raytrace",
 ]
 
 ##====================================================================================
@@ -44,6 +46,7 @@ __all__ = [
 
 import numpy as np
 from itertools import combinations
+import iso2mesh as im
 
 ##====================================================================================
 ## implementations
@@ -87,7 +90,9 @@ def finddisconnsurf(f):
 
     return facecell
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def surfedge(f, junction=None):
     """
@@ -113,11 +118,15 @@ def surfedge(f, junction=None):
     findjunc = 0
 
     if f.shape[1] == 3:
-        edges = np.vstack((f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]))  # create all the edges
+        edges = np.vstack(
+            (f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]])
+        )  # create all the edges
     elif f.shape[1] == 4:
-        edges = np.vstack((f[:, [0, 1, 2]], f[:, [1, 0, 3]], f[:, [0, 2, 3]], f[:, [1, 3, 2]]))  # create all the edges
+        edges = np.vstack(
+            (f[:, [0, 1, 2]], f[:, [1, 0, 3]], f[:, [0, 2, 3]], f[:, [1, 3, 2]])
+        )  # create all the edges
     else:
-        raise ValueError('surfedge only supports 2D and 3D elements')
+        raise ValueError("surfedge only supports 2D and 3D elements")
 
     edgesort = np.sort(edges, axis=1)
     _, ix, jx = np.unique(edgesort, axis=0, return_index=True, return_inverse=True)
@@ -129,7 +138,7 @@ def surfedge(f, junction=None):
         qx = np.where(vec == 1)[0]
 
     openedge = edges[ix[qx], :]
-            
+
     elemid = None
     if junction is not None:
         elemid, iy = np.unravel_index(ix[qx], f.shape)
@@ -137,7 +146,8 @@ def surfedge(f, junction=None):
     return openedge, elemid
 
 
-#_________________________________________________________________________________________________________
+# _________________________________________________________________________________________________________
+
 
 def volface(t):
     """
@@ -159,7 +169,9 @@ def volface(t):
 
     return openface, elemid
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def extractloops(edges):
     """
@@ -245,7 +257,9 @@ def extractloops(edges):
 
     return loops
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def meshconn(elem, nn):
     """
@@ -272,7 +286,9 @@ def meshconn(elem, nn):
     # Loop through each element and populate the conn list
     for i in range(dim[0]):
         for j in range(dim[1]):
-            conn[elem[i, j]].extend(elem[i, :])  # Adjust for 0-based indexing in Python
+            conn[elem[i, j] - 1].extend(
+                elem[i, :]
+            )  # Adjust for 0-based indexing in Python
 
     count = 0
     connnum = np.zeros(nn, dtype=int)
@@ -290,7 +306,9 @@ def meshconn(elem, nn):
 
     return conn, connnum, count
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def meshcentroid(node, elem):
     """
@@ -306,11 +324,12 @@ def meshcentroid(node, elem):
     output:
           centroid: centroid positions, one row for each element
     """
-    centroids = np.mean(node[elem[:elem.shape[0],:],:],axis=1)
+    centroids = np.mean(node[elem[: elem.shape[0], :] - 1, :], axis=1)
 
     return centroids
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
 
 
 def nodevolume(node, elem, evol=None):
@@ -353,7 +372,9 @@ def nodevolume(node, elem, evol=None):
 
     return nodevol
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def elemvolume(node, elem, option=None):
     """
@@ -390,16 +411,18 @@ def elemvolume(node, elem, option=None):
     edge3 = v4 - v1
 
     # Compute signed volume of tetrahedron
-    vol = -np.einsum('ij,ij->i', edge1, np.cross(edge2, edge3, axis=1))
+    vol = -np.einsum("ij,ij->i", edge1, np.cross(edge2, edge3, axis=1))
 
-    if option == 'signed':
+    if option == "signed":
         vol = vol / np.prod(np.arange(1, node.shape[1] + 1))
     else:
         vol = np.abs(vol) / np.prod(np.arange(1, node.shape[1] + 1))
 
     return vol
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def neighborelem(elem, nn):
     """
@@ -435,7 +458,9 @@ def neighborelem(elem, nn):
 
     return conn, connnum, count
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def layersurf(elem, **kwargs):
     """
@@ -504,7 +529,9 @@ def layersurf(elem, **kwargs):
 
     return face, labels
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def faceneighbors(t, opt=None):
     """
@@ -525,7 +552,6 @@ def faceneighbors(t, opt=None):
              sharing triangular faces [1 2 3], [1 2 4], [1 3 4], and
              [2 3 4]. A 0 indicates no neighbor (i.e., boundary face).
     """
-    print(type(t))
     # Generate faces from tetrahedral elements
     faces = np.vstack(
         (t[:, [0, 1, 2]], t[:, [0, 1, 3]], t[:, [0, 2, 3]], t[:, [1, 2, 3]])
@@ -546,23 +572,23 @@ def faceneighbors(t, opt=None):
     ujx, ii = np.unique(jx, return_index=True)
     jx2 = jx[::-1]
     _, ii2 = np.unique(jx2, return_index=True)
-    ii2 = len(jx2)-1-ii2
+    ii2 = len(jx2) - 1 - ii2
 
     # List of element pairs that share a common face
     iddup = np.vstack((ii[qx], ii2[qx])).T
-    faceid = np.ceil((iddup+1) / ne).astype(int)
-    eid = np.mod(iddup+1, ne)
+    faceid = np.ceil((iddup + 1) / ne).astype(int)
+    eid = np.mod(iddup + 1, ne)
     eid[eid == 0] = ne
 
     # Handle special cases based on the second argument
     if opt is not None:
         for i in range(len(qx)):
-          facenb[eid[i, 0] - 1, faceid[i, 0] - 1] = eid[i, 1]
-          facenb[eid[i, 1] - 1, faceid[i, 1] - 1] = eid[i, 0]
+            facenb[eid[i, 0] - 1, faceid[i, 0] - 1] = eid[i, 1]
+            facenb[eid[i, 1] - 1, faceid[i, 1] - 1] = eid[i, 0]
         if opt == "surface":
             facenb = faces[np.where(facenb.T.flatten() == 0)[0], :]
         elif opt == "rowmajor":
-            index = np.arange(len(faces)).reshape(4,-1).T.flatten()
+            index = np.arange(len(faces)).reshape(4, -1).T.flatten()
             print(index)
             faces = faces[index, :]
             facenb = faces[np.where(facenb.flatten() == 0)[0], :]
@@ -570,12 +596,14 @@ def faceneighbors(t, opt=None):
             raise ValueError(f'Unsupported option "{opt}".')
     else:
         for i in range(len(qx)):
-            facenb[eid[i, 0] - 1, faceid[i, 0] - 1] = eid[i, 1] - 1
-            facenb[eid[i, 1] - 1, faceid[i, 1] - 1] = eid[i, 0] - 1
+            facenb[eid[i, 0] - 1, faceid[i, 0] - 1] = eid[i, 1]
+            facenb[eid[i, 1] - 1, faceid[i, 1] - 1] = eid[i, 0]
 
     return facenb
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def edgeneighbors(t, opt=None):
     """
@@ -605,12 +633,24 @@ def edgeneighbors(t, opt=None):
 
     ne = t.shape[0]  # Number of triangles
     if opt == "general":
-        edgenb = [np.unique(np.mod(np.where((jx == jx[i]) | (jx == jx[i + ne]) | (jx == jx[i + 2 * ne]))[0], ne)) for i in range(ne)]
+        edgenb = [
+            np.unique(
+                np.mod(
+                    np.where(
+                        (jx == jx[i]) | (jx == jx[i + ne]) | (jx == jx[i + 2 * ne])
+                    )[0],
+                    ne,
+                )
+            )
+            for i in range(ne)
+        ]
         return [np.setdiff1d(nb, [i]) for i, nb in enumerate(edgenb)]
 
     # Determine boundary neighbors
     vec = np.bincount(jx)
-    qx = np.where(vec == 2)[0]  # Get indices where edges are shared by exactly 2 triangles
+    qx = np.where(vec == 2)[
+        0
+    ]  # Get indices where edges are shared by exactly 2 triangles
 
     edgenb = np.zeros_like(t)
 
@@ -627,13 +667,15 @@ def edgeneighbors(t, opt=None):
 
     # Assign neighboring elements
     for i in range(len(qx)):
-        edgenb[eid[i, 0] - 1, faceid[i, 0] - 1] = eid[i, 1] - 1
-        edgenb[eid[i, 1] - 1, faceid[i, 1] - 1] = eid[i, 0] - 1
+        edgenb[eid[i, 0] - 1, faceid[i, 0] - 1] = eid[i, 1]
+        edgenb[eid[i, 1] - 1, faceid[i, 1] - 1] = eid[i, 0]
 
     # Handle boundary edges (where no neighbor exists)
     return edgenb
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def maxsurf(facecell, node=None):
     """
@@ -853,7 +895,9 @@ def bbxflatsegment(node, edge):
 
     return mask
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def surfplane(node, face):
     """
@@ -874,21 +918,95 @@ def surfplane(node, face):
     """
 
     # Compute vectors AB and AC from the triangle vertices
-    AB = node[face[:, 1], :3] - node[face[:, 0], :3]
-    AC = node[face[:, 2], :3] - node[face[:, 0], :3]
+    AB = node[face[:, 1] - 1, :3] - node[face[:, 0] - 1, :3]
+    AC = node[face[:, 2] - 1, :3] - node[face[:, 0] - 1, :3]
 
     # Compute normal vectors to the triangles using cross product
     N = np.cross(AB, AC)
 
     # Compute the plane's d coefficient by taking the dot product of normal vectors with vertex positions
-    d = -np.dot(N, node[face[:, 0], :3].T)
+    d = -np.sum(N * node[face[:, 0] - 1, :3], axis=1)
 
     # Return the plane coefficients [a, b, c, d]
     plane = np.column_stack((N, d))
 
     return plane
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
+
+def raytrace(p0, v0, node, face):
+    """
+    t, u, v, idx = raytrace(p0, v0, node, face)
+
+    Perform Havel-style ray tracing for a triangular surface.
+
+    Parameters:
+        p0: (3,) array, starting point of the ray
+        v0: (3,) array, direction vector of the ray
+        node: (nn, 3) array of node coordinates
+        face: (ne, 3) array of triangle indices (1-based)
+
+    Returns:
+        t: signed distance to intersection (Inf if ray is parallel)
+        u: barycentric coordinate 1
+        v: barycentric coordinate 2
+        idx: indices of intersected triangles (optional)
+    """
+
+    # Reshape p0 and v0 to row vectors
+    p0 = np.asarray(p0).reshape(1, 3)
+    v0 = np.asarray(v0).reshape(1, 3)
+
+    # Convert 1-based indices in face to 0-based
+    A = node[face[:, 0] - 1, :]
+    B = node[face[:, 1] - 1, :]
+    C = node[face[:, 2] - 1, :]
+
+    AB = B - A
+    AC = C - A
+
+    # Normal vectors of triangles
+    N = np.cross(AB, AC)
+    d = -np.einsum("ij,ij->i", N, A)
+
+    Rn2 = 1.0 / np.einsum("ij,ij->i", N, N)
+
+    N1 = np.cross(AC, N) * Rn2[:, np.newaxis]
+    d1 = -np.einsum("ij,ij->i", N1, A)
+
+    N2 = np.cross(N, AB) * Rn2[:, np.newaxis]
+    d2 = -np.einsum("ij,ij->i", N2, A)
+
+    den = np.dot(N, v0.T).flatten()
+    t = -(d + np.dot(N, p0.T).flatten())
+    P = p0 + t[:, np.newaxis] * v0
+
+    u = np.einsum("ij,ij->i", P, N1) + den * d1
+    v = np.einsum("ij,ij->i", P, N2) + den * d2
+
+    idx = den != 0
+    den_inv = np.zeros_like(den)
+    den_inv[idx] = 1.0 / den[idx]
+
+    t = t * den_inv
+    u = u * den_inv
+    v = v * den_inv
+
+    # For parallel rays, set t to Inf
+    t[~idx] = np.inf
+
+    # Compute intersection index if requested
+    idx_out = None
+    if u.shape[0] > 0 and v.shape[0] > 0 and t.shape[0] > 0:
+        idx_out = np.where((u >= 0) & (v >= 0) & (u + v <= 1.0) & (~np.isinf(t)))[0]
+
+    return t, u, v, idx_out
+
+
+# _________________________________________________________________________________________________________
+
 
 def surfinterior(node, face):
     """
@@ -917,17 +1035,22 @@ def surfinterior(node, face):
 
     for i in range(len_faces):
         p0 = np.mean(
-            node[face[i, :3], :], axis=0
+            node[face[i, :3] - 1, :], axis=0
         )  # Calculate the centroid of the triangle
-        plane = surfplane(node, face[i, :])  # Plane equation for the current triangle
-        v0 = plane[:3]  # Use the plane normal vector as the direction of the ray
-        t, u, v = raytrace(p0, v0, node, face[:, :3])  # Perform ray-tracing
+        plane = surfplane(
+            node, face[i, :].reshape(1, -1)
+        )  # Plane equation for the current triangle
+        v0 = plane[0][:3]  # Use the plane normal vector as the direction of the ray
+        t, u, v, _ = raytrace(p0, v0, node, face[:, :3])  # Perform ray-tracing
+        print(p0)
+        print(v0)
         idx = np.where((u >= 0) & (v >= 0) & (u + v <= 1.0) & (~np.isinf(t)))[
             0
         ]  # Filter valid intersections
 
         # Sort and ensure ray intersections are valid
         ts, uidx = np.unique(np.sort(t[idx]), return_index=True)
+        print(idx)
         if len(ts) > 0 and len(ts) % 2 == 0:
             ts = ts.reshape((2, len(ts) // 2))
             tdiff = ts[1, :] - ts[0, :]
@@ -1054,9 +1177,9 @@ def meshquality(node, elem, maxnode=4):
 
     # Compute edge lengths
     edges = meshedge(elem)
-    ed = node[edges[:, 0], :] - node[edges[:, 1], :]
+    ed = node[edges[:, 0] - 1, :] - node[edges[:, 1] - 1, :]
     ed = np.sum(ed**2, axis=1)
-    ed = np.sum(ed.reshape((enum, len(ed) // enum)), axis=1)
+    ed = np.sum(ed.reshape((enum, ed.size // enum), order="F"), axis=1)
 
     dim = elem.shape[1] - 1
     coeff = 10 / 9  # for tetrahedral elements
@@ -1081,7 +1204,9 @@ def meshquality(node, elem, maxnode=4):
 
     return quality
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def meshedge(elem, opt=None):
     """
@@ -1113,11 +1238,14 @@ def meshedge(elem, opt=None):
 
     # Populate edges by looping through each element
     for i in range(len_edges):
-        edges[i * dim[0]:(i + 1) * dim[0], :] = np.column_stack((elem[:, edgeid[i, 0]], elem[:, edgeid[i, 1]]))
+        edges[i * dim[0] : (i + 1) * dim[0], :] = np.column_stack(
+            (elem[:, edgeid[i, 0]], elem[:, edgeid[i, 1]])
+        )
 
     return edges
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
 
 
 def meshface(elem, opt=None):
@@ -1149,11 +1277,15 @@ def meshface(elem, opt=None):
 
     # Populate faces by looping through each element
     for i in range(len_faces):
-        faces[i * dim[0]:(i + 1) * dim[0], :] = np.array([elem[:, faceid[i, 0]], elem[:, faceid[i, 1]], elem[:, faceid[i, 2]]]).T
+        faces[i * dim[0] : (i + 1) * dim[0], :] = np.array(
+            [elem[:, faceid[i, 0]], elem[:, faceid[i, 1]], elem[:, faceid[i, 2]]]
+        ).T
 
     return faces
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def surfacenorm(node, face, normalize=True):
     """
@@ -1180,11 +1312,13 @@ def surfacenorm(node, face, normalize=True):
 
     # Normalize the normal vectors if requested
     if normalize:
-        snorm = snorm / np.sqrt(np.sum(snorm ** 2, axis=1, keepdims=True))
+        snorm = snorm / np.sqrt(np.sum(snorm**2, axis=1, keepdims=True))
 
     return snorm
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def nodesurfnorm(node, elem):
     """
@@ -1217,7 +1351,7 @@ def nodesurfnorm(node, elem):
 
     # Sum element normals for each node
     for i in range(ne):
-        nv[elem[i, :], :] += ev[i, :]
+        nv[elem[i, :] - 1, :] += ev[i, :]
 
     # Normalize nodal normals
     nvnorm = np.linalg.norm(nv, axis=1)
@@ -1231,7 +1365,9 @@ def nodesurfnorm(node, elem):
 
     return nv
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def uniqedges(elem):
     """
@@ -1262,17 +1398,24 @@ def uniqedges(elem):
         raise ValueError("Invalid input: element size not supported.")
 
     # Find unique edges and indices
-    uedges, idx, jdx = np.unique(np.sort(edges, axis=1), axis=0, return_index=True, return_inverse=True)
+    uedges, idx, jdx = np.unique(
+        np.sort(edges, axis=1), axis=0, return_index=True, return_inverse=True
+    )
     edges = edges[idx, :]
 
     # Compute edgemap if requested
     edgemap = None
-    edgemap = np.reshape(jdx, (elem.shape[0], np.array(list(combinations(range(elem.shape[1]), 2))).shape[0]))
+    edgemap = np.reshape(
+        jdx,
+        (elem.shape[0], np.array(list(combinations(range(elem.shape[1]), 2))).shape[0]),
+    )
     edgemap = edgemap.T
 
     return edges, idx, edgemap
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def uniqfaces(elem):
     """
@@ -1303,11 +1446,17 @@ def uniqfaces(elem):
         raise ValueError("Invalid input: element size not supported.")
 
     # Find unique faces and their indices
-    ufaces, idx, jdx = np.unique(np.sort(faces, axis=1), axis=0, return_index=True, return_inverse=True)
+    ufaces, idx, jdx = np.unique(
+        np.sort(faces, axis=1), axis=0, return_index=True, return_inverse=True
+    )
     faces = faces[idx, :]
 
     # Compute facemap if requested
-    facemap = np.reshape(jdx, (elem.shape[0], np.array(list(combinations(range(elem.shape[1]), 3))).shape[0]),order='F')
+    facemap = np.reshape(
+        jdx,
+        (elem.shape[0], np.array(list(combinations(range(elem.shape[1]), 3))).shape[0]),
+        order="F",
+    )
 
     return faces, idx, facemap
 
@@ -1370,7 +1519,7 @@ def outersurf(node, face):
     """
 
     face = face[:, :3]  # Limit face to first 3 columns
-    ed = surfedge(face)  # Find surface edges
+    ed = surfedge(face)[0]  # Find surface edges
 
     # If surface is open, raise an error
     if ed.size != 0:
@@ -1379,7 +1528,7 @@ def outersurf(node, face):
         )
 
     # Fill the surface and extract the volume's outer surface
-    no, el = fillsurf(node, face)
+    no, el = im.fillsurf(node, face)
     outface = volface(el)
 
     # Remove isolated nodes
@@ -1422,7 +1571,7 @@ def surfvolume(node, face, option=None):
         )
 
     # Fill the surface and calculate the volume of enclosed elements
-    no, el = fillsurf(node, face)
+    no, el = im.fillsurf(node, face)
     vol = elemvolume(no, el)
 
     # Sum the volume of all elements
@@ -1448,7 +1597,7 @@ def insurface(node, face, points):
     from scipy.spatial import Delaunay
 
     # Fill the surface and get nodes and elements
-    no, el = fillsurf(node, face)
+    no, el = im.fillsurf(node, face)
 
     # Check if points are inside the surface using Delaunay triangulation
     tri = Delaunay(no)
@@ -1543,7 +1692,8 @@ def setdiff(A, B):
     return A[~np.in1d(A_view, B_view)]
 
 
-#_________________________________________________________________________________________________________
+# _________________________________________________________________________________________________________
+
 
 def meshreorient(node, elem):
     """
@@ -1560,7 +1710,7 @@ def meshreorient(node, elem):
         idx: indices of the elements that had negative volume
     """
     # Calculate the canonical volume of the element (can be a 2D or 3D)
-    evol = elemvolume(node, elem, 'signed')
+    evol = elemvolume(node, elem, "signed")
 
     # Make sure all elements are positive in volume
     idx = np.where(evol < 0)[0]
@@ -1571,4 +1721,5 @@ def meshreorient(node, elem):
 
     return newelem, evol, idx
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________

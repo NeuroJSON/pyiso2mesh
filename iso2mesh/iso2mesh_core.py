@@ -1,11 +1,14 @@
 """@package docstring
 Iso2Mesh for Python - Mesh data queries and manipulations
 
-Copyright (c) 2024 Qianqian Fang <q.fang at neu.edu>
+Copyright (c) 2024-2025 Qianqian Fang <q.fang at neu.edu>
 """
 __all__ = [
+    "s2m",
     "surf2mesh",
     "sms",
+    "smoothsurf",
+    "fillsurf",
     "vol2restrictedtri",
     "removeisolatednode",
 ]
@@ -398,10 +401,23 @@ def vol2surf(img, ix, iy, iz, opt, dofix=0, method="cgalsurf", isovalues=None):
 
     return no, el, regions, holes
 
-#_________________________________________________________________________________________________________
 
-def surf2mesh(v,f,p0,p1,keepratio,maxvol,regions=None,holes=None,dobbx=0,method="tetgen",cmdopt=None):
+# _________________________________________________________________________________________________________
 
+
+def surf2mesh(
+    v,
+    f,
+    p0,
+    p1,
+    keepratio,
+    maxvol,
+    regions=None,
+    holes=None,
+    dobbx=0,
+    method="tetgen",
+    cmdopt=None,
+):
     """
     Create a quality volumetric mesh from isosurface patches.
 
@@ -441,26 +457,30 @@ def surf2mesh(v,f,p0,p1,keepratio,maxvol,regions=None,holes=None,dobbx=0,method=
 
     # Handle regions and holes arguments
     if regions is None:
-        regions = np.array([]) #[]
+        regions = np.array([])  # []
     if holes is None:
         holes = np.array([])
 
     # Warn if both maxvol and region-based volume constraints are specified
     if len(regions) > 1 and regions.shape[1] >= 4 and maxvol is not None:
-        print("Warning: Both maxvol and region-based volume constraints are specified. maxvol will be ignored.")
+        print(
+            "Warning: Both maxvol and region-based volume constraints are specified. maxvol will be ignored."
+        )
         maxvol = None
 
     # Dump surface mesh to .poly file format
     if not isinstance(el, list) and no.size and el.size:
         im.saveoff(no[:, :3], el[:, :3], "post_vmesh.off")
-    im.deletemeshfile(im.mwpath('post_vmesh.mtr'))
-    im.savesurfpoly(no, el, holes, regions, p0, p1, im.mwpath("post_vmesh.poly"),forcebox=dobbx)
+    im.deletemeshfile(im.mwpath("post_vmesh.mtr"))
+    im.savesurfpoly(
+        no, el, holes, regions, p0, p1, im.mwpath("post_vmesh.poly"), forcebox=dobbx
+    )
 
-    moreopt = ''
+    moreopt = ""
     if len(no.shape) > 1 and no.shape[1] == 4:
-        moreopt = moreopt + ' -m '
+        moreopt = moreopt + " -m "
     # Generate volumetric mesh from surface mesh
-    im.deletemeshfile(im.mwpath('post_vmesh.1.*'))
+    im.deletemeshfile(im.mwpath("post_vmesh.1.*"))
     print("Creating volumetric mesh from surface mesh...")
 
     if cmdopt is None:
@@ -470,9 +490,21 @@ def surf2mesh(v,f,p0,p1,keepratio,maxvol,regions=None,holes=None,dobbx=0,method=
             cmdopt = ""
 
     if not cmdopt:
-        status, cmdout = subprocess.getstatusoutput('"' + im.mcpath(method,exesuff) + '"'+ ' -A -q1.414a' + str(maxvol) + ' '+ moreopt + ' ' + im.mwpath('post_vmesh.poly'))
+        status, cmdout = subprocess.getstatusoutput(
+            '"'
+            + im.mcpath(method, exesuff)
+            + '"'
+            + " -A -q1.414a"
+            + str(maxvol)
+            + " "
+            + moreopt
+            + " "
+            + im.mwpath("post_vmesh.poly")
+        )
     else:
-        status, cmdout = subprocess.getstatusoutput(f"{method} {cmdopt} post_vmesh.poly")
+        status, cmdout = subprocess.getstatusoutput(
+            f"{method} {cmdopt} post_vmesh.poly"
+        )
 
     if status != 0:
         raise RuntimeError(f"Tetgen command failed:\n{cmdout}")
@@ -483,7 +515,9 @@ def surf2mesh(v,f,p0,p1,keepratio,maxvol,regions=None,holes=None,dobbx=0,method=
     print("Volume mesh generation complete")
     return node, elem + 1, face + 1
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def smoothsurf(
     node, mask, conn0, iter, useralpha=0.5, usermethod="laplacian", userbeta=0.5
@@ -508,7 +542,7 @@ def smoothsurf(
     p = np.copy(node)
     conn = [None] * len(conn0)
     for i in range(len(conn0)):
-       conn[i] = [x - 1 for x in conn0[i]]
+        conn[i] = [x - 1 for x in conn0[i]]
 
     # If mask is empty, all nodes are considered movable
     if mask is None:
@@ -526,7 +560,9 @@ def smoothsurf(
     ialpha = 1 - alpha
 
     # Remove nodes without neighbors
-    idx = np.array([i for i in idx if (hasattr(conn[i], '__iter__') and len(conn[i]) > 0)])
+    idx = np.array(
+        [i for i in idx if (hasattr(conn[i], "__iter__") and len(conn[i]) > 0)]
+    )
     nn = len(idx)
 
     if method == "laplacian":
@@ -777,7 +813,7 @@ def binsurface(img, nface=3):
 
     # Compress node indices
     nodemap = np.zeros(np.max(elem) + 1, dtype=int)
-    nodemap[elem.ravel(order='F')] = 1
+    nodemap[elem.ravel(order="F")] = 1
     id = np.nonzero(nodemap)[0]
     nodemap = np.zeros_like(nodemap)
     nodemap[id] = np.arange(1, len(id) + 1)
@@ -1074,8 +1110,6 @@ def meshcheckrepair(node, elem, opt=None, *args):
         if l2 != l1:
             print(f"{l1 - l2} duplicated elements were removed")
 
-
-
     if opt in (None, "isolated"):
         l1 = len(node)
         node, elem, _ = removeisolatednode(node, elem)
@@ -1095,7 +1129,7 @@ def meshcheckrepair(node, elem, opt=None, *args):
         print(exesuff)
         im.deletemeshfile(im.mwpath("post_sclean.off"))
         im.saveoff(node[:, :3], elem[:, :3], im.mwpath("pre_sclean.off"))
-        if '.exe' not in exesuff:
+        if ".exe" not in exesuff:
             status, output = subprocess.getstatusoutput(
                 f'"{im.mcpath("jmeshlib")}{exesuff}" "{im.mwpath("pre_sclean.off")}" "{im.mwpath("post_sclean.off")}"'
             )
@@ -1224,7 +1258,7 @@ def removeisolatednode(node, elem, face=None):
     oid = np.arange(node.shape[0])  # Old node indices
 
     if not isinstance(elem, list):
-        idx = np.setdiff1d(oid, elem.ravel(order='F'))  # Indices of isolated nodes
+        idx = np.setdiff1d(oid, elem.ravel(order="F"))  # Indices of isolated nodes
     else:
         el = np.concatenate(elem)
         idx = np.setdiff1d(oid, el)

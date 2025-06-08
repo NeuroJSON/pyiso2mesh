@@ -1,7 +1,7 @@
 """@package docstring
 Iso2Mesh for Python - Surface mesh processing
 
-Copyright (c) 2024 Qianqian Fang <q.fang at neu.edu>
+Copyright (c) 2024-2025 Qianqian Fang <q.fang at neu.edu>
 """
 
 __all__ = ["sms"]

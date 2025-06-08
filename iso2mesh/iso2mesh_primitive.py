@@ -2,7 +2,7 @@
 Iso2Mesh for Python - Primitive shape meshing functions
 
 Copyright (c) 2024 Edward Xu <xu.ed at neu.edu>
-              2019-2024 Qianqian Fang <q.fang at neu.edu>
+              2024-2025 Qianqian Fang <q.fang at neu.edu>
 """
 
 __all__ = [
@@ -226,9 +226,7 @@ def plotsurf(node, face, *args):
                 if subface.shape[0] > 1 and subface.ndim == 2:
                     subface = subface.T
                 h.append(
-                    plt.Patch(
-                        vertices=node, faces=subface, facecolor=sc[i, :], *args
-                    )
+                    plt.Patch(vertices=node, faces=subface, facecolor=sc[i, :], *args)
                 )
             except:
                 for j in range(len(newsurf[i])):
@@ -271,6 +269,7 @@ def plotsurf(node, face, *args):
     if h and len(args) >= 1:
         return h
 
+
 # _________________________________________________________________________________________________________
 
 
@@ -296,7 +295,8 @@ def plotasurf(node, face, *args):
         return h
 
 
-#from matplotlib import cm
+# from matplotlib import cm
+
 
 def plottetra(node, elem, *args, **kwargs):
     """
@@ -317,7 +317,7 @@ def plottetra(node, elem, *args, **kwargs):
     rngstate = np.random.get_state()
 
     # Set deterministic seed for consistent coloring
-    randseed = int('623F9A9E', 16)  # "U+623F U+9A9E"
+    randseed = int("623F9A9E", 16)  # "U+623F U+9A9E"
 
     if "ISO2MESH_RANDSEED" in globals():
         randseed = globals()["ISO2MESH_RANDSEED"]
@@ -333,16 +333,21 @@ def plottetra(node, elem, *args, **kwargs):
             plt.figure()
             for t in types:
                 idx = np.where(tag == t)[0]
-                face = volface(elem[idx, :4])[0]  # Pass only first 4 columns (1-based in MATLAB)
+                face = volface(elem[idx, :4])[
+                    0
+                ]  # Pass only first 4 columns (1-based in MATLAB)
 
                 if node.shape[1] == 3:
-                    h.append(plotsurf(node, face, facecolor=np.random.rand(3), *args, **kwargs))
+                    h.append(
+                        plotsurf(
+                            node, face, facecolor=np.random.rand(3), *args, **kwargs
+                        )
+                    )
                 else:
                     h.append(plotsurf(node, face, *args, **kwargs))
         else:
             face = volface(elem[:, :4])[0]
             h.append(plotsurf(node, face, *args, **kwargs))
-
 
     # Restore RNG state
     np.random.set_state(rngstate)
@@ -350,6 +355,8 @@ def plottetra(node, elem, *args, **kwargs):
     # Return handle if needed
     if h:
         return h
+
+
 # _________________________________________________________________________________________________________
 
 
@@ -424,7 +431,7 @@ def plotmesh(node, *args):
 
     # Plot tetrahedral mesh
     if elem is not None:
-        ax = plottetra(node, elem, opt);
+        ax = plottetra(node, elem, opt)
         handles.append(ax)
 
     plt.show(block=False)
@@ -545,7 +552,8 @@ def jsonopt(key, default, *args):
     return val
 
 
-#_________________________________________________________________________________________________________
+# _________________________________________________________________________________________________________
+
 
 def meshabox(p0, p1, opt, nodesize=1):
     """
@@ -567,20 +575,31 @@ def meshabox(p0, p1, opt, nodesize=1):
         nodesize = 1
 
     # Call to surf2mesh function to generate the surface mesh and volume elements
-    node, elem, ff = im.surf2mesh(np.array([]), np.array([]), p0, p1, 1, opt, regions=None, holes=None, dobbx=nodesize)
+    node, elem, ff = im.surf2mesh(
+        np.array([]),
+        np.array([]),
+        p0,
+        p1,
+        1,
+        opt,
+        regions=None,
+        holes=None,
+        dobbx=nodesize,
+    )
 
     # Reorient the mesh elements
-    elem,_,_ = im.meshreorient(node, elem[:, :4])
+    elem, _, _ = im.meshreorient(node, elem[:, :4])
 
     # Extract the surface faces from the volume elements
     face = volface(elem)[0]
 
     return node, face, elem
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def meshunitsphere(tsize, **kwargs):
-
     dim = 60
     esize = tsize * dim
     thresh = dim / 2 - 1
@@ -594,7 +613,9 @@ def meshunitsphere(tsize, **kwargs):
     dist[dist < 0] = 0
 
     # Call a vol2restrictedtri equivalent in Python here (needs a custom function)
-    node, face = im.vol2restrictedtri(dist, 1, (dim, dim, dim), dim**3, 30, esize, esize, 40000)
+    node, face = im.vol2restrictedtri(
+        dist, 1, (dim, dim, dim), dim**3, 30, esize, esize, 40000
+    )
 
     node = (node - 0.5) * 0.5
     node, face, _ = im.removeisolatednode(node, face)
@@ -602,17 +623,21 @@ def meshunitsphere(tsize, **kwargs):
     r0 = np.sqrt(np.sum(node**2, axis=1))
     node = node / r0[:, None]
 
-#    if not 'maxvol' in kwargs:
-#        maxvol = tsize**3
+    #    if not 'maxvol' in kwargs:
+    #        maxvol = tsize**3
 
-    maxvol = kwargs['maxvol'] if 'maxvol' in kwargs else tsize**3
+    maxvol = kwargs["maxvol"] if "maxvol" in kwargs else tsize**3
 
     # Call a surf2mesh equivalent in Python here (needs a custom function)
-    node, elem, face = im.surf2mesh(node, face, np.array([-1, -1, -1]) * 1.1, np.array([1, 1, 1]) * 1.1, 1, maxvol)
+    node, elem, face = im.surf2mesh(
+        node, face, np.array([-1, -1, -1]) * 1.1, np.array([1, 1, 1]) * 1.1, 1, maxvol
+    )
 
     return node, face, elem
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def meshasphere(c0, r, tsize, maxvol=None):
     if maxvol is None:
@@ -625,15 +650,16 @@ def meshasphere(c0, r, tsize, maxvol=None):
 
     node = node * r + np.tile(np.array(c0).reshape(1, -1), (node.shape[0], 1))
 
-    return node, face, elem #if maxvol is not None else (node, face)
+    return node, face, elem  # if maxvol is not None else (node, face)
 
-#_________________________________________________________________________________________________________
 
-def meshacylinder(c0, c1, r, **kwargs):#tsize=0, maxvol=0, ndiv=20):
+# _________________________________________________________________________________________________________
 
-    tsize = kwargs['tsize'] if 'tsize' in kwargs else 0
-    maxvol = kwargs['maxvol'] if 'maxvol' in kwargs else 0
-    ndiv = kwargs['ndiv'] if 'ndiv' in kwargs else 20
+
+def meshacylinder(c0, c1, r, **kwargs):  # tsize=0, maxvol=0, ndiv=20):
+    tsize = kwargs["tsize"] if "tsize" in kwargs else 0
+    maxvol = kwargs["maxvol"] if "maxvol" in kwargs else 0
+    ndiv = kwargs["ndiv"] if "ndiv" in kwargs else 20
 
     if len(np.array([r])) == 1:
         r = np.array([r, r])
@@ -647,7 +673,7 @@ def meshacylinder(c0, c1, r, **kwargs):#tsize=0, maxvol=0, ndiv=20):
     len_axis = np.linalg.norm(v0)
 
     if tsize == 0:
-        tsize = min(np.append(r,len_axis)) / 10
+        tsize = min(np.append(r, len_axis)) / 10
 
     if maxvol == 0:
         maxvol = tsize**3 / 5
@@ -657,97 +683,170 @@ def meshacylinder(c0, c1, r, **kwargs):#tsize=0, maxvol=0, ndiv=20):
     cx = np.outer(np.array(r), np.cos(theta))
     cy = np.outer(np.array(r), np.sin(theta))
 
-    p0 = np.column_stack((cx[0,:], cy[0,:], np.zeros(ndiv)))
-    p1 = np.column_stack((cx[1,:], cy[1,:], len_axis * np.ones(ndiv)))
+    p0 = np.column_stack((cx[0, :], cy[0, :], np.zeros(ndiv)))
+    p1 = np.column_stack((cx[1, :], cy[1, :], len_axis * np.ones(ndiv)))
 
     pp = np.vstack((p0, p1))
     no = im.rotatevec3d(pp, v0.T) + np.tile(c0.T, (pp.shape[0], 1))
 
-    #face = np.empty((0,4))
+    # face = np.empty((0,4))
     face = []
     for i in range(ndiv - 1):
-        #face = np.vstack((face, np.array([i, i + ndiv, i + ndiv + 1, i + 1])))
+        # face = np.vstack((face, np.array([i, i + ndiv, i + ndiv + 1, i + 1])))
         face.append([[[i, i + ndiv, i + ndiv + 1, i + 1]], [1]])
 
     face.append([[[ndiv - 1, 2 * ndiv - 1, ndiv, 0]], [1]])
-    face.append([[list(range(ndiv))],[2]])
+    face.append([[list(range(ndiv))], [2]])
     face.append([[list(range(ndiv, 2 * ndiv))], [3]])
 
     if tsize == 0 and maxvol == 0:
         return no, face
 
-    if not 'tsize' in kwargs:
-        tsize = len_axis/10
+    if not "tsize" in kwargs:
+        tsize = len_axis / 10
 
-    if not 'maxvol' in kwargs:
+    if not "maxvol" in kwargs:
         maxvol = tsize**3
 
-    node, elem, *_ = im.surf2mesh(no, face, np.min(no, axis=0), np.max(no, axis=0), 1, maxvol,regions=np.array([[0,0,1]]),holes=np.array([]))
-    face, *_ = volface(elem[:,0:4])
+    node, elem, *_ = im.surf2mesh(
+        no,
+        face,
+        np.min(no, axis=0),
+        np.max(no, axis=0),
+        1,
+        maxvol,
+        regions=np.array([[0, 0, 1]]),
+        holes=np.array([]),
+    )
+    face, *_ = volface(elem[:, 0:4])
 
     return node, face, elem
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def meshgrid5(*args):
     args = list(args)
 
     n = len(args)
     if n != 3:
-      raise ValueError('only works for 3D case!')
+        raise ValueError("only works for 3D case!")
 
     for i in range(n):
-      v = args[i]
-      if len(v) % 2 == 0:
-        args[i] = np.linspace(v[0], v[-1], len(v) + 1)
+        v = args[i]
+        if len(v) % 2 == 0:
+            args[i] = np.linspace(v[0], v[-1], len(v) + 1)
 
     # create a single n-d hypercube
-    cube8 = np.array([
-        [1, 4, 5, 13], [1, 2, 5, 11], [1, 10, 11, 13], [11, 13, 14, 5],
-        [11, 13, 1, 5], [2, 3, 5, 11], [3, 5, 6, 15], [15, 11, 12, 3],
-        [15, 11, 14, 5], [11, 15, 3, 5], [4, 5, 7, 13], [5, 7, 8, 17],
-        [16, 17, 13, 7], [13, 17, 14, 5], [5, 7, 17, 13], [5, 6, 9, 15],
-        [5, 8, 9, 17], [17, 18, 15, 9], [17, 15, 14, 5], [17, 15, 5, 9],
-        [10, 13, 11, 19], [13, 11, 14, 23], [22, 19, 23, 13], [19, 23, 20, 11],
-        [13, 11, 19, 23], [11, 12, 15, 21], [11, 15, 14, 23], [23, 21, 20, 11],
-        [23, 24, 21, 15], [23, 21, 11, 15], [16, 13, 17, 25], [13, 17, 14, 23],
-        [25, 26, 23, 17], [25, 22, 23, 13], [13, 17, 25, 23], [17, 18, 15, 27],
-        [17, 15, 14, 23], [26, 27, 23, 17], [27, 23, 24, 15], [23, 27, 17, 15]]).T
+    cube8 = np.array(
+        [
+            [1, 4, 5, 13],
+            [1, 2, 5, 11],
+            [1, 10, 11, 13],
+            [11, 13, 14, 5],
+            [11, 13, 1, 5],
+            [2, 3, 5, 11],
+            [3, 5, 6, 15],
+            [15, 11, 12, 3],
+            [15, 11, 14, 5],
+            [11, 15, 3, 5],
+            [4, 5, 7, 13],
+            [5, 7, 8, 17],
+            [16, 17, 13, 7],
+            [13, 17, 14, 5],
+            [5, 7, 17, 13],
+            [5, 6, 9, 15],
+            [5, 8, 9, 17],
+            [17, 18, 15, 9],
+            [17, 15, 14, 5],
+            [17, 15, 5, 9],
+            [10, 13, 11, 19],
+            [13, 11, 14, 23],
+            [22, 19, 23, 13],
+            [19, 23, 20, 11],
+            [13, 11, 19, 23],
+            [11, 12, 15, 21],
+            [11, 15, 14, 23],
+            [23, 21, 20, 11],
+            [23, 24, 21, 15],
+            [23, 21, 11, 15],
+            [16, 13, 17, 25],
+            [13, 17, 14, 23],
+            [25, 26, 23, 17],
+            [25, 22, 23, 13],
+            [13, 17, 25, 23],
+            [17, 18, 15, 27],
+            [17, 15, 14, 23],
+            [26, 27, 23, 17],
+            [27, 23, 24, 15],
+            [23, 27, 17, 15],
+        ]
+    ).T
 
     # build the complete lattice
     nodecount = [len(arg) for arg in args]
 
     if any(count < 2 for count in nodecount):
-      raise ValueError('Each dimension must be of size 2 or more.')
+        raise ValueError("Each dimension must be of size 2 or more.")
 
     node = lattice(*args)
 
-    ix, iy, iz = np.meshgrid(np.arange(1, nodecount[0] - 1, 2),
-                              np.arange(1, nodecount[1] - 1, 2),
-                              np.arange(1, nodecount[2] - 1, 2), indexing='ij')
-    ind = np.ravel_multi_index((ix.flatten()-1, iy.flatten()-1, iz.flatten()-1), nodecount)
+    ix, iy, iz = np.meshgrid(
+        np.arange(1, nodecount[0] - 1, 2),
+        np.arange(1, nodecount[1] - 1, 2),
+        np.arange(1, nodecount[2] - 1, 2),
+        indexing="ij",
+    )
+    ind = np.ravel_multi_index(
+        (ix.flatten() - 1, iy.flatten() - 1, iz.flatten() - 1), nodecount
+    )
 
-    nodeshift = np.array([0, 1, 2, nodecount[0], nodecount[0]+1, nodecount[0]+2, 2*nodecount[0], 2*nodecount[0]+1, 2*nodecount[0]+2])
-    nodeshift = np.concatenate((nodeshift, nodeshift + nodecount[0] * nodecount[1], nodeshift + 2 * nodecount[0] * nodecount[1]))
+    nodeshift = np.array(
+        [
+            0,
+            1,
+            2,
+            nodecount[0],
+            nodecount[0] + 1,
+            nodecount[0] + 2,
+            2 * nodecount[0],
+            2 * nodecount[0] + 1,
+            2 * nodecount[0] + 2,
+        ]
+    )
+    nodeshift = np.concatenate(
+        (
+            nodeshift,
+            nodeshift + nodecount[0] * nodecount[1],
+            nodeshift + 2 * nodecount[0] * nodecount[1],
+        )
+    )
 
     nc = len(ind)
     elem = np.zeros((nc * 40, 4), dtype=int)
     for i in range(nc):
-      elem[np.arange(0,40) + (i * 40), :] = np.reshape(nodeshift[cube8.flatten()-1], (4, 40)).T + ind[i]
+        elem[np.arange(0, 40) + (i * 40), :] = (
+            np.reshape(nodeshift[cube8.flatten() - 1], (4, 40)).T + ind[i]
+        )
 
     elem = elem + 1
     elem = im.meshreorient(node[:, :3], elem[:, :4])[0]
 
     return node, elem
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def meshgrid6(*args):
     # dimension of the lattice
     n = len(args)
 
     # create a single n-d hypercube     # list of node of the cube itself
-    vhc = (np.array(list(map(lambda x: list(bin(x)[2:].zfill(n)), range(2**n)))) == '1').astype(int)
+    vhc = (
+        np.array(list(map(lambda x: list(bin(x)[2:].zfill(n)), range(2**n)))) == "1"
+    ).astype(int)
 
     # permutations of the integers 1:n
     p = list(permutations(range(1, n + 1)))
@@ -756,35 +855,41 @@ def meshgrid6(*args):
     thc = np.zeros((nt, n + 1), dtype=int)
 
     for i in range(nt):
-        thc[i, :] = np.where(np.all(np.diff(vhc[:, np.array(p[i])-1], axis=1) >= 0, axis=1))[0]
+        thc[i, :] = np.where(
+            np.all(np.diff(vhc[:, np.array(p[i]) - 1], axis=1) >= 0, axis=1)
+        )[0]
 
     # build the complete lattice
     nodecount = np.array([len(arg) for arg in args])
     if np.any(nodecount < 2):
-        raise ValueError('Each dimension must be of size 2 or more.')
+        raise ValueError("Each dimension must be of size 2 or more.")
     node = lattice(*args)
 
     # unrolled index into each hyper-rectangle in the lattice
     ind = [np.arange(nodecount[i] - 1) for i in range(n)]
-    ind = np.meshgrid(*ind, indexing='ij')
+    ind = np.meshgrid(*ind, indexing="ij")
     ind = np.array(ind).reshape(n, -1).T
     k = np.cumprod([1] + nodecount[:-1].tolist())
 
-    ind = 1 + ind @ k.T #k[:-1].reshape(-1, 1)
+    ind = 1 + ind @ k.T  # k[:-1].reshape(-1, 1)
     nind = len(ind)
     offset = vhc @ k.T
     elem = np.zeros((nt * nind, n + 1), dtype=int)
     L = np.arange(1, nind + 1).reshape(-1, 1)
 
     for i in range(nt):
-        elem[L.flatten() - 1, :] = np.tile(ind, (n+1, 1)).T + np.tile(offset[thc[i, :]], (nind, 1))
+        elem[L.flatten() - 1, :] = np.tile(ind, (n + 1, 1)).T + np.tile(
+            offset[thc[i, :]], (nind, 1)
+        )
         L += nind
 
     elem = im.meshreorient(node[:, :3], elem[:, :4])[0]
 
     return node, elem
 
-#_________________________________________________________________________________________________________
+
+# _________________________________________________________________________________________________________
+
 
 def lattice(*args):
     n = len(args)
@@ -792,7 +897,7 @@ def lattice(*args):
     grids = np.meshgrid(*args, indexing="ij")
     grid = np.zeros((np.prod(sizes), n))
     for i in range(n):
-        grid[:, i] = grids[i].ravel(order='F')
+        grid[:, i] = grids[i].ravel(order="F")
     return grid
 
 
@@ -811,10 +916,10 @@ def latticegrid(*args):
         centroids: (M, D) array of centroid coordinates of each lattice cell.
     """
     n = len(args)
-    p = np.meshgrid(*args, indexing='ij')
+    p = np.meshgrid(*args, indexing="ij")
     node = np.zeros((p[0].size, n))
     for i in range(n):
-        node[:, i] = p[i].ravel(order='F')
+        node[:, i] = p[i].ravel(order="F")
 
     if n == 1:
         return node
@@ -822,31 +927,40 @@ def latticegrid(*args):
     dim = p[0].shape
     dd = [dim[0], dim[0] * dim[1]]
 
-    onecube = np.array([
-        [0,     dd[0],     dd[0] + 1,       1],
-        [0,     1,         dd[1] + 1,       dd[1]],
-        [0,     dd[1],     dd[1] + dd[0],   dd[0]]
-    ])
-    onecube = np.vstack([onecube,
-                         onecube + np.array([[dd[1]], [dd[0]], [1]]) @ np.ones((1, 4), dtype=int)])
+    onecube = np.array(
+        [
+            [0, dd[0], dd[0] + 1, 1],
+            [0, 1, dd[1] + 1, dd[1]],
+            [0, dd[1], dd[1] + dd[0], dd[0]],
+        ]
+    )
+    onecube = np.vstack(
+        [
+            onecube,
+            onecube + np.array([[dd[1]], [dd[0]], [1]]) @ np.ones((1, 4), dtype=int),
+        ]
+    )
 
     len_cube = np.prod(np.array(dim[:3]) - 1)
     face = np.tile(onecube, (len_cube, 1))
 
-    xx, yy, zz = np.meshgrid(np.arange(1, dim[0]),
-                             np.arange(1, dim[1]),
-                             np.arange(1, dim[2]),
-                             indexing='ij')
+    xx, yy, zz = np.meshgrid(
+        np.arange(1, dim[0]), np.arange(1, dim[1]), np.arange(1, dim[2]), indexing="ij"
+    )
 
     # Convert subscript to linear index in column-major order (MATLAB-style)
-    idx = np.ravel_multi_index((xx.ravel(order='F') - 1,
-                                yy.ravel(order='F') - 1,
-                                zz.ravel(order='F') - 1),
-                               dim, order='F') + 1  # 1-based index for face construction
+    idx = (
+        np.ravel_multi_index(
+            (xx.ravel(order="F") - 1, yy.ravel(order="F") - 1, zz.ravel(order="F") - 1),
+            dim,
+            order="F",
+        )
+        + 1
+    )  # 1-based index for face construction
     orig = np.tile(idx, (onecube.shape[0], 1))
 
     for i in range(onecube.shape[1]):
-        face[:, i] = face[:, i] + orig.ravel(order='F')
+        face[:, i] = face[:, i] + orig.ravel(order="F")
 
     # Convert to 1-based row-unique face list (like MATLAB)
     face = np.unique(face, axis=0)
@@ -855,10 +969,14 @@ def latticegrid(*args):
     centroids = None
     if len(args) >= 3:
         diffvec = [np.diff(arg) for arg in args]
-        xx, yy, zz = np.meshgrid(*diffvec, indexing='ij')
-        centroids = node[idx - 1, :] + 0.5 * np.vstack([xx.ravel(order='F'),
-                                                        yy.ravel(order='F'),
-                                                        zz.ravel(order='F')]).T
+        xx, yy, zz = np.meshgrid(*diffvec, indexing="ij")
+        centroids = (
+            node[idx - 1, :]
+            + 0.5
+            * np.vstack(
+                [xx.ravel(order="F"), yy.ravel(order="F"), zz.ravel(order="F")]
+            ).T
+        )
 
     return node, face, centroids
 
