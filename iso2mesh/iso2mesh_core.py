@@ -5,6 +5,7 @@ Copyright (c) 2024 Qianqian Fang <q.fang at neu.edu>
 """
 __all__ = [
     "surf2mesh",
+    "sms",
     "vol2restrictedtri",
     "removeisolatednode",
 ]
@@ -202,7 +203,7 @@ def sms(node, face, iter=10, alpha=0.5, method="laplacianhc"):
     """
 
     # Compute mesh connectivity
-    conn = meshconn(face, node.shape[0])
+    conn = im.meshconn(face, node.shape[0])[0]
 
     # Smooth surface mesh nodes
     newnode = smoothsurf(node[:, :3], None, conn, iter, alpha, method, alpha)
@@ -469,7 +470,6 @@ def surf2mesh(v,f,p0,p1,keepratio,maxvol,regions=None,holes=None,dobbx=0,method=
             cmdopt = ""
 
     if not cmdopt:
-        print(im.mcpath(method,exesuff))
         status, cmdout = subprocess.getstatusoutput('"' + im.mcpath(method,exesuff) + '"'+ ' -A -q1.414a' + str(maxvol) + ' '+ moreopt + ' ' + im.mwpath('post_vmesh.poly'))
     else:
         status, cmdout = subprocess.getstatusoutput(f"{method} {cmdopt} post_vmesh.poly")
@@ -481,12 +481,12 @@ def surf2mesh(v,f,p0,p1,keepratio,maxvol,regions=None,holes=None,dobbx=0,method=
     node, elem, face = im.readtetgen(im.mwpath("post_vmesh.1"))
 
     print("Volume mesh generation complete")
-    return node, elem, face
+    return node, elem + 1, face + 1
 
 #_________________________________________________________________________________________________________
 
 def smoothsurf(
-    node, mask, conn, iter, useralpha=0.5, usermethod="laplacian", userbeta=0.5
+    node, mask, conn0, iter, useralpha=0.5, usermethod="laplacian", userbeta=0.5
 ):
     """
     Smoothing a surface mesh.
@@ -506,6 +506,9 @@ def smoothsurf(
     """
 
     p = np.copy(node)
+    conn = [None] * len(conn0)
+    for i in range(len(conn0)):
+       conn[i] = [x - 1 for x in conn0[i]]
 
     # If mask is empty, all nodes are considered movable
     if mask is None:
@@ -523,7 +526,7 @@ def smoothsurf(
     ialpha = 1 - alpha
 
     # Remove nodes without neighbors
-    idx = np.array([i for i in idx if len(conn[i]) > 0])
+    idx = np.array([i for i in idx if (hasattr(conn[i], '__iter__') and len(conn[i]) > 0)])
     nn = len(idx)
 
     if method == "laplacian":
@@ -774,7 +777,7 @@ def binsurface(img, nface=3):
 
     # Compress node indices
     nodemap = np.zeros(np.max(elem) + 1, dtype=int)
-    nodemap[elem.ravel()] = 1
+    nodemap[elem.ravel(order='F')] = 1
     id = np.nonzero(nodemap)[0]
     nodemap = np.zeros_like(nodemap)
     nodemap[id] = np.arange(1, len(id) + 1)
@@ -1221,7 +1224,7 @@ def removeisolatednode(node, elem, face=None):
     oid = np.arange(node.shape[0])  # Old node indices
 
     if not isinstance(elem, list):
-        idx = np.setdiff1d(oid, elem.ravel())  # Indices of isolated nodes
+        idx = np.setdiff1d(oid, elem.ravel(order='F'))  # Indices of isolated nodes
     else:
         el = np.concatenate(elem)
         idx = np.setdiff1d(oid, el)

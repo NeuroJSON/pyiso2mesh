@@ -129,6 +129,7 @@ def surfedge(f, junction=None):
         qx = np.where(vec == 1)[0]
 
     openedge = edges[ix[qx], :]
+            
     elemid = None
     if junction is not None:
         elemid, iy = np.unravel_index(ix[qx], f.shape)
@@ -356,56 +357,47 @@ def nodevolume(node, elem, evol=None):
 
 def elemvolume(node, elem, option=None):
     """
-    vol = elemvolume(node, elem, option=None)
-    Calculate volume of tetrahedral elements.
+    vol = elemvolume(node, elem, option)
 
-    node : (N x 3) array of node coordinates
-    elem : (M x K) integer array of element connectivity (1-based indices)
-           Supported K = 4 (tetrahedra), 3 (triangles), 2 (segments).
-    option: None or 'signed'. If 'signed', returns signed volume; otherwise absolute volume.
+    Calculate the volume for a list of simplexes
+
+    Parameters:
+        node:   node coordinates (NumPy array)
+        elem:   element table of a mesh (1-based indices)
+        option: if option == 'signed', the volume is the raw determinant,
+                otherwise, the result will be the absolute values
+
+    Returns:
+        vol: volume values for all elements
     """
-    node = np.asarray(node, dtype=float)
-    elem = np.asarray(elem, dtype=int)
 
-    # Determine element type by number of columns
-    nelem, nN = elem.shape
-    if nN == 4:  # tetrahedron
-        vol = np.zeros(nelem)
-        for i in range(nelem):
-            # Convert indices from 1-based to 0-based
-            inds = elem[i, :] - 1
-            # Coordinates for this tetrahedron
-            a = node[inds[0], :]
-            b = node[inds[1], :]
-            c = node[inds[2], :]
-            d = node[inds[3], :]
-            # Compute volume via determinant: |det([b-a, c-a, d-a])| / 6
-            M = np.stack((b - a, c - a, d - a), axis=1)
-            detM = np.linalg.det(M)
-            vol[i] = detM / 6.0
-        if option != "signed":
-            vol = np.abs(vol)
+    # Convert 1-based indices to 0-based for Python indexing
+    v1 = node[elem[:, 0] - 1, :]
+    v2 = node[elem[:, 1] - 1, :]
+    v3 = node[elem[:, 2] - 1, :]
+
+    edge1 = v2 - v1
+    edge2 = v3 - v1
+
+    if elem.shape[1] == node.shape[1]:
+        # Triangle area in 2D or area in 3D projected onto a plane
+        det12 = np.cross(edge1, edge2)
+        det12 = np.sum(det12 * det12, axis=1)
+        vol = 0.5 * np.sqrt(det12)
         return vol
 
-    elif nN == 3:  # triangle area * thickness=1
-        vol = np.zeros(nelem)
-        for i in range(nelem):
-            inds = elem[i, :] - 1
-            a, b, c = node[inds, :]
-            # Triangle "volume" computed as area of triangle (norm of cross product /2)
-            vol[i] = np.linalg.norm(np.cross(b - a, c - a)) / 2.0
-        return vol
+    v4 = node[elem[:, 3] - 1, :]
+    edge3 = v4 - v1
 
-    elif nN == 2:  # segment length
-        vol = np.zeros(nelem)
-        for i in range(nelem):
-            inds = elem[i, :] - 1
-            a, b = node[inds, :]
-            vol[i] = np.linalg.norm(b - a)
-        return vol
+    # Compute signed volume of tetrahedron
+    vol = -np.einsum('ij,ij->i', edge1, np.cross(edge2, edge3, axis=1))
 
+    if option == 'signed':
+        vol = vol / np.prod(np.arange(1, node.shape[1] + 1))
     else:
-        raise ValueError(f"Unsupported element with {nN} nodes per element")
+        vol = np.abs(vol) / np.prod(np.arange(1, node.shape[1] + 1))
+
+    return vol
 
 #_________________________________________________________________________________________________________
 
@@ -1567,9 +1559,9 @@ def meshreorient(node, elem):
         evol: the signed element volume before reorientation
         idx: indices of the elements that had negative volume
     """
-
     # Calculate the canonical volume of the element (can be a 2D or 3D)
     evol = elemvolume(node, elem, 'signed')
+
     # Make sure all elements are positive in volume
     idx = np.where(evol < 0)[0]
 

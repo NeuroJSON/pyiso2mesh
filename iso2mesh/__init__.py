@@ -4,6 +4,7 @@
 from .iso2mesh_primitive import (
     meshgrid5,
     meshgrid6,
+    latticegrid,
     surfedge,
     volface,
     surfplane,
@@ -80,6 +81,7 @@ from .iso2mesh_io import (
 
 from .iso2mesh_core import (
     surf2mesh,
+    sms,
     vol2restrictedtri,
     removeisolatednode,
 )
@@ -87,6 +89,7 @@ __version__ = "0.1.0"
 __all__ = [
     "meshgrid5",
     "meshgrid6",
+    "latticegrid",
     "surfedge",
     "volface",
     "surfplane",
@@ -146,6 +149,7 @@ __all__ = [
     "meshacylinder",
     "meshanellip",
     "surf2mesh",
+    "sms",
     "rotatevec3d",
     "readoff",
     "vol2restrictedtri",
