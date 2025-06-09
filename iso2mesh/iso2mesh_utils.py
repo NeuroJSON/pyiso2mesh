@@ -589,7 +589,6 @@ def faceneighbors(t, opt=None):
             facenb = faces[np.where(facenb.T.flatten() == 0)[0], :]
         elif opt == "rowmajor":
             index = np.arange(len(faces)).reshape(4, -1).T.flatten()
-            print(index)
             faces = faces[index, :]
             facenb = faces[np.where(facenb.flatten() == 0)[0], :]
         else:
@@ -1042,15 +1041,14 @@ def surfinterior(node, face):
         )  # Plane equation for the current triangle
         v0 = plane[0][:3]  # Use the plane normal vector as the direction of the ray
         t, u, v, _ = raytrace(p0, v0, node, face[:, :3])  # Perform ray-tracing
-        print(p0)
-        print(v0)
+
         idx = np.where((u >= 0) & (v >= 0) & (u + v <= 1.0) & (~np.isinf(t)))[
             0
         ]  # Filter valid intersections
 
         # Sort and ensure ray intersections are valid
         ts, uidx = np.unique(np.sort(t[idx]), return_index=True)
-        print(idx)
+
         if len(ts) > 0 and len(ts) % 2 == 0:
             ts = ts.reshape((2, len(ts) // 2))
             tdiff = ts[1, :] - ts[0, :]

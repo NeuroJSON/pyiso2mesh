@@ -10,6 +10,9 @@ __all__ = [
     "smoothsurf",
     "fillsurf",
     "binsurface",
+    "meshcheckrepair",
+    "removedupnodes",
+    "removedupelem",
     "vol2restrictedtri",
     "removeisolatednode",
 ]
@@ -748,8 +751,9 @@ def binsurface(img, nface=3):
         node: (N, 3) array of vertex coordinates
         elem: (M, 3) or (M, 4) array of face elements (1-based indices)
     """
-    if isinstance(nface, str) and nface == 'iso':
+    if isinstance(nface, str) and nface == "iso":
         from skimage.measure import marching_cubes
+
         verts, faces, _, _ = marching_cubes(img, level=0.5)
         node = verts[:, [1, 0, 2]] - 0.5  # reorder to match MATLAB
         elem = faces + 1  # 1-based indexing
@@ -768,7 +772,7 @@ def binsurface(img, nface=3):
     pos = np.where((d1 == 1) | (d1 == -1))
     ix = pos[0]
     iy_raw = pos[1]
-    pos= np.where((d2 == 1) | (d2 == -1))
+    pos = np.where((d2 == 1) | (d2 == -1))
     jx = pos[0]
     jy_raw = pos[1]
     pos = np.where((d3 == 1) | (d3 == -1))
@@ -778,19 +782,19 @@ def binsurface(img, nface=3):
     # Adjust indices and wrap them to 3D
     ix = ix + 1
     iy, iz = np.unravel_index(iy_raw, dim[1:])
-    iy2 = np.ravel_multi_index((iy, iz), newdim[1:], order='F')
+    iy2 = np.ravel_multi_index((iy, iz), newdim[1:], order="F")
 
-    jy, jz = np.unravel_index(jy_raw, (dim[1]-1, dim[2]))
+    jy, jz = np.unravel_index(jy_raw, (dim[1] - 1, dim[2]))
     jy = jy + 1
-    jy2 = np.ravel_multi_index((jy, jz), newdim[1:], order='F')
+    jy2 = np.ravel_multi_index((jy, jz), newdim[1:], order="F")
 
-    ky, kz = np.unravel_index(ky_raw, (dim[1], dim[2]-1))
+    ky, kz = np.unravel_index(ky_raw, (dim[1], dim[2] - 1))
     kz = kz + 1
-    ky2 = np.ravel_multi_index((ky, kz), newdim[1:], order='F')
+    ky2 = np.ravel_multi_index((ky, kz), newdim[1:], order="F")
 
-    id1 = np.ravel_multi_index((ix, iy, iz), newdim, order='F')
-    id2 = np.ravel_multi_index((jx, jy, jz), newdim, order='F')
-    id3 = np.ravel_multi_index((kx, ky, kz), newdim, order='F')
+    id1 = np.ravel_multi_index((ix, iy, iz), newdim, order="F")
+    id2 = np.ravel_multi_index((jx, jy, jz), newdim, order="F")
+    id3 = np.ravel_multi_index((kx, ky, kz), newdim, order="F")
 
     if nface == 0:
         elem = np.concatenate([id1, id2, id3])
@@ -802,25 +806,29 @@ def binsurface(img, nface=3):
     xy = newdim[0] * newdim[1]
 
     if nface == 3:  # triangles
-        elem = np.vstack([
-            np.column_stack([id1, id1 + newdim[0], id1 + newdim[0] + xy]),
-            np.column_stack([id1, id1 + newdim[0] + xy, id1 + xy]),
-            np.column_stack([id2, id2 + 1, id2 + 1 + xy]),
-            np.column_stack([id2, id2 + 1 + xy, id2 + xy]),
-            np.column_stack([id3, id3 + 1, id3 + 1 + newdim[0]]),
-            np.column_stack([id3, id3 + 1 + newdim[0], id3 + newdim[0]])
-        ])
+        elem = np.vstack(
+            [
+                np.column_stack([id1, id1 + newdim[0], id1 + newdim[0] + xy]),
+                np.column_stack([id1, id1 + newdim[0] + xy, id1 + xy]),
+                np.column_stack([id2, id2 + 1, id2 + 1 + xy]),
+                np.column_stack([id2, id2 + 1 + xy, id2 + xy]),
+                np.column_stack([id3, id3 + 1, id3 + 1 + newdim[0]]),
+                np.column_stack([id3, id3 + 1 + newdim[0], id3 + newdim[0]]),
+            ]
+        )
     else:  # quads
-        elem = np.vstack([
-            np.column_stack([id1, id1 + newdim[0], id1 + newdim[0] + xy, id1 + xy]),
-            np.column_stack([id2, id2 + 1, id2 + 1 + xy, id2 + xy]),
-            np.column_stack([id3, id3 + 1, id3 + 1 + newdim[0], id3 + newdim[0]])
-        ])
+        elem = np.vstack(
+            [
+                np.column_stack([id1, id1 + newdim[0], id1 + newdim[0] + xy, id1 + xy]),
+                np.column_stack([id2, id2 + 1, id2 + 1 + xy, id2 + xy]),
+                np.column_stack([id3, id3 + 1, id3 + 1 + newdim[0], id3 + newdim[0]]),
+            ]
+        )
 
     # Compress the node indices
     maxid = elem.max() + 1
     nodemap = np.zeros(maxid, dtype=int)
-    nodemap[elem.ravel(order='F')] = 1
+    nodemap[elem.ravel(order="F")] = 1
     id = np.where(nodemap)[0]
 
     # Reindex elem to be compact and 1-based
@@ -829,7 +837,7 @@ def binsurface(img, nface=3):
     elem = nodemap[elem]
 
     # Create node coordinates
-    xi, yi, zi = np.unravel_index(id, newdim, order='F')
+    xi, yi, zi = np.unravel_index(id, newdim, order="F")
     node = np.column_stack([xi, yi, zi]) - 1
 
     if nface == 3:
@@ -1102,7 +1110,6 @@ def meshcheckrepair(node, elem, opt=None, *args):
     elem : ndarray
         Repaired element list.
     """
-
     extra = dict(*args)
 
     if opt in (None, "dupnode", "dup"):
@@ -1137,10 +1144,15 @@ def meshcheckrepair(node, elem, opt=None, *args):
         exesuff = im.fallbackexeext(im.getexeext(), "jmeshlib")
         im.deletemeshfile(im.mwpath("post_sclean.off"))
         im.saveoff(node[:, :3], elem[:, :3], im.mwpath("pre_sclean.off"))
+
+        exesuff = im.getexeext()
+        exesuff = im.fallbackexeext(exesuff, "tetgen")
+        jmeshlib_path = im.mcpath("jmeshlib") + exesuff
+
+        command = f'"{jmeshlib_path}" "{im.mwpath("pre_sclean.off")}" "{im.mwpath("post_sclean.off")}"'
+
         if ".exe" not in exesuff:
-            status, output = subprocess.getstatusoutput(
-                f'"{im.mcpath("jmeshlib","{exesuff}")}" "{im.mwpath("pre_sclean.off")}" "{im.mwpath("post_sclean.off")}"'
-            )
+            status, output = subprocess.getstatusoutput(command)
         else:
             status, output = subprocess.getstatusoutput(
                 f'"{im.mcpath("jmeshlib")}" "{im.mwpath("pre_sclean.off")}" "{im.mwpath("post_sclean.off")}"'
@@ -1188,7 +1200,6 @@ def removedupelem(elem):
     elem : ndarray
         Element list after removing the duplicated elements.
     """
-
     # Sort elements and remove duplicates (folded elements)
     sorted_elem = np.sort(elem, axis=1)
 
@@ -1238,6 +1249,7 @@ def removedupnodes(node, elem, tol=0):
         newelem = [J[e - 1] for e in elem]
     else:
         newelem = J[elem - 1]
+    newelem = newelem + 1
 
     return newnode, newelem
 
@@ -1263,7 +1275,7 @@ def removeisolatednode(node, elem, face=None):
         Face list of the resulting mesh.
     """
 
-    oid = np.arange(node.shape[0])  # Old node indices
+    oid = np.arange(node.shape[0]) + 1  # Old node indices
 
     if not isinstance(elem, list):
         idx = np.setdiff1d(oid, elem.ravel(order="F"))  # Indices of isolated nodes
@@ -1281,15 +1293,15 @@ def removeisolatednode(node, elem, face=None):
     oid = oid + delta  # Map to new index
 
     if not isinstance(elem, list):
-        el = oid[elem]  # Update element list with new indices
+        el = oid[elem - 1]  # Update element list with new indices
     else:
-        el = [oid[e] for e in elem]
+        el = [oid[e - 1] for e in elem]
 
     if face is not None:
         if not isinstance(face, list):
-            fa = oid[face]  # Update face list with new indices
+            fa = oid[face - 1]  # Update face list with new indices
         else:
-            fa = [oid[f] for f in face]
+            fa = [oid[f - 1] for f in face]
     else:
         fa = None
 
@@ -1897,7 +1909,6 @@ def vol2restrictedtri(vol, thres, cent, brad, ang, radbound, distbound, maxnode)
     initnum = os.getenv("ISO2MESH_INITSIZE", 50)
 
     # Build the system command to run CGAL mesher
-    print(im.mwpath("pre_extract.inr"))
     cmd = (
         f'"{im.mcpath("cgalsurf",exesuff)}" "{im.mwpath("pre_extract.inr")}" '
         f"{thres:.16f} {cent[0]:.16f} {cent[1]:.16f} {cent[2]:.16f} {brad:.16f} {ang:.16f} {radbound:.16f} "

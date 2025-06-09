@@ -32,6 +32,9 @@ import re
 import iso2mesh as im
 import shutil
 
+
+ISO2MESH_BIN_VER = "1.9.8"
+
 ##====================================================================================
 ## implementations
 ##====================================================================================
@@ -111,7 +114,7 @@ def saveoff(v, f, fname):
             fid.write(f"{len(v)}\t{len(f)}\t0\n")
             for vertex in v:
                 fid.write(f"{vertex[0]:.16f}\t{vertex[1]:.16f}\t{vertex[2]:.16f}\n")
-            face = np.hstack((f.shape[1] * np.ones([f.shape[0],1]), f - 1))
+            face = np.hstack((f.shape[1] * np.ones([f.shape[0], 1]), f))
             print(face)
             format_str = "%d\t" * f.shape[1] + "\n"
             for face_row in face:
@@ -423,22 +426,26 @@ def mcpath(fname, ext=None):
     str
         Full file name located in the bin directory.
     """
+    from pathlib import Path
+
     binname = ""
 
     # the bin folder under iso2mesh is searched first
     # tempname = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', fname)
     tempname = os.path.join(os.path.expanduser("~"), "pyiso2mesh-tools")
+    binfolder = Path(os.path.join(tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin"))
 
     if os.path.isdir(tempname):
-        binname = os.path.join(tempname, "iso2mesh-1.9.8", "bin", fname)
+        binname = os.path.join(tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin", fname)
+
         if ext:
             if os.path.isfile(binname + ext):
                 binname = binname + ext
             else:
                 binname = fname + ext
-        else:
-            if not os.path.isfile(binname):
-                binname = fname
+
+        return binname
+
     elif shutil.which(fname):
         binname = fname
     else:
@@ -447,20 +454,26 @@ def mcpath(fname, ext=None):
 
         print("Iso2mesh meshing utilities do not exist locally, downloading now ...")
         os.makedirs(tempname)
-        binurl = "https://github.com/fangq/iso2mesh/archive/refs/tags/v1.9.8.zip"
+        binurl = f"https://github.com/fangq/iso2mesh/archive/refs/tags/v{ISO2MESH_BIN_VER}.zip"
         filehandle, _ = urllib.request.urlretrieve(binurl)
 
         with zipfile.ZipFile(filehandle, "r") as zip_ref:
             for file in zip_ref.namelist():
-                if file.startswith("iso2mesh-1.9.8/bin/"):
+                if file.startswith(f"iso2mesh-{ISO2MESH_BIN_VER}/bin/"):
                     zip_ref.extract(file, tempname)
                     extractfile = os.path.join(tempname, file)
                     print("Extracting " + extractfile)
                     if os.path.isfile(extractfile):
                         print("Setting permission " + extractfile)
                         os.chmod(extractfile, 0o755)
-
-        tempname = os.path.join(tempname, "pyiso2mesh-tools", "iso2mesh-1.9.8", "bin")
+        if ext:
+            binname = os.path.join(
+                tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin", fname, ext
+            )
+        else:
+            binname = os.path.join(
+                tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin", fname
+            )
 
     # on 64bit windows machine, try 'exename_x86-64.exe' first
     if (

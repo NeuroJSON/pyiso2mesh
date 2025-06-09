@@ -75,7 +75,7 @@ def fallbackexeext(exesuffix, exename):
         im.mcpath(exename)
     ):
         if shutil.which(exename):
-           return exesuff
+            return exesuff
         raise FileNotFoundError(
             f"The following executable:\n\t{im.mcpath(exename)}{getexeext()}\n"
             "is missing. Please download it from "
