@@ -1146,7 +1146,7 @@ def meshcheckrepair(node, elem, opt=None, *args):
         im.saveoff(node[:, :3], elem[:, :3], im.mwpath("pre_sclean.off"))
 
         exesuff = im.getexeext()
-        exesuff = im.fallbackexeext(exesuff, "tetgen")
+        exesuff = im.fallbackexeext(exesuff, "jmeshlib")
         jmeshlib_path = im.mcpath("jmeshlib") + exesuff
 
         command = f'"{jmeshlib_path}" "{im.mwpath("pre_sclean.off")}" "{im.mwpath("post_sclean.off")}"'
@@ -1184,7 +1184,6 @@ def meshcheckrepair(node, elem, opt=None, *args):
             f'"{mcpath("meshfix")}{exesuff}" "{mwpath("pre_sclean.off")}" {moreopt}',
             shell=True,
         )
-
     return node, elem
 
 
@@ -1275,7 +1274,8 @@ def removeisolatednode(node, elem, face=None):
         Face list of the resulting mesh.
     """
 
-    oid = np.arange(node.shape[0]) + 1  # Old node indices
+    oid = np.arange(node.shape[0])  # Old node indices
+    elem = elem - 1
 
     if not isinstance(elem, list):
         idx = np.setdiff1d(oid, elem.ravel(order="F"))  # Indices of isolated nodes
@@ -1293,17 +1293,20 @@ def removeisolatednode(node, elem, face=None):
     oid = oid + delta  # Map to new index
 
     if not isinstance(elem, list):
-        el = oid[elem - 1]  # Update element list with new indices
+        el = oid[elem]  # Update element list with new indices
     else:
-        el = [oid[e - 1] for e in elem]
+        el = [oid[e] for e in elem]
 
     if face is not None:
         if not isinstance(face, list):
             fa = oid[face - 1]  # Update face list with new indices
         else:
             fa = [oid[f - 1] for f in face]
+        fa = fa + 1
     else:
         fa = None
+
+    el = el + 1
 
     no = np.delete(node, idx, axis=0)  # Remove isolated nodes
 
@@ -1922,7 +1925,6 @@ def vol2restrictedtri(vol, thres, cent, brad, ang, radbound, distbound, maxnode)
 
     # Read the resulting mesh
     node, elem = im.readoff(im.mwpath("post_extract.off"))
-
     # Check and repair mesh if needed
     node, elem = meshcheckrepair(node, elem)
 

@@ -108,17 +108,15 @@ def saveoff(v, f, fname):
          f: input, surface face element list, dimension (be,3)
          fname: output file name
     """
+    f = f - 1
     try:
         with open(fname, "wt") as fid:
             fid.write("OFF\n")
             fid.write(f"{len(v)}\t{len(f)}\t0\n")
             for vertex in v:
                 fid.write(f"{vertex[0]:.16f}\t{vertex[1]:.16f}\t{vertex[2]:.16f}\n")
-            face = np.hstack((f.shape[1] * np.ones([f.shape[0], 1]), f))
-            print(face)
-            format_str = "%d\t" * f.shape[1] + "\n"
-            for face_row in face:
-                fid.write(format_str % tuple(face_row))
+            face = np.hstack((f.shape[1] * np.ones([f.shape[0], 1]), f)).astype(int)
+            np.savetxt(fid, face, fmt="%d", delimiter="\t")
     except IOError:
         raise PermissionError("You do not have permission to save mesh files.")
 
@@ -728,8 +726,10 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
         if not isinstance(f, list):
             fp.write("#facet list\n{} 1\n".format(len(f) + bbxnum + len(loopvert)))
             elem = (
-                np.hstack((3 * np.ones((len(f), 1)), f)) if f.size > 1 else np.array([])
-            )
+                np.hstack((3 * np.ones((len(f), 1)), f - 1))
+                if f.size > 1
+                else np.array([])
+            ).astype("int")
             if elem.size > 0:
                 if faceid is not None and len(faceid) == elem.shape[0]:
                     for i in range(len(faceid)):
@@ -907,17 +907,14 @@ def readoff(fname):
     elem = []
 
     with open(fname, "rb") as fid:
-        line = fid.readline().decode("utf-8").strip()
-        dim = re.search("[0-9.]+ [0-9.]+ [0-9.]+", line)
-        line = nonemptyline(fid)
+        while True:
+            line = fid.readline().decode("utf-8").strip()
+            dim = re.search("[0-9.]+ [0-9.]+ [0-9.]+", line)
+            if dim:
+                dim = np.fromstring(dim.group(), sep=" ", dtype=int)
+                break
 
-        if not dim:
-            dim = np.fromstring(
-                re.search("[0-9.]+ [0-9.]+ [0-9.]+", line).group(), sep=" ", dtype=int
-            )
-            line = nonemptyline(fid)
-        else:
-            dim = np.fromstring(dim.group(), sep=" ", dtype=int)
+        line = nonemptyline(fid)
 
         nodalcount = 3
         if line:
@@ -938,7 +935,6 @@ def readoff(fname):
             facetcount = len(val)
         else:
             return node, elem
-
         elem = np.fromfile(
             fid, dtype=float, sep=" ", count=(facetcount * (dim[1] - 1))
         ).reshape(-1, facetcount)
@@ -951,7 +947,7 @@ def readoff(fname):
     else:
         elem[:, :4] = np.round(elem[:, :4])
 
-    elem = elem.astype(int)
+    elem = elem.astype(int) + 1
 
     return node, elem
 

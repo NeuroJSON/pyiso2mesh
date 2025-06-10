@@ -215,7 +215,7 @@ def plotsurf(node, face, *args):
                 else:
                     newsurf[0].append(fc)
 
-        plt.hold(True)
+        # plt.hold(True)
         newlen = len(newsurf)
 
         for i in range(newlen):
@@ -242,7 +242,7 @@ def plotsurf(node, face, *args):
         if face.shape[1] == 4:
             tag = face[:, 3]
             types = np.unique(tag)
-            plt.hold(True)
+            # plt.hold(True)
             h = []
             for i in range(len(types)):
                 if node.shape[1] == 3:
@@ -443,7 +443,6 @@ def _get_face_triangles(node, face, selector):
     face = np.asarray(face)
     face3 = face[:, :3].astype(int) - 1
     tris = node[face3, :3]
-    print(tris)
     if selector:
         cent = tris.mean(axis=1)
         idx = np.where(
@@ -619,6 +618,7 @@ def meshunitsphere(tsize, **kwargs):
 
     node = (node - 0.5) * 0.5
     node, face, _ = im.removeisolatednode(node, face)
+
     node = (node - 30) / 28
     r0 = np.sqrt(np.sum(node**2, axis=1))
     node = node / r0[:, None]
