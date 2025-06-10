@@ -9,15 +9,9 @@ __all__ = [
     "meshgrid5",
     "meshgrid6",
     "latticegrid",
-    "surfedge",
-    "volface",
-    "surfplane",
-    "surfacenorm",
-    "nodesurfnorm",
     "plotsurf",
     "plotasurf",
     "plotmesh",
-    "meshcentroid",
     "varargin2struct",
     "jsonopt",
     "meshabox",
@@ -37,156 +31,10 @@ import sys
 import iso2mesh as im
 from itertools import permutations, combinations
 
-
-def surfedge(f, *varargin):
-    if f.size == 0:
-        return np.array([]), None
-
-    findjunc = 0
-
-    if f.shape[1] == 3:
-        edges = np.vstack(
-            (f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]])
-        )  # create all the edges
-    elif f.shape[1] == 4:
-        edges = np.vstack(
-            (f[:, [0, 1, 2]], f[:, [1, 0, 3]], f[:, [0, 2, 3]], f[:, [1, 3, 2]])
-        )  # create all the edges
-    else:
-        raise ValueError("surfedge only supports 2D and 3D elements")
-
-    edgesort = np.sort(edges, axis=1)
-    _, ix, jx = np.unique(edgesort, axis=0, return_index=True, return_inverse=True)
-
-    # if isoctavemesh:
-    #     u = np.unique(jx)
-    #     if f.shape[1] == 3 and findjunc:
-    #         qx = u[np.histogram(jx, bins=u)[0] > 2]
-    #     else:
-    #         qx = u[np.histogram(jx, bins=u)[0] == 1]
-    # else:
-    vec = np.bincount(jx, minlength=max(jx) + 1)
-    if f.shape[1] == 3 and findjunc:
-        qx = np.where(vec > 2)[0]
-    else:
-        qx = np.where(vec == 1)[0]
-
-    openedge = edges[ix[qx], :]
-    elemid = None
-    if len(varargin) >= 2:
-        elemid, iy = np.unravel_index(ix[qx], f.shape)
-
-    return openedge, elemid
-
-
 # _________________________________________________________________________________________________________
 
 
-def volface(t):
-    openedge, elemid = surfedge(t)
-    return openedge, elemid
-
-
-# _________________________________________________________________________________________________________
-
-
-def surfplane(node, face):
-    # plane=surfplane(node,face)
-    #
-    # plane equation coefficients for each face in a surface
-    #
-    # input:
-    #   node: a list of node coordinates (nn x 3)
-    #   face: a surface mesh triangle list (ne x 3)
-    #
-    # output:
-    #   plane: a (ne x 4) array, in each row, it has [a b c d]
-    #        to denote the plane equation as "a*x+b*y+c*z+d=0"
-    AB = node[face[:, 1], :3] - node[face[:, 0], :3]
-    AC = node[face[:, 2], :3] - node[face[:, 0], :3]
-
-    N = np.cross(AB, AC)
-    d = -np.dot(N, node[face[:, 0], :3].T)
-    plane = np.column_stack((N, d))
-    return plane
-
-
-# _________________________________________________________________________________________________________
-
-
-def surfacenorm(node, face, *args):
-    # Compute the normal vectors for a triangular surface.
-    #
-    # Parameters:
-    #  node : np.ndarray
-    #      A list of node coordinates (nn x 3).
-    #  face : np.ndarray
-    #       A surface mesh triangle list (ne x 3).
-    #  args : list
-    #      A list of optional parameters, currently surfacenorm supports:
-    #      'Normalize': [1|0] if set to 1, the normal vectors will be unitary (default).
-    # Returns:
-    #  snorm : np.ndarray
-    #      Output surface normal vector at each face.
-    opt = varargin2struct(*args)
-
-    snorm = surfplane(node, face)
-    snorm = snorm[:, :3]
-
-    if jsonopt("Normalize", 1, opt):
-        snorm = snorm / np.sqrt(np.sum(snorm**2, axis=1, keepdims=True))
-
-    return snorm
-
-
-# _________________________________________________________________________________________________________
-
-
-def nodesurfnorm(node, elem):
-    #  nv=nodesurfnorm(node,elem)
-    #
-    #  calculate a nodal norm for each vertix on a surface mesh (surface
-    #   can only be triangular or cubic)
-    #
-    # parameters:
-    #      node: node coordinate of the surface mesh (nn x 3)
-    #      elem: element list of the surface mesh (3 columns for
-    #            triangular mesh, 4 columns for cubic surface mesh)
-    #      pt: points to be projected, 3 columns for x,y and z respectively
-    #
-    # outputs:
-    #      nv: nodal norms (vector) calculated from nodesurfnorm.m
-    #          with dimensions of (size(v,1),3)
-    nn = node.shape[0]
-    ne = elem.shape[0]
-
-    ev = surfacenorm(node, elem)
-
-    nv = np.zeros((nn, 3))
-    ev2 = np.tile(ev, (1, 3))
-
-    for i in range(ne):
-        nv[elem[i, :], :] += ev2[i, :].reshape(3, 3).T
-
-    nvnorm = np.sqrt(np.sum(nv * nv, axis=1))
-    idx = np.where(nvnorm > 0)[0]
-
-    if len(idx) < nn:
-        print(
-            "Warning: found interior nodes, their norms will be set to zeros; to remove them, please use removeisolatednodes.m from iso2mesh toolbox"
-        )
-
-        nv[idx, :] = nv[idx, :] / nvnorm[idx][:, np.newaxis]
-    else:
-        nv = nv / nvnorm[:, np.newaxis]
-
-    return nv
-
-
-# _________________________________________________________________________________________________________
-
-
-def plotsurf(node, face, *args):
+def plotsurf(node, face, *args, **kwargs):
     rngstate = np.random.get_state()
     h = []
 
@@ -196,48 +44,34 @@ def plotsurf(node, face, *args):
         randseed = globals()["ISO2MESH_RANDSEED"]
     np.random.seed(randseed)
 
-    if isinstance(face, list):
+    if isinstance(face, list):  # polyhedral facets
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        from matplotlib.patches import Polygon
+
         sc = np.random.rand(10, 3)
-        length = len(face)
-        newsurf = [[] for _ in range(10)]
-        # reorganizing each labeled surface into a new list
-        for i in range(length):
-            fc = face[i]
-            if isinstance(fc, list) and len(fc) >= 2:
-                if fc[1] + 1 > 10:
-                    sc[fc[1] + 1, :] = np.random.rand(1, 3)
-                if fc[1] + 1 >= len(newsurf):
-                    newsurf[fc[1] + 1] = []
-                newsurf[fc[1] + 1].append(fc[0])
-            else:  # unlabeled facet is tagged by 0
-                if isinstance(fc, list):
-                    newsurf[0].append(np.array(fc).flatten())
-                else:
-                    newsurf[0].append(fc)
+        newsurf = {}
+        for fc in face:
+            if (
+                isinstance(fc, (list, tuple))
+                and len(fc) >= 2
+                and isinstance(fc[0], (list, tuple))
+            ):
+                group_id = fc[1]
+                if group_id + 1 > sc.shape[0]:
+                    sc = np.vstack([sc, np.random.rand(group_id + 1 - sc.shape[0], 3)])
+                newsurf.setdefault(group_id + 1, []).append(np.asarray(fc[0]))
+            else:
+                newsurf[len(newsurf)] = np.asarray(fc) - 1
 
-        # plt.hold(True)
-        newlen = len(newsurf)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
 
-        for i in range(newlen):
-            if not newsurf[i]:
-                continue
-            try:
-                subface = np.array(newsurf[i]).T
-                if subface.shape[0] > 1 and subface.ndim == 2:
-                    subface = subface.T
-                h.append(
-                    plt.Patch(vertices=node, faces=subface, facecolor=sc[i, :], *args)
-                )
-            except:
-                for j in range(len(newsurf[i])):
-                    h.append(
-                        plt.Patch(
-                            vertices=node,
-                            faces=newsurf[i][j],
-                            facecolor=sc[i, :],
-                            *args,
-                        )
-                    )
+        poly3d = [node[subface, :3] for i, subface in newsurf.items()]
+        patch = Poly3DCollection(poly3d, edgecolors="k", **kwargs)
+        ax.add_collection3d(patch)
+        ax.auto_scale_xyz(node[:, 0], node[:, 1], node[:, 2])
+        h.append(patch)
+
     else:
         if face.shape[1] == 4:
             tag = face[:, 3]
@@ -250,19 +84,22 @@ def plotsurf(node, face, *args):
                         plotasurf(
                             node,
                             face[tag == types[i], 0:3],
-                            facecolor=np.random.rand(3, 1),
                             *args,
+                            **kwargs,
                         )
                     )
                 else:
-                    h.append(plotasurf(node, face[tag == types[i], 0:3], *args))
+                    h.append(
+                        plotasurf(node, face[tag == types[i], 0:3], *args, **kwargs)
+                    )
         else:
-            h = plotasurf(node, face, *args)
+            h = plotasurf(node, face, *args, **kwargs)
 
     #        if np.all(np.array(plt.gca().view) == [0, 90]):
     #            plt.view(3)
 
     np.random.set_state(rngstate)
+    plt.axis("equal")
 
     plt.show(block=False)
 
@@ -273,29 +110,30 @@ def plotsurf(node, face, *args):
 # _________________________________________________________________________________________________________
 
 
-def plotasurf(node, face, *args):
+def plotasurf(node, face, *args, **kwargs):
     if face.shape[1] <= 2:
-        h = plotedges(node, face, *args)
+        h = plotedges(node, face, *args, **kwargs)
     else:
+        fig = plt.figure(figsize=(16, 9))
+        h = plt.axes(projection="3d")
+        my_cmap = plt.get_cmap("jet")
+        trisurf = h.plot_trisurf(
+            node[:, 0],
+            node[:, 1],
+            node[:, 2],
+            triangles=face - 1,
+            cmap=my_cmap,
+            **kwargs,
+        )
         if node.shape[1] == 4:
-            h = plt.trisurf(
-                face[:, 0:3], node[:, 0], node[:, 1], node[:, 2], node[:, 3], *args
-            )
-        else:
-            fig = plt.figure(figsize=(16, 9))
-            h = plt.axes(projection="3d")
-            # Creating color map
-            my_cmap = plt.get_cmap("jet")
-            # Creating plot
-            trisurf = h.plot_trisurf(
-                node[:, 0], node[:, 1], face - 1, node[:, 2], cmap=my_cmap
-            )
+            trisurf.set_array(node[:, 3])
+            trisurf.autoscale()
 
     if "h" in locals():
         return h
 
 
-# from matplotlib import cm
+# _________________________________________________________________________________________________________
 
 
 def plottetra(node, elem, *args, **kwargs):
@@ -330,23 +168,18 @@ def plottetra(node, elem, *args, **kwargs):
         if elem.shape[1] > 4:
             tag = elem[:, 4]  # 1-based -> column 5 in MATLAB
             types = np.unique(tag)
-            plt.figure()
             for t in types:
                 idx = np.where(tag == t)[0]
-                face = volface(elem[idx, :4])[
+                face = im.volface(elem[idx, :4])[
                     0
                 ]  # Pass only first 4 columns (1-based in MATLAB)
 
                 if node.shape[1] == 3:
-                    h.append(
-                        plotsurf(
-                            node, face, facecolor=np.random.rand(3), *args, **kwargs
-                        )
-                    )
+                    h.append(plotsurf(node, face, *args, **kwargs))
                 else:
                     h.append(plotsurf(node, face, *args, **kwargs))
         else:
-            face = volface(elem[:, :4])[0]
+            face = im.volface(elem[:, :4])[0]
             h.append(plotsurf(node, face, *args, **kwargs))
 
     # Restore RNG state
@@ -360,14 +193,13 @@ def plottetra(node, elem, *args, **kwargs):
 # _________________________________________________________________________________________________________
 
 
-def plotmesh(node, *args):
+def plotmesh(node, *args, **kwargs):
     """
     plotmesh(node, face, elem, opt) → hm
     Plot surface and volumetric meshes in 3D.
     Converts 1-based MATLAB indices in `face` and `elem` to 0-based.
     Supports optional selector strings and stylistic options.
     """
-    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
     selector = None
     opt = []
@@ -420,19 +252,45 @@ def plotmesh(node, *args):
         ax = fig.add_subplot(111, projection="3d")
         ax.plot(x[idx], y[idx], z[idx], *opt)
         _autoscale_3d(ax, node)
-        ax.set_box_aspect([1, 1, 1])
+        plt.axis("equal")
         plt.show(block=False)
         return ax
 
     # Plot surface mesh
     if face is not None:
-        ax = plotsurf(node, face, opt)
-        handles.append(ax)
+        if isinstance(face, list):
+            ax = plotsurf(node, face, opt, *args, **kwargs)
+            handles.append(ax)
+        else:
+            c0 = im.meshcentroid(node[:, :3], face[:, :3])
+            x, y, z = c0[:, 0], c0[:, 1], c0[:, 2]
+            idx = (
+                np.where(eval(selector, {"x": x, "y": y, "z": z}))[0]
+                if selector
+                else slice(None)
+            )
+            if getattr(idx, "size", None) == 0:
+                print("Warning: nothing to plot")
+                return None
+            ax = plotsurf(node, face[idx, :], opt, *args, **kwargs)
+            handles.append(ax)
 
     # Plot tetrahedral mesh
     if elem is not None:
-        ax = plottetra(node, elem, opt)
+        c0 = im.meshcentroid(node[:, :3], elem[:, :4])
+        x, y, z = c0[:, 0], c0[:, 1], c0[:, 2]
+        idx = (
+            np.where(eval(selector, {"x": x, "y": y, "z": z}))[0]
+            if selector
+            else slice(None)
+        )
+        if getattr(idx, "size", None) == 0:
+            print("Warning: nothing to plot")
+            return None
+        ax = plottetra(node, elem[idx, :], opt, *args, **kwargs)
         handles.append(ax)
+
+    plt.axis("equal")
 
     plt.show(block=False)
     return handles if len(handles) > 1 else handles[0]
@@ -476,84 +334,6 @@ def _extract_poly_opts(opt):
 # _________________________________________________________________________________________________________
 
 
-def meshcentroid(v, f):
-    #
-    # centroid=meshcentroid(v,f)
-    #
-    # compute the centroids of a mesh defined by nodes and elements
-    # (surface or tetrahedra) in R^n space
-    #
-    # input:
-    #      v: surface node list, dimension (nn,3)
-    #      f: surface face element list, dimension (be,3)
-    #
-    # output:
-    #      centroid: centroid positions, one row for each element
-    #
-    if not isinstance(f, list):
-        ec = v[f[:, :], :]
-        centroid = np.squeeze(np.mean(ec, axis=1))
-    else:
-        length_f = len(f)
-        centroid = np.zeros((length_f, v.shape[1]))
-        try:
-            for i in range(length_f):
-                fc = f[i]
-                if fc:  # need to set centroid to NaN if fc is empty?
-                    vlist = fc[0]
-                    centroid[i, :] = np.mean(
-                        v[vlist[~np.isnan(vlist)], :], axis=0
-                    )  # Note to Ed check if this is functioning correctly
-        except Exception as e:
-            raise ValueError("malformed face cell array") from e
-    return centroid
-
-
-# _________________________________________________________________________________________________________
-
-
-def varargin2struct(*args):
-    opt = {}
-    length = len(args)
-    if length == 0:
-        return opt
-
-    i = 0
-    while i < length:
-        if isinstance(args[i], dict):
-            opt = {**opt, **args[i]}  # Merging dictionaries
-        elif isinstance(args[i], str) and i < length - 1:
-            opt[args[i].lower()] = args[i + 1]
-            i += 1
-        else:
-            raise ValueError(
-                "input must be in the form of ...,'name',value,... pairs or structs"
-            )
-        i += 1
-
-    return opt
-
-
-# _________________________________________________________________________________________________________
-
-
-def jsonopt(key, default, *args):
-    val = default
-    if len(args) <= 0:
-        return val
-    key0 = key.lower()
-    opt = args[0]
-    if isinstance(opt, dict):
-        if key0 in opt:
-            val = opt[key0]
-        elif key in opt:
-            val = opt[key]
-    return val
-
-
-# _________________________________________________________________________________________________________
-
-
 def meshabox(p0, p1, opt, nodesize=1):
     """
     Create the surface and tetrahedral mesh of a box geometry.
@@ -590,7 +370,7 @@ def meshabox(p0, p1, opt, nodesize=1):
     elem, _, _ = im.meshreorient(node, elem[:, :4])
 
     # Extract the surface faces from the volume elements
-    face = volface(elem)[0]
+    face = im.volface(elem)[0]
 
     return node, face, elem
 
@@ -718,7 +498,7 @@ def meshacylinder(c0, c1, r, **kwargs):  # tsize=0, maxvol=0, ndiv=20):
         regions=np.array([[0, 0, 1]]),
         holes=np.array([]),
     )
-    face, *_ = volface(elem[:, 0:4])
+    face, *_ = im.volface(elem[:, 0:4])
 
     return node, face, elem
 
@@ -1128,103 +908,6 @@ def lin_to_quad_tet(node, elem):
     return newnode, newelem
 
 
-def elemfacecenter(node, elem):
-    """
-    Generate barycentric dual-mesh face center nodes and indices for each tetrahedral element.
-
-    Args:
-        node: List of node coordinates.
-        elem: List of elements (each row contains the indices of nodes forming each tetrahedral element).
-
-    Returns:
-        newnode: Coordinates of new face-center nodes.
-        newelem: Indices of the face-center nodes for each original tetrahedral element.
-    """
-
-    # Find unique faces from the elements (tetrahedral mesh)
-    faces, idx, newelem = uniqfaces(elem[:, :4])
-
-    # Extract the coordinates of the nodes forming these faces
-    newnode = node[faces.flatten(), :3]
-
-    # Reshape newnode to group coordinates of nodes in each face
-    newnode = newnode.reshape(3, 3, faces.shape[0])
-
-    # Compute the mean of the coordinates to find the face centers
-    newnode = np.mean(newnode, axis=1)
-
-    return newnode, newelem
-
-
-def barydualmesh(node, elem, flag=None):
-    """
-    Generate barycentric dual-mesh by connecting edge, face, and element centers.
-
-    Parameters:
-    node : numpy.ndarray
-        List of input mesh nodes.
-    elem : numpy.ndarray
-        List of input mesh elements (each row contains indices of nodes for each element).
-    flag : str, optional
-        If 'cell', outputs `newelem` as cell arrays (each with 4 nodes).
-
-    Returns:
-    newnode : numpy.ndarray
-        All new nodes in the barycentric dual-mesh (made of edge, face, and element centers).
-    newelem : numpy.ndarray or list
-        Indices of face nodes for each original tet element, optionally in cell array format.
-    """
-
-    # Compute edge-centers
-    enodes, eidx = highordertet(node, elem)
-
-    # Compute face-centers
-    fnodes, fidx = elemfacecenter(node, elem)
-
-    # Compute element centers
-    c0 = meshcentroid(node, elem[:, : min(elem.shape[1], 4)])
-
-    # Concatenate new nodes and their indices
-    newnode = np.vstack((enodes, fnodes, c0))
-
-    newidx = np.hstack(
-        (
-            eidx,
-            fidx + enodes.shape[0],
-            np.arange(1, elem.shape[0] + 1).reshape(-1, 1)
-            + enodes.shape[0]
-            + fnodes.shape[0],
-        )
-    )
-
-    # Element connectivity for barycentric dual-mesh (using original indexing)
-    newelem = (
-        np.array(
-            [
-                [1, 8, 11, 7],
-                [2, 7, 11, 9],
-                [3, 9, 11, 8],
-                [4, 7, 11, 10],
-                [5, 8, 11, 10],
-                [6, 9, 11, 10],
-            ]
-        ).T
-        - 1
-    )  # Adjust to 0-based indexing for Python
-
-    newelem = newidx[:, newelem.flatten()]
-
-    newelem = newelem.reshape((elem.shape[0], 4, 6))
-    newelem = np.transpose(newelem, (0, 2, 1))
-    newelem = newelem.reshape((elem.shape[0] * 6, 4))
-
-    # If the 'cell' flag is set, return `newelem` as a list of lists (cells)
-    if flag == "cell":
-        newelem = [newelem[i, :].tolist() for i in range(newelem.shape[0])]
-
-    return newnode, newelem
-
-
 def extrudesurf(no, fc, vec):
     """
     Create an enclosed surface mesh by extruding an open surface.
@@ -1256,7 +939,7 @@ def extrudesurf(no, fc, vec):
     face = np.vstack([fc, fc + nlen])  # Create top and bottom faces
 
     # Find surface edges and create side faces
-    edge = surfedge(fc)
+    edge = im.surfedge(fc)
     sideface = np.hstack([edge, edge[:, [0]] + nlen])
     sideface = np.vstack([sideface, edge + nlen, edge[:, [1]]])
 

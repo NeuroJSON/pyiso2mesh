@@ -9,6 +9,8 @@ __all__ = [
     "getexeext",
     "rotatevec3d",
     "fallbackexeext",
+    "varargin2struct",
+    "jsonopt",
 ]
 ##====================================================================================
 ## dependent libraries
@@ -160,3 +162,45 @@ def rotmat2vec(u, v):
     R = costheta * np.eye(3) + R + np.outer(k, k) * (1 - costheta) / np.sum(k**2)
 
     return R, s
+
+
+# _________________________________________________________________________________________________________
+
+
+def varargin2struct(*args):
+    opt = {}
+    length = len(args)
+    if length == 0:
+        return opt
+
+    i = 0
+    while i < length:
+        if isinstance(args[i], dict):
+            opt = {**opt, **args[i]}  # Merging dictionaries
+        elif isinstance(args[i], str) and i < length - 1:
+            opt[args[i].lower()] = args[i + 1]
+            i += 1
+        else:
+            raise ValueError(
+                "input must be in the form of ...,'name',value,... pairs or structs"
+            )
+        i += 1
+
+    return opt
+
+
+# _________________________________________________________________________________________________________
+
+
+def jsonopt(key, default, *args):
+    val = default
+    if len(args) <= 0:
+        return val
+    key0 = key.lower()
+    opt = args[0]
+    if isinstance(opt, dict):
+        if key0 in opt:
+            val = opt[key0]
+        elif key in opt:
+            val = opt[key]
+    return val

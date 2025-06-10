@@ -38,6 +38,8 @@ __all__ = [
     "meshreorient",
     "mesheuler",
     "raytrace",
+    "elemfacecenter",
+    "barydualmesh",
 ]
 
 ##====================================================================================
@@ -305,28 +307,6 @@ def meshconn(elem, nn):
         count += connnum[i]
 
     return conn, connnum, count
-
-
-# _________________________________________________________________________________________________________
-
-
-def meshcentroid(node, elem):
-    """
-    centroid=meshcentroid(v,f)
-
-    compute the centroids of a mesh defined by nodes and elements
-    (surface or tetrahedra) in R^n space
-
-    input:
-          v: surface node list, dimension (nn,3)
-          f: surface face element list, dimension (be,3)
-
-    output:
-          centroid: centroid positions, one row for each element
-    """
-    centroids = np.mean(node[elem[: elem.shape[0], :] - 1, :], axis=1)
-
-    return centroids
 
 
 # _________________________________________________________________________________________________________
@@ -1721,3 +1701,139 @@ def meshreorient(node, elem):
 
 
 # _________________________________________________________________________________________________________
+
+
+def meshcentroid(v, f):
+    #
+    # centroid=meshcentroid(v,f)
+    #
+    # compute the centroids of a mesh defined by nodes and elements
+    # (surface or tetrahedra) in R^n space
+    #
+    # input:
+    #      v: surface node list, dimension (nn,3)
+    #      f: surface face element list, dimension (be,3)
+    #
+    # output:
+    #      centroid: centroid positions, one row for each element
+    #
+    if not isinstance(f, list):
+        ec = v[f[:, :] - 1, :]
+        centroid = np.squeeze(np.mean(ec, axis=1))
+    else:
+        length_f = len(f)
+        centroid = np.zeros((length_f, v.shape[1]))
+        try:
+            for i in range(length_f):
+                fc = f[i] - 1
+                if fc:  # need to set centroid to NaN if fc is empty?
+                    vlist = fc[0]
+                    centroid[i, :] = np.mean(
+                        v[vlist[~np.isnan(vlist)], :], axis=0
+                    )  # Note to Ed check if this is functioning correctly
+        except Exception as e:
+            raise ValueError("malformed face cell array") from e
+    return centroid
+
+
+# _________________________________________________________________________________________________________
+
+
+def elemfacecenter(node, elem):
+    """
+    Generate barycentric dual-mesh face center nodes and indices for each tetrahedral element.
+
+    Args:
+        node: List of node coordinates.
+        elem: List of elements (each row contains the indices of nodes forming each tetrahedral element).
+
+    Returns:
+        newnode: Coordinates of new face-center nodes.
+        newelem: Indices of the face-center nodes for each original tetrahedral element.
+    """
+
+    # Find unique faces from the elements (tetrahedral mesh)
+    faces, idx, newelem = uniqfaces(elem[:, :4])
+
+    # Extract the coordinates of the nodes forming these faces
+    newnode = node[faces.flatten(), :3]
+
+    # Reshape newnode to group coordinates of nodes in each face
+    newnode = newnode.reshape(3, 3, faces.shape[0])
+
+    # Compute the mean of the coordinates to find the face centers
+    newnode = np.mean(newnode, axis=1)
+
+    return newnode, newelem
+
+
+# _________________________________________________________________________________________________________
+
+
+def barydualmesh(node, elem, flag=None):
+    """
+    Generate barycentric dual-mesh by connecting edge, face, and element centers.
+
+    Parameters:
+    node : numpy.ndarray
+        List of input mesh nodes.
+    elem : numpy.ndarray
+        List of input mesh elements (each row contains indices of nodes for each element).
+    flag : str, optional
+        If 'cell', outputs `newelem` as cell arrays (each with 4 nodes).
+
+    Returns:
+    newnode : numpy.ndarray
+        All new nodes in the barycentric dual-mesh (made of edge, face, and element centers).
+    newelem : numpy.ndarray or list
+        Indices of face nodes for each original tet element, optionally in cell array format.
+    """
+
+    # Compute edge-centers
+    enodes, eidx = highordertet(node, elem)
+
+    # Compute face-centers
+    fnodes, fidx = elemfacecenter(node, elem)
+
+    # Compute element centers
+    c0 = im.meshcentroid(node, elem[:, : min(elem.shape[1], 4)])
+
+    # Concatenate new nodes and their indices
+    newnode = np.vstack((enodes, fnodes, c0))
+
+    newidx = np.hstack(
+        (
+            eidx,
+            fidx + enodes.shape[0],
+            np.arange(1, elem.shape[0] + 1).reshape(-1, 1)
+            + enodes.shape[0]
+            + fnodes.shape[0],
+        )
+    )
+
+    # Element connectivity for barycentric dual-mesh (using original indexing)
+    newelem = (
+        np.array(
+            [
+                [1, 8, 11, 7],
+                [2, 7, 11, 9],
+                [3, 9, 11, 8],
+                [4, 7, 11, 10],
+                [5, 8, 11, 10],
+                [6, 9, 11, 10],
+            ]
+        ).T
+        - 1
+    )  # Adjust to 0-based indexing for Python
+
+    newelem = newidx[:, newelem.flatten()]
+
+    newelem = newelem.reshape((elem.shape[0], 4, 6))
+    newelem = np.transpose(newelem, (0, 2, 1))
+    newelem = newelem.reshape((elem.shape[0] * 6, 4))
+
+    # If the 'cell' flag is set, return `newelem` as a list of lists (cells)
+    if flag == "cell":
+        newelem = [newelem[i, :].tolist() for i in range(newelem.shape[0])]
+
+    return newnode, newelem

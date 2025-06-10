@@ -952,15 +952,6 @@ def readoff(fname):
     return node, elem
 
 
-"""
-def nonemptyline(fid):
-    line = fid.readline().decode('utf-8').strip()
-    while not line:
-        line = fid.readline().decode('utf-8').strip()
-    return line
-"""
-
-
 def nonemptyline(fid):
     str_ = ""
     if fid == 0:
