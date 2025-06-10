@@ -59,10 +59,12 @@ nearly identical to those in the MATLAB/Octave versions of Iso2Mesh.
    cd pyiso2mesh
 ```
 
-3. A platform-independent `noarch` module will be built locally. You should see a package
+3. Type `python3 -m build` to build the package
+
+4. A platform-independent `noarch` module will be built locally. You should see a package
    named `iso2mesh-x.x.x-py2.py3-none-any.whl` in the `dist/` subfolder.
 
-4. You can install the locally built package using:
+5. You can install the locally built package using:
    `python3 -m pip install --force-reinstall iso2mesh-*.whl`
 
 ## How to Use
