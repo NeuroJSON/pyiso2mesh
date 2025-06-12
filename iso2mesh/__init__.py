@@ -91,6 +91,8 @@ from .iso2mesh_core import (
     vol2restrictedtri,
     removeisolatednode,
     surfboolean,
+    surfreorient,
+    meshresample,
 )
 
 __version__ = "0.1.0"
@@ -175,5 +177,7 @@ __all__ = [
     "surfboolean",
     "plotedges",
     "plottetra",
+    "surfreorient",
+    "meshresample",
 ]
 __license__ = """GNU General Public License v3 and later"""

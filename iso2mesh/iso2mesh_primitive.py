@@ -59,23 +59,32 @@ def plotsurf(node, face, *args, **kwargs):
                 and len(fc) >= 2
                 and isinstance(fc[0], (list, tuple))
             ):
-                group_id = fc[1]
+                group_id = fc[1][0]
                 if group_id + 1 > sc.shape[0]:
                     sc = np.vstack([sc, np.random.rand(group_id + 1 - sc.shape[0], 3)])
-                newsurf.setdefault(group_id + 1, []).append(np.asarray(fc[0]))
+                newsurf.setdefault(group_id, []).append(np.asarray(fc[0]) - 1)
             else:
-                newsurf[len(newsurf)] = np.asarray(fc) - 1
+                newsurf.setdefault(1, []).append(np.asarray(fc) - 1)
 
         ax = plt.gca()
 
-        if ax.name != '3d':
-            plt.figure() # Create a new figure
-            ax = plt.gcf().add_subplot(projection='3d') # Add 3D axes to the current figure
+        if ax.name != "3d":
+            plt.figure()  # Create a new figure
+            ax = plt.gcf().add_subplot(
+                projection="3d"
+            )  # Add 3D axes to the current figure
 
-        poly3d = [node[subface, :3] for i, subface in newsurf.items()]
-        patch = Poly3DCollection(poly3d, edgecolors="k", **kwargs)
+        poly3d = [
+            node[np.array(subf).flatten(), :3]
+            for subface in newsurf.values()
+            for subf in subface
+        ]
+        colmap = [sc[i - 1, :] for i, subface in newsurf.items() for subf in subface]
+
+        patch = Poly3DCollection(poly3d, facecolors=colmap, edgecolors="k", **kwargs)
         ax.add_collection3d(patch)
         ax.auto_scale_xyz(node[:, 0], node[:, 1], node[:, 2])
+        ax.set_box_aspect([1, 1, 1])
         h.append(patch)
 
     else:
@@ -105,9 +114,10 @@ def plotsurf(node, face, *args, **kwargs):
     #            plt.view(3)
 
     np.random.set_state(rngstate)
-    #plt.axis("equal")
+    # plt.axis("equal")
 
     return h
+
 
 # _________________________________________________________________________________________________________
 
@@ -118,14 +128,16 @@ def plotasurf(node, face, *args, **kwargs):
     else:
         ax = plt.gca()
 
-        if ax.name != '3d':
-            plt.figure() # Create a new figure
-            ax = plt.gcf().add_subplot(projection='3d') # Add 3D axes to the current figure
+        if ax.name != "3d":
+            plt.figure()  # Create a new figure
+            ax = plt.gcf().add_subplot(
+                projection="3d"
+            )  # Add 3D axes to the current figure
 
-        if not 'color' in kwargs and not 'cmap' in kwargs:
-            kwargs['cmap'] = plt.get_cmap("jet")
-        if not 'edgecolor' in kwargs:
-            kwargs['edgecolor'] = 'k'
+        if not "color" in kwargs and not "cmap" in kwargs:
+            kwargs["cmap"] = plt.get_cmap("jet")
+        if not "edgecolor" in kwargs:
+            kwargs["edgecolor"] = "k"
         trisurf = ax.plot_trisurf(
             node[:, 0],
             node[:, 1],
@@ -178,8 +190,10 @@ def plottetra(node, elem, *args, **kwargs):
             types = np.unique(tag)
             for t in types:
                 idx = np.where(tag == t)[0]
-                face = im.volface(elem[idx, :4])[0]  # Pass only first 4 columns (1-based in MATLAB)
-                kwargs['color'] = np.random.rand(1, 3)
+                face = im.volface(elem[idx, :4])[
+                    0
+                ]  # Pass only first 4 columns (1-based in MATLAB)
+                kwargs["color"] = np.random.rand(1, 3)
                 h.append(plotsurf(node, face, *args, **kwargs))
         else:
             face = im.volface(elem[:, :4])[0]
@@ -192,7 +206,9 @@ def plottetra(node, elem, *args, **kwargs):
     if h:
         return h
 
+
 # _________________________________________________________________________________________________________
+
 
 def plotedges(node, edges, *args, **kwargs):
     """
@@ -214,7 +230,7 @@ def plotedges(node, edges, *args, **kwargs):
     hh : list
         Handles to plotted elements.
     """
-    edges = np.asarray(edges, order='F')  # Flatten in F order if needed
+    edges = np.asarray(edges, order="F")  # Flatten in F order if needed
     hh = []
 
     if edges.size == 0:
@@ -225,12 +241,12 @@ def plotedges(node, edges, *args, **kwargs):
 
     if edges.ndim == 1 or edges.shape[1] == 1:
         # Loop: NaN-separated index list
-        randseed = int('623F9A9E', 16)
-        if 'iso2mesh_randseed' in kwargs:
-            randseed = kwargs['iso2mesh_randseed']
+        randseed = int("623F9A9E", 16)
+        if "iso2mesh_randseed" in kwargs:
+            randseed = kwargs["iso2mesh_randseed"]
         np.random.seed(randseed)
 
-        loops = edges.flatten(order='F')
+        loops = edges.flatten(order="F")
         if not np.isnan(loops[-1]):
             loops = np.append(loops, np.nan)
 
@@ -241,10 +257,16 @@ def plotedges(node, edges, *args, **kwargs):
             segment = loops[seghead:i]
             segment = segment.astype(int) - 1  # 1-based to 0-based
             if segment.size > 1:
-                h, = plt.plot(node[segment, 0],
-                              node[segment, 1],
-                              node[segment, 2] if node.shape[1] >= 3 else None,
-                              color=np.random.rand(3,), *args, **kwargs)
+                (h,) = plt.plot(
+                    node[segment, 0],
+                    node[segment, 1],
+                    node[segment, 2] if node.shape[1] >= 3 else None,
+                    color=np.random.rand(
+                        3,
+                    ),
+                    *args,
+                    **kwargs,
+                )
                 hh.append(h)
             seghead = i + 1
     else:
@@ -256,25 +278,28 @@ def plotedges(node, edges, *args, **kwargs):
         if node.shape[1] >= 3:
             ax = plt.gca()
 
-            if ax.name != '3d':
-                plt.figure() # Create a new figure
-                ax = plt.gcf().add_subplot(projection='3d') # Add 3D axes to the current figure
+            if ax.name != "3d":
+                plt.figure()  # Create a new figure
+                ax = plt.gcf().add_subplot(
+                    projection="3d"
+                )  # Add 3D axes to the current figure
 
-            segments = [ [node[start], node[end]] for start, end in edges ]
+            segments = [[node[start], node[end]] for start, end in edges]
             h = Line3DCollection(segments, **kwargs)
             ax.add_collection3d(h)
             ax.auto_scale_xyz(node[:, 0], node[:, 1], node[:, 2])
 
             hh.append(h)
         else:
-            x = node[:,0].flatten()
-            y = node[:,1].flatten()
+            x = node[:, 0].flatten()
+            y = node[:, 1].flatten()
             h = plt.plot(x[edges.T], y[edges.T], *args, **kwargs)
 
         hh.append(h)
 
     np.random.set_state(rng_state)
     return hh
+
 
 # _________________________________________________________________________________________________________
 
@@ -377,7 +402,7 @@ def plotmesh(node, *args, **kwargs):
         ax = plottetra(node, elem[idx, :], opt, *args, **kwargs)
         handles.append(ax)
 
-    plt.axis("equal")
+    plt.gca().set_box_aspect([1, 1, 1])
 
     plt.show(block=False)
     return handles if len(handles) > 1 else handles[0]
@@ -465,7 +490,7 @@ def meshabox(p0, p1, opt, nodesize=1):
 # _________________________________________________________________________________________________________
 
 
-def meshunitsphere(tsize, **kwargs):
+def meshunitsphere(tsize, maxvol=None):
     dim = 60
     esize = tsize * dim
     thresh = dim / 2 - 1
@@ -490,10 +515,8 @@ def meshunitsphere(tsize, **kwargs):
     r0 = np.sqrt(np.sum(node**2, axis=1))
     node = node / r0[:, None]
 
-    #    if not 'maxvol' in kwargs:
-    #        maxvol = tsize**3
-
-    maxvol = kwargs["maxvol"] if "maxvol" in kwargs else tsize**3
+    if not maxvol:
+        maxvol = tsize**3
 
     # Call a surf2mesh equivalent in Python here (needs a custom function)
     node, elem, face = im.surf2mesh(
@@ -523,15 +546,11 @@ def meshasphere(c0, r, tsize, maxvol=None):
 # _________________________________________________________________________________________________________
 
 
-def meshacylinder(c0, c1, r, **kwargs):  # tsize=0, maxvol=0, ndiv=20):
-    tsize = kwargs["tsize"] if "tsize" in kwargs else 0
-    maxvol = kwargs["maxvol"] if "maxvol" in kwargs else 0
-    ndiv = kwargs["ndiv"] if "ndiv" in kwargs else 20
-
+def meshacylinder(c0, c1, r, tsize=None, maxvol=None, ndiv=20):
     if len(np.array([r])) == 1:
         r = np.array([r, r])
 
-    if any(np.array(r) <= 0) or np.all(c0 == c1):
+    if np.any(np.array(r) <= 0) or np.all(c0 == c1):
         raise ValueError("Invalid cylinder parameters")
 
     c0 = np.array(c0).reshape(-1, 1)
@@ -539,10 +558,10 @@ def meshacylinder(c0, c1, r, **kwargs):  # tsize=0, maxvol=0, ndiv=20):
     v0 = c1 - c0
     len_axis = np.linalg.norm(v0)
 
-    if tsize == 0:
+    if tsize is None:
         tsize = min(np.append(r, len_axis)) / 10
 
-    if maxvol == 0:
+    if maxvol is None:
         maxvol = tsize**3 / 5
 
     dt = 2 * np.pi / ndiv
@@ -558,22 +577,16 @@ def meshacylinder(c0, c1, r, **kwargs):  # tsize=0, maxvol=0, ndiv=20):
 
     # face = np.empty((0,4))
     face = []
-    for i in range(ndiv - 1):
+    for i in range(1, ndiv):
         # face = np.vstack((face, np.array([i, i + ndiv, i + ndiv + 1, i + 1])))
         face.append([[[i, i + ndiv, i + ndiv + 1, i + 1]], [1]])
 
-    face.append([[[ndiv - 1, 2 * ndiv - 1, ndiv, 0]], [1]])
-    face.append([[list(range(ndiv))], [2]])
-    face.append([[list(range(ndiv, 2 * ndiv))], [3]])
+    face.append([[[ndiv, 2 * ndiv, ndiv + 1, 1]], [1]])
+    face.append([[list(range(1, ndiv + 1))], [2]])
+    face.append([[list(range(ndiv + 1, 2 * ndiv + 1))], [3]])
 
-    if tsize == 0 and maxvol == 0:
+    if tsize == 0.0 and maxvol == 0.0:
         return no, face
-
-    if not "tsize" in kwargs:
-        tsize = len_axis / 10
-
-    if not "maxvol" in kwargs:
-        maxvol = tsize**3
 
     node, elem, *_ = im.surf2mesh(
         no,
@@ -767,7 +780,9 @@ def lattice(*args):
         grid[:, i] = grids[i].ravel(order="F")
     return grid
 
+
 # _________________________________________________________________________________________________________
+
 
 def latticegrid(*args):
     """
@@ -846,9 +861,11 @@ def latticegrid(*args):
             ).T
         )
 
-    return node, face, centroids
+    return node, face.tolist(), centroids
+
 
 # _________________________________________________________________________________________________________
+
 
 def extrudecurve(c0, c1, curve, ndiv):
     if len(c0) != len(c1) or len(c0) != 3:
@@ -887,7 +904,9 @@ def extrudecurve(c0, c1, curve, ndiv):
 
     return nodes, elem
 
+
 # _________________________________________________________________________________________________________
+
 
 def meshcylinders(c0, c1, r, tsize=0, maxvol=0, ndiv=20):
     if np.any(np.array(r) <= 0):
@@ -916,7 +935,9 @@ def meshcylinders(c0, c1, r, tsize=0, maxvol=0, ndiv=20):
 
     return node, face, elem
 
+
 # _________________________________________________________________________________________________________
+
 
 def highordertet(node, elem, order=2, opt=None):
     """
@@ -949,7 +970,9 @@ def highordertet(node, elem, order=2, opt=None):
 
     return newnode, newelem
 
+
 # _________________________________________________________________________________________________________
+
 
 def lin_to_quad_tet(node, elem):
     """
@@ -999,7 +1022,9 @@ def lin_to_quad_tet(node, elem):
 
     return newnode, newelem
 
+
 # _________________________________________________________________________________________________________
+
 
 def extrudesurf(no, fc, vec):
     """
@@ -1043,7 +1068,9 @@ def extrudesurf(no, fc, vec):
 
     return node, face
 
+
 # _________________________________________________________________________________________________________
+
 
 def meshanellip(c0, rr, tsize, maxvol=None):
     """
@@ -1087,7 +1114,7 @@ def meshanellip(c0, rr, tsize, maxvol=None):
 
     # Call meshunitsphere to generate unit sphere mesh
     if maxvol:
-        node, face, elem = meshunitsphere(tsize / rmax, maxvol = maxvol / (rmax**3))
+        node, face, elem = meshunitsphere(tsize / rmax, maxvol=maxvol / (rmax**3))
     else:
         node, face = meshunitsphere(tsize / rmax)
 

@@ -16,6 +16,8 @@ __all__ = [
     "vol2restrictedtri",
     "removeisolatednode",
     "surfboolean",
+    "surfreorient",
+    "meshresample",
 ]
 
 ##====================================================================================
@@ -493,11 +495,16 @@ def surf2mesh(
             cmdopt = eval("ISO2MESH_TETGENOPT")
         except:
             cmdopt = ""
-    cmdstr = f"'{im.mcpath(method, exesuff)}' -A -q1.414a{maxvol} {moreopt} " + im.mwpath("post_vmesh.poly")
+    cmdstr = (
+        f"'{im.mcpath(method, exesuff)}' -A -q1.414a{maxvol} {moreopt} "
+        + im.mwpath("post_vmesh.poly")
+    )
     if not cmdopt:
         status, cmdout = subprocess.getstatusoutput(cmdstr)
     else:
-        cmdstr = f"'{im.mcpath(method, exesuff)}' {cmdopt} " + im.mwpath("post_vmesh.poly")
+        cmdstr = f"'{im.mcpath(method, exesuff)}' {cmdopt} " + im.mwpath(
+            "post_vmesh.poly"
+        )
         status, cmdout = subprocess.getstatusoutput(
             f"'{im.mcpath(method, exesuff)}' {cmdopt} " + im.mwpath("post_vmesh.poly")
         )
@@ -1778,7 +1785,9 @@ def surfboolean(node, elem, *varargin):
                 im.saveoff(no[:, :3], el[:, :3], im.mwpath("pre_decouple2.off"))
                 cmd = f'cd "{im.mwpath()}" && "{im.mcpath("meshfix")}{exesuff}" "{im.mwpath("pre_decouple1.off")}" "{im.mwpath("pre_decouple2.off")}" {opstr}'
         else:
-            im.saveoff(newnode[:, :3], newelem[:, :3], im.mwpath(f"pre_surfbool1.{tempsuff}"))
+            im.saveoff(
+                newnode[:, :3], newelem[:, :3], im.mwpath(f"pre_surfbool1.{tempsuff}")
+            )
             im.saveoff(no[:, :3], el[:, :3], im.mwpath(f"pre_surfbool2.{tempsuff}"))
             cmd = f'cd "{im.mwpath()}" && "{im.mcpath(exename)}{exesuff}" -{opstr} "{im.mwpath(f"pre_surfbool1.{tempsuff}")}" "{im.mwpath(f"pre_surfbool2.{tempsuff}")}" "{im.mwpath("post_surfbool.off")}" -{randseed}'
 
@@ -1956,7 +1965,7 @@ def meshresample(v, f, keepratio):
 
     # Remove duplicate nodes
     node, I, J = np.unique(node, axis=0, return_index=True, return_inverse=True)
-    elem = J[elem]
+    elem = J[elem - 1] + 1
 
     im.saveoff(node, elem, im.mwpath("post_remesh.off"))
 

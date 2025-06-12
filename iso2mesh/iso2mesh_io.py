@@ -764,15 +764,19 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
             for i in range(len(f)):
                 plcs = f[i]
                 faceid = -1
-                if isinstance(plcs, list) and len(plcs) > 0 and isinstance(plcs[0], list):  # if each face is a cell, use plc{2} for face id
+                if (
+                    isinstance(plcs, list)
+                    and len(plcs) > 0
+                    and isinstance(plcs[0], list)
+                ):  # if each face is a cell, use plc{2} for face id
                     if len(plcs) > 1:
                         faceid = int(plcs[1][0])
                     plcs = plcs[0]
-                elif(isinstance(plcs, list)):
+                elif isinstance(plcs, list):
                     if all(isinstance(el, list) for el in plcs):
-                       plcs = [np.array(el) for el in plcs]
+                        plcs = [np.array(el) for el in plcs]
                     else:
-                       plcs = [ np.array(plcs) ]
+                        plcs = [np.array(plcs)]
                 for row in range(len(plcs)):
                     plc = np.array(plcs[row])
                     if np.any(
@@ -833,7 +837,8 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                                         j,
                                         np.mean(
                                             node[
-                                                plc[holeid[j] + 1 : holeid[j + 1] - 1] - 1,
+                                                plc[holeid[j] + 1 : holeid[j + 1] - 1]
+                                                - 1,
                                                 1:4,
                                             ],
                                             axis=0,
@@ -848,11 +853,16 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                         fp.write("\t{}".format("\t".join(map(str, plc - 1))))
                         fp.write("\t1\n")
 
-        if dobbx or edges:
+        if dobbx or isinstance(edges, np.ndarray) and edges.size > 0:
             for i in range(bbxnum):
                 fp.write("{} {} 1\n".format(1 + loopcount[i], loopcount[i]))
                 fp.write("{} {} {} {} {}\n".format(*boxelem[i, :]))
-                if edges and loopcount[i] and np.any(loopid == i):
+                if (
+                    isinstance(edges, np.ndarray)
+                    and edges.size > 0
+                    and loopcount[i]
+                    and np.any(loopid == i)
+                ):
                     endid = np.where(loopid == i)[0]
                     for k in endid:
                         j = endid[k]

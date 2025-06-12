@@ -120,7 +120,7 @@ def rotatevec3d(pt, v1, u1=None, p0=None):
     u1 = u1 / np.linalg.norm(u1)
     v1 = v1 / np.linalg.norm(v1)
 
-    R, s = rotmat2vec(u1, v1)
+    R, s = rotmat2vec(u1.flatten(), v1.flatten())
     newpt = (R @ pt.T * s).T
 
     if p0 is not None:
