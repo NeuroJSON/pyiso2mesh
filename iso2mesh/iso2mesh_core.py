@@ -15,6 +15,7 @@ __all__ = [
     "removedupelem",
     "vol2restrictedtri",
     "removeisolatednode",
+    "surfboolean",
 ]
 
 ##====================================================================================
@@ -492,26 +493,17 @@ def surf2mesh(
             cmdopt = eval("ISO2MESH_TETGENOPT")
         except:
             cmdopt = ""
-
+    cmdstr = f"'{im.mcpath(method, exesuff)}' -A -q1.414a{maxvol} {moreopt} " + im.mwpath("post_vmesh.poly")
     if not cmdopt:
-        status, cmdout = subprocess.getstatusoutput(
-            '"'
-            + im.mcpath(method, exesuff)
-            + '"'
-            + " -A -q1.414a"
-            + str(maxvol)
-            + " "
-            + moreopt
-            + " "
-            + im.mwpath("post_vmesh.poly")
-        )
+        status, cmdout = subprocess.getstatusoutput(cmdstr)
     else:
+        cmdstr = f"'{im.mcpath(method, exesuff)}' {cmdopt} " + im.mwpath("post_vmesh.poly")
         status, cmdout = subprocess.getstatusoutput(
-            f"{method} {cmdopt} post_vmesh.poly"
+            f"'{im.mcpath(method, exesuff)}' {cmdopt} " + im.mwpath("post_vmesh.poly")
         )
 
     if status != 0:
-        raise RuntimeError(f"Tetgen command failed:\n{cmdout}")
+        raise RuntimeError(f"Tetgen command failed: {cmdstr}\n{cmdout}")
 
     # Read generated mesh
     node, elem, face = im.readtetgen(im.mwpath("post_vmesh.1"))
@@ -876,8 +868,8 @@ def cgalv2m(vol, opt, maxvol):
     if not np.any(vol):
         raise ValueError("No labeled regions found in the input volume.")
 
-    exesuff = getexeext()
-    exesuff = fallbackexeext(exesuff, "cgalmesh")
+    exesuff = im.getexeext()
+    exesuff = im.fallbackexeext(exesuff, "cgalmesh")
 
     ang = 30
     ssize = 6
@@ -893,19 +885,19 @@ def cgalv2m(vol, opt, maxvol):
         approx = opt.get("distbound", approx)
         reratio = opt.get("reratio", reratio)
 
-    saveinr(vol, mwpath("pre_cgalmesh.inr"))
-    deletemeshfile(mwpath("post_cgalmesh.mesh"))
+    im.saveinr(vol, im.mwpath("pre_cgalmesh.inr"))
+    im.deletemeshfile(im.mwpath("post_cgalmesh.mesh"))
 
     randseed = int("623F9A9E", 16)
 
-    cmd = f'"{mcpath("cgalmesh")}{exesuff}" "{mwpath("pre_cgalmesh.inr")}" "{mwpath("post_cgalmesh.mesh")}" {ang} {ssize} {approx} {reratio} {maxvol} {randseed}'
+    cmd = f'"{im.mcpath("cgalmesh")}{exesuff}" "{im.mwpath("pre_cgalmesh.inr")}" "{im.mwpath("post_cgalmesh.mesh")}" {ang} {ssize} {approx} {reratio} {maxvol} {randseed}'
 
     os.system(cmd)
 
-    if not os.path.exists(mwpath("post_cgalmesh.mesh")):
+    if not os.path.exists(im.mwpath("post_cgalmesh.mesh")):
         raise RuntimeError(f"Output file was not found. Command failed: {cmd}")
 
-    node, elem, face = readmedit(mwpath("post_cgalmesh.mesh"))
+    node, elem, face = im.readmedit(im.mwpath("post_cgalmesh.mesh"))
 
     if isinstance(opt, dict) and len(opt) == 1:
         if "A" in opt and "B" in opt:
@@ -925,7 +917,7 @@ def cgalv2m(vol, opt, maxvol):
         )
 
     node += 0.5
-    elem[:, :4] = meshreorient(node[:, :3], elem[:, :4])
+    elem[:, :4] = im.meshreorient(node[:, :3], elem[:, :4])
 
     return node, elem, face
 
@@ -961,7 +953,7 @@ def cgals2m(v, f, opt, maxvol, *args):
 
     print("Creating surface and tetrahedral mesh from a polyhedral surface ...")
 
-    exesuff = fallbackexeext(getexeext(), "cgalpoly")
+    exesuff = im.fallbackexeext(im.getexeext(), "cgalpoly")
 
     ang = 30
     ssize = 6
@@ -981,13 +973,13 @@ def cgals2m(v, f, opt, maxvol, *args):
     if flags.get("DoRepair", 0) == 1:
         v, f = meshcheckrepair(v, f)
 
-    saveoff(v, f, mwpath("pre_cgalpoly.off"))
-    deletemeshfile(mwpath("post_cgalpoly.mesh"))
+    im.saveoff(v, f, im.mwpath("pre_cgalpoly.off"))
+    im.deletemeshfile(im.mwpath("post_cgalpoly.mesh"))
 
     randseed = os.getenv("ISO2MESH_SESSION", int("623F9A9E", 16))
 
     cmd = (
-        f'"{mcpath("cgalpoly")}{exesuff}" "{mwpath("pre_cgalpoly.off")}" "{mwpath("post_cgalpoly.mesh")}" '
+        f'"{im.mcpath("cgalpoly")}{exesuff}" "{im.mwpath("pre_cgalpoly.off")}" "{im.mwpath("post_cgalpoly.mesh")}" '
         f"{ang:.16f} {ssize:.16f} {approx:.16f} {reratio:.16f} {maxvol:.16f} {randseed}"
     )
 
@@ -996,12 +988,12 @@ def cgals2m(v, f, opt, maxvol, *args):
     if status != 0:
         raise RuntimeError("cgalpoly command failed")
 
-    if not os.path.exists(mwpath("post_cgalpoly.mesh")):
+    if not os.path.exists(im.mwpath("post_cgalpoly.mesh")):
         raise FileNotFoundError(
             f"Output file was not found, failure occurred when running command: \n{cmd}"
         )
 
-    node, elem, face = readmedit(mwpath("post_cgalpoly.mesh"))
+    node, elem, face = readmedit(im.mwpath("post_cgalpoly.mesh"))
 
     print(f"node number:\t{node.shape[0]}")
     print(f"triangles:\t{face.shape[0]}")
@@ -1176,12 +1168,12 @@ def meshcheckrepair(node, elem, opt=None, *args):
         node, elem = im.readoff(im.mwpath("pre_sclean_fixed.off"))
 
     if opt == "intersect":
-        moreopt = f' -q --no-clean --intersect -o "{mwpath("pre_sclean_inter.msh")}"'
-        deletemeshfile(mwpath("pre_sclean.off"))
-        deletemeshfile(mwpath("pre_sclean_inter.msh"))
-        saveoff(node, elem, mwpath("pre_sclean.off"))
+        moreopt = f' -q --no-clean --intersect -o "{im.mwpath("pre_sclean_inter.msh")}"'
+        im.deletemeshfile(im.mwpath("pre_sclean.off"))
+        im.deletemeshfile(im.mwpath("pre_sclean_inter.msh"))
+        im.saveoff(node, elem, im.mwpath("pre_sclean.off"))
         subprocess.call(
-            f'"{mcpath("meshfix")}{exesuff}" "{mwpath("pre_sclean.off")}" {moreopt}',
+            f'"{im.mcpath("meshfix")}{exesuff}" "{im.mwpath("pre_sclean.off")}" {moreopt}',
             shell=True,
         )
     return node, elem
@@ -1413,9 +1405,9 @@ def getintersecttri(tmppath):
     Returns:
     eid: An array of all intersecting surface element IDs.
     """
-    exesuff = getexeext()
-    exesuff = fallbackexeext(exesuff, "tetgen")
-    tetgen_path = mcpath("tetgen") + exesuff
+    exesuff = im.getexeext()
+    exesuff = im.fallbackexeext(exesuff, "tetgen")
+    tetgen_path = im.mcpath("tetgen") + exesuff
 
     command = f'"{tetgen_path}" -d "{os.path.join(tmppath, "post_vmesh.poly")}"'
     status, str_output = subprocess.getstatusoutput(command)
@@ -1737,7 +1729,7 @@ def surfboolean(node, elem, *varargin):
     except KeyError:
         exename = "cork"
 
-    exesuff = fallbackexeext(getexeext(), exename)
+    exesuff = im.fallbackexeext(im.getexeext(), exename)
     randseed = int("623F9A9E", 16)  # Random seed
 
     # Check if ISO2MESH_RANDSEED is available
@@ -1762,14 +1754,14 @@ def surfboolean(node, elem, *varargin):
         opstr = op_map.get(op, op)
 
         tempsuff = "off"
-        deletemeshfile(mwpath(f"pre_surfbool*.{tempsuff}"))
-        deletemeshfile(mwpath("post_surfbool.off"))
+        im.deletemeshfile(im.mwpath(f"pre_surfbool*.{tempsuff}"))
+        im.deletemeshfile(im.mwpath("post_surfbool.off"))
 
         if opstr == "all":
-            deletemeshfile(mwpath("s1out2.off"))
-            deletemeshfile(mwpath("s1in2.off"))
-            deletemeshfile(mwpath("s2out1.off"))
-            deletemeshfile(mwpath("s2in1.off"))
+            im.deletemeshfile(im.mwpath("s1out2.off"))
+            im.deletemeshfile(im.mwpath("s1in2.off"))
+            im.deletemeshfile(im.mwpath("s2out1.off"))
+            im.deletemeshfile(im.mwpath("s2in1.off"))
 
         if op == "decouple":
             if "node1" not in locals():
@@ -1778,17 +1770,17 @@ def surfboolean(node, elem, *varargin):
                 newnode[:, 3] = 1
                 newelem[:, 3] = 1
             opstr = " --decouple-inin 1 --shells 2"
-            saveoff(node1[:, :3], elem1[:, :3], mwpath("pre_decouple1.off"))
+            im.saveoff(node1[:, :3], elem1[:, :3], im.mwpath("pre_decouple1.off"))
             if no.shape[1] != 3:
                 opstr = f"-q --shells {no}"
-                cmd = f'cd "{mwpath()}" && "{mcpath("meshfix")}{exesuff}" "{mwpath("pre_decouple1.off")}" {opstr}'
+                cmd = f'cd "{im.mwpath()}" && "{im.mcpath("meshfix")}{exesuff}" "{im.mwpath("pre_decouple1.off")}" {opstr}'
             else:
-                saveoff(no[:, :3], el[:, :3], mwpath("pre_decouple2.off"))
-                cmd = f'cd "{mwpath()}" && "{mcpath("meshfix")}{exesuff}" "{mwpath("pre_decouple1.off")}" "{mwpath("pre_decouple2.off")}" {opstr}'
+                im.saveoff(no[:, :3], el[:, :3], im.mwpath("pre_decouple2.off"))
+                cmd = f'cd "{im.mwpath()}" && "{im.mcpath("meshfix")}{exesuff}" "{im.mwpath("pre_decouple1.off")}" "{im.mwpath("pre_decouple2.off")}" {opstr}'
         else:
-            saveoff(newnode[:, :3], newelem[:, :3], mwpath(f"pre_surfbool1.{tempsuff}"))
-            saveoff(no[:, :3], el[:, :3], mwpath(f"pre_surfbool2.{tempsuff}"))
-            cmd = f'cd "{mwpath()}" && "{mcpath(exename)}{exesuff}" -{opstr} "{mwpath(f"pre_surfbool1.{tempsuff}")}" "{mwpath(f"pre_surfbool2.{tempsuff}")}" "{mwpath("post_surfbool.off")}" -{randseed}'
+            im.saveoff(newnode[:, :3], newelem[:, :3], im.mwpath(f"pre_surfbool1.{tempsuff}"))
+            im.saveoff(no[:, :3], el[:, :3], im.mwpath(f"pre_surfbool2.{tempsuff}"))
+            cmd = f'cd "{im.mwpath()}" && "{im.mcpath(exename)}{exesuff}" -{opstr} "{im.mwpath(f"pre_surfbool1.{tempsuff}")}" "{im.mwpath(f"pre_surfbool2.{tempsuff}")}" "{im.mwpath("post_surfbool.off")}" -{randseed}'
 
         status, outstr = subprocess.getstatusoutput(cmd)
         if status != 0 and op != "self":
@@ -1799,17 +1791,17 @@ def surfboolean(node, elem, *varargin):
         if op == "self":
             if "NOT SOLID" not in outstr:
                 print("No self-intersection was found!")
-                return None, None, None
+                return None, None
             else:
                 print("Input mesh is self-intersecting")
-                return np.array([1]), np.array([]), np.array([1])
+                return np.array([1]), np.array([])
 
     # Further processing based on the operation 'all'
     if opstr == "all":
-        nnode, nelem = readoff(mwpath("s1out2.off"))
+        nnode, nelem = im.readoff(im.mwpath("s1out2.off"))
         newelem = np.hstack([nelem, np.ones((nelem.shape[0], 1))])
         newnode = np.hstack([nnode, np.ones((nnode.shape[0], 1))])
-        nnode, nelem = readoff(mwpath("s1in2.off"))
+        nnode, nelem = im.readoff(im.mwpath("s1in2.off"))
         newelem = np.vstack(
             [
                 newelem,
@@ -1819,7 +1811,7 @@ def surfboolean(node, elem, *varargin):
         newnode = np.vstack(
             [newnode, np.hstack([nnode, np.ones((nnode.shape[0], 1)) * 3])]
         )
-        nnode, nelem = readoff(mwpath("s2out1.off"))
+        nnode, nelem = im.readoff(im.mwpath("s2out1.off"))
         newelem = np.vstack(
             [
                 newelem,
@@ -1829,7 +1821,7 @@ def surfboolean(node, elem, *varargin):
         newnode = np.vstack(
             [newnode, np.hstack([nnode, np.ones((nnode.shape[0], 1)) * 2])]
         )
-        nnode, nelem = readoff(mwpath("s2in1.off"))
+        nnode, nelem = im.readoff(im.mwpath("s2in1.off"))
         newelem = np.vstack(
             [
                 newelem,
@@ -1840,9 +1832,9 @@ def surfboolean(node, elem, *varargin):
             [newnode, np.hstack([nnode, np.ones((nnode.shape[0], 1)) * 4])]
         )
     else:
-        newnode, newelem = readoff(mwpath("post_surfbool.off"))
+        newnode, newelem = im.readoff(im.mwpath("post_surfbool.off"))
 
-    return newnode, newelem, None
+    return newnode, newelem
 
 
 def fillsurf(node, face):
@@ -1859,7 +1851,7 @@ def fillsurf(node, face):
     """
 
     # Placeholder for calling an external function, typically using TetGen for surface to volume mesh conversion
-    no, el = surf2mesh(node, face, None, None, 1, 1, None, None, 0, "tetgen", "-YY")
+    no, el, _ = surf2mesh(node, face, None, None, 1, 1, None, None, 0, "tetgen", "-YY")
 
     return no, el
 
@@ -1966,7 +1958,7 @@ def meshresample(v, f, keepratio):
     node, I, J = np.unique(node, axis=0, return_index=True, return_inverse=True)
     elem = J[elem]
 
-    saveoff(node, elem, mwpath("post_remesh.off"))
+    im.saveoff(node, elem, im.mwpath("post_remesh.off"))
 
     return node, elem
 
@@ -1990,24 +1982,24 @@ def domeshsimplify(v, f, keepratio):
         Element list after simplification.
     """
 
-    exesuff = getexeext()
-    exesuff = fallbackexeext(exesuff, "cgalsimp2")
+    exesuff = im.getexeext()
+    exesuff = im.fallbackexeext(exesuff, "cgalsimp2")
 
     # Save the input mesh in OFF format
-    saveoff(v, f, mwpath("pre_remesh.off"))
+    im.saveoff(v, f, im.mwpath("pre_remesh.off"))
 
     # Delete the old remeshed file if it exists
-    deletemeshfile(mwpath("post_remesh.off"))
+    im.deletemeshfile(im.mwpath("post_remesh.off"))
 
     # Build and execute the command for CGAL simplification
-    cmd = f'"{mcpath("cgalsimp2")}{exesuff}" "{mwpath("pre_remesh.off")}" {keepratio} "{mwpath("post_remesh.off")}"'
+    cmd = f'"{im.mcpath("cgalsimp2")}{exesuff}" "{im.mwpath("pre_remesh.off")}" {keepratio} "{im.mwpath("post_remesh.off")}"'
     status = subprocess.call(cmd, shell=True)
 
     if status != 0:
         raise RuntimeError("cgalsimp2 command failed")
 
     # Read the resampled mesh
-    node, elem = readoff(mwpath("post_remesh.off"))
+    node, elem = im.readoff(im.mwpath("post_remesh.off"))
 
     return node, elem
 

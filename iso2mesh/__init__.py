@@ -5,15 +5,17 @@ from .iso2mesh_primitive import (
     meshgrid5,
     meshgrid6,
     latticegrid,
-    plotsurf,
-    plotasurf,
-    plotmesh,
-    plottetra,
     meshabox,
     meshacylinder,
     meshanellip,
     meshunitsphere,
     meshasphere,
+    plotsurf,
+    plotasurf,
+    plotmesh,
+    plottetra,
+    plotedges,
+    highordertet,
 )
 
 from .iso2mesh_utils import (
@@ -88,6 +90,7 @@ from .iso2mesh_core import (
     removedupelem,
     vol2restrictedtri,
     removeisolatednode,
+    surfboolean,
 )
 
 __version__ = "0.1.0"
@@ -169,5 +172,8 @@ __all__ = [
     "raytrace",
     "elemfacecenter",
     "barydualmesh",
+    "surfboolean",
+    "plotedges",
+    "plottetra",
 ]
 __license__ = """GNU General Public License v3 and later"""

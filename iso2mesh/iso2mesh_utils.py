@@ -1431,7 +1431,7 @@ def uniqfaces(elem):
 
     # Compute facemap if requested
     facemap = np.reshape(
-        jdx,
+        jdx + 1,
         (elem.shape[0], np.array(list(combinations(range(elem.shape[1]), 3))).shape[0]),
         order="F",
     )
@@ -1540,7 +1540,7 @@ def surfvolume(node, face, option=None):
     """
 
     face = face[:, :3]  # Limit face to first 3 columns
-    ed = surfedge(face)  # Detect surface edges
+    ed = surfedge(face)[0]  # Detect surface edges
 
     # If surface is open, raise an error
     if ed.size != 0:
@@ -1756,13 +1756,13 @@ def elemfacecenter(node, elem):
     faces, idx, newelem = uniqfaces(elem[:, :4])
 
     # Extract the coordinates of the nodes forming these faces
-    newnode = node[faces.flatten(), :3]
+    newnode = node[faces.flatten() - 1, :3]
 
     # Reshape newnode to group coordinates of nodes in each face
     newnode = newnode.reshape(3, 3, faces.shape[0])
 
     # Compute the mean of the coordinates to find the face centers
-    newnode = np.mean(newnode, axis=1)
+    newnode = np.mean(np.transpose(newnode, (2, 1, 0)), axis=1).squeeze()
 
     return newnode, newelem
 
@@ -1790,7 +1790,7 @@ def barydualmesh(node, elem, flag=None):
     """
 
     # Compute edge-centers
-    enodes, eidx = highordertet(node, elem)
+    enodes, eidx = im.highordertet(node, elem)
 
     # Compute face-centers
     fnodes, fidx = elemfacecenter(node, elem)

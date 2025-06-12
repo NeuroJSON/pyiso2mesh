@@ -747,20 +747,32 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
         else:  # if the surface is recorded as a cell array
             totalplc = 0
             for i in range(len(f)):
-                if not isinstance(f[i], list):
-                    totalplc += f[i].shape[0]
+                if len(f[i]) == 0:
+                    continue
+                if isinstance(f[i][0], list):
+                    totalplc += len(f[i][0])
                 else:
-                    totalplc += len(f[i][0])  # .shape[0]
+                    try:
+                        dim = np.array(f[i]).shape
+                        if len(dim) == 1:
+                            totalplc += 1
+                        else:
+                            totalplc += dim[0]
+                    except:
+                        totalplc += 1
             fp.write("#facet list\n{} 1\n".format(totalplc + bbxnum))
             for i in range(len(f)):
                 plcs = f[i]
                 faceid = -1
-                if isinstance(
-                    plcs, list
-                ):  # if each face is a cell, use plc{2} for face id
+                if isinstance(plcs, list) and len(plcs) > 0 and isinstance(plcs[0], list):  # if each face is a cell, use plc{2} for face id
                     if len(plcs) > 1:
                         faceid = int(plcs[1][0])
                     plcs = plcs[0]
+                elif(isinstance(plcs, list)):
+                    if all(isinstance(el, list) for el in plcs):
+                       plcs = [np.array(el) for el in plcs]
+                    else:
+                       plcs = [ np.array(plcs) ]
                 for row in range(len(plcs)):
                     plc = np.array(plcs[row])
                     if np.any(
@@ -811,7 +823,7 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                                     "{} {:.16f} {:.16f} {:.16f}\n".format(
                                         j,
                                         np.mean(
-                                            node[plc[holeid[j] + 1 :], 1:4], axis=0
+                                            node[plc[holeid[j] + 1 :] - 1, 1:4], axis=0
                                         ),
                                     )
                                 )
@@ -821,7 +833,7 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                                         j,
                                         np.mean(
                                             node[
-                                                plc[holeid[j] + 1 : holeid[j + 1] - 1],
+                                                plc[holeid[j] + 1 : holeid[j + 1] - 1] - 1,
                                                 1:4,
                                             ],
                                             axis=0,
@@ -833,7 +845,7 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                             fp.write("1 0 {}\n{}".format(faceid, len(plc)))
                         else:
                             fp.write("1 0\n{}".format(len(plc)))
-                        fp.write("\t{}".format("\t".join(map(str, plc))))
+                        fp.write("\t{}".format("\t".join(map(str, plc - 1))))
                         fp.write("\t1\n")
 
         if dobbx or edges:
@@ -856,6 +868,9 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                                 k, internalpoint(v, subloop)
                             )
                         )
+
+        holelist = np.array(holelist)
+        regionlist = np.array(regionlist)
 
         if all(holelist.shape):
             fp.write("#hole list\n{}\n".format(holelist.shape[0]))
