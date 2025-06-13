@@ -31,7 +31,7 @@ def getexeext():
     ext = ".exe"
     if sys.platform == "linux":
         ext = ".mexa64"
-    elif sys.platform.startwith("win"):
+    elif sys.platform.startswith("win"):
         ext = ".exe"
     elif sys.platform == "darwin":
         ext = ".mexmaci64"

@@ -500,7 +500,7 @@ def surf2mesh(
         + im.mwpath("post_vmesh.poly")
     )
     try:
-        if not sys.platform.startwith("win"):
+        if not sys.platform.startswith("win"):
             import tetgen
 
             tgen = tetgen.TetGen(filename=im.mwpath("post_vmesh.poly"))
