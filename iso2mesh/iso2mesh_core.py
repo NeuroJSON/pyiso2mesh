@@ -501,13 +501,12 @@ def surf2mesh(
     )
     try:
         import tetgen
-
         tgen = tetgen.TetGen(filename=im.mwpath("post_vmesh.poly"))
         mesh = tgen.tetrahedralize(flags=cmdopt)
         node = mesh["vertices"]
         elem = mesh["tetrahedra"]
         face = mesh["faces"]
-    except:
+    except ImportError:
         print("tetgen module failed")
         if not cmdopt:
             status, cmdout = subprocess.getstatusoutput(cmdstr)
