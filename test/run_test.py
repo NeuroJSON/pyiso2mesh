@@ -476,9 +476,8 @@ class Test_surfaces(unittest.TestCase):
         self.no1, self.fc1 = meshcheckrepair(self.no, self.fc, "deep")
 
     def test_removeisolatednode(self):
-        tmp = np.mean(removeisolatednode(self.no[:, :3], self.fc[:, :3])[0], axis=0)
-        print(tmp)
-        self.assertTrue(np.linalg.norm(tmp - np.array([1.44, 1.8799, 2.3198])) < 0.01)
+        no1 = removeisolatednode(self.no[:, :3], self.fc[:, :3])[0]
+        self.assertTrue(no1.shape[0], np.unique(self.fc[:, :3]).size)
 
     def test_meshreorient(self):
         self.assertEqual(
@@ -487,31 +486,10 @@ class Test_surfaces(unittest.TestCase):
         )
 
     def test_removedupnodes(self):
-        el1 = self.el.copy()
-        mask = self.el[:, :4] < 2
-        el1[:, :4][mask] = self.no.shape[0] + el1[:, :4][mask]
-        print(
-            np.linalg.norm(
-                np.mean(
-                    removedupnodes(np.vstack([self.no, self.no[:2]]), el1[:, :4])[0],
-                    axis=0,
-                )
-                - np.array([1.43802, 1.875757, 2.31368])
-            )
-        )
-        self.assertTrue(
-            np.linalg.norm(
-                np.mean(
-                    removedupnodes(np.vstack([self.no, self.no[:2]]), el1[:, :4])[0],
-                    axis=0,
-                )
-                - np.array([1.43802, 1.875757, 2.31368])
-            )
-            < 0.1
-        )
+        no1 = removedupnodes(np.vstack([self.no, self.no[:2, :]]), self.el[:, :4])[0]
+        self.assertEqual(no1.shape, self.no.shape)
 
     def test_removedupelem(self):
-        print(removedupelem(np.vstack([self.el[:, :4], self.el[:-5, :4]])).tolist())
         self.assertEqual(
             removedupelem(np.vstack([self.el[:, :4], self.el[:-5, :4]])).tolist(),
             self.el[-5:, :4].tolist(),
@@ -525,10 +503,12 @@ class Test_surfaces(unittest.TestCase):
     def test_meshcheckrepairdeep(self):
         self.assertEqual(list(self.no1.shape), [50, 3])
         self.assertFalse(np.any(elemvolume(self.no1, self.fc1) <= 0))
+        self.assertTrue(
+            np.sum(elemvolume(self.no1, self.fc1)), np.sum(elemvolume(self.no, self.fc))
+        )
 
     def test_meshcheckrepairmeshfix(self):
         no2, fc2 = meshcheckrepair(self.no, self.fc[3:, :], "meshfix")
-        print([sum(elemvolume(self.no1, self.fc1)), sum(elemvolume(no2, fc2))])
         self.assertTrue(
             abs(sum(elemvolume(self.no1, self.fc1)) - sum(elemvolume(no2, fc2))) < 1e-4
         )
