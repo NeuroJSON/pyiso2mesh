@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
       - name: Install dependencies
-        run: python3 -m pip install numpy matplotlib jdata
+        run: python3 -m pip install numpy matplotlib jdata scipy
       - name: Run tests
         run: python3 -m unittest test.run_test || true
 

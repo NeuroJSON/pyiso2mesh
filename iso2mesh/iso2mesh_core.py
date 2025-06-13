@@ -499,21 +499,32 @@ def surf2mesh(
         f"'{im.mcpath(method, exesuff)}' -A -q1.414a{maxvol} {moreopt} "
         + im.mwpath("post_vmesh.poly")
     )
-    if not cmdopt:
-        status, cmdout = subprocess.getstatusoutput(cmdstr)
-    else:
-        cmdstr = f"'{im.mcpath(method, exesuff)}' {cmdopt} " + im.mwpath(
-            "post_vmesh.poly"
-        )
-        status, cmdout = subprocess.getstatusoutput(
-            f"'{im.mcpath(method, exesuff)}' {cmdopt} " + im.mwpath("post_vmesh.poly")
-        )
+    try:
+        import tetgen
 
-    if status != 0:
-        raise RuntimeError(f"Tetgen command failed: {cmdstr}\n{cmdout}")
+        tgen = tetgen.TetGen(filename=im.mwpath("post_vmesh.poly"))
+        mesh = tgen.tetrahedralize(flags=cmdopt)
+        node = mesh["vertices"]
+        elem = mesh["tetrahedra"]
+        face = mesh["faces"]
+    except:
+        print("tetgen module failed")
+        if not cmdopt:
+            status, cmdout = subprocess.getstatusoutput(cmdstr)
+        else:
+            cmdstr = f"'{im.mcpath(method, exesuff)}' {cmdopt} " + im.mwpath(
+                "post_vmesh.poly"
+            )
+            status, cmdout = subprocess.getstatusoutput(
+                f"'{im.mcpath(method, exesuff)}' {cmdopt} "
+                + im.mwpath("post_vmesh.poly")
+            )
 
-    # Read generated mesh
-    node, elem, face = im.readtetgen(im.mwpath("post_vmesh.1"))
+        if status != 0:
+            raise RuntimeError(f"Tetgen command failed: {cmdstr}\n{cmdout}")
+
+        # Read generated mesh
+        node, elem, face = im.readtetgen(im.mwpath("post_vmesh.1"))
 
     print("Volume mesh generation complete")
     return node, elem + 1, face + 1
