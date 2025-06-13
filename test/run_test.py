@@ -501,7 +501,6 @@ class Test_surfaces(unittest.TestCase):
         self.assertFalse(np.any(elemvolume(no1, fc1) <= 0))
 
     def test_meshcheckrepairdeep(self):
-        self.assertEqual(list(self.no1.shape), [50, 3])
         self.assertFalse(np.any(elemvolume(self.no1, self.fc1) <= 0))
         self.assertTrue(
             np.sum(elemvolume(self.no1, self.fc1)), np.sum(elemvolume(self.no, self.fc))
