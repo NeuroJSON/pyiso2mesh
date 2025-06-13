@@ -12,13 +12,6 @@ from iso2mesh import *
 
 class Test_primitives(unittest.TestCase):
     def test_meshabox(self):
-        import subprocess
-
-        print(mcpath('tetgen'))
-        print(getexeext())
-        print(mcpath('tetgen', getexeext()))
-        status, cmdout = subprocess.getstatusoutput(mcpath('tetgen', getexeext()))
-        print([status, cmdout])
         no, fc, el = meshabox([0, 0, 0], [1, 1, 1], 1)
         expected_fc = [
             [9, 2, 1],

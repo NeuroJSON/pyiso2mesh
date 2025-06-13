@@ -477,7 +477,7 @@ def mcpath(fname, ext=None):
         and "64" in os.environ["PROCESSOR_ARCHITECTURE"]
         and not re.search(r"_x86-64$", fname)
     ):
-        w64bin = re.sub(r"(\.[eE][xX][eE])?$", "_x86-64.exe", binname, 1)
+        w64bin = re.sub(r"(\.[eE][xX][eE])$", "_x86-64.exe", binname, 1)
         if os.path.isfile(w64bin):
             binname = w64bin
 

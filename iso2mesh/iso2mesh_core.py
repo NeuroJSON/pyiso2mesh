@@ -512,7 +512,6 @@ def surf2mesh(
         pass
 
     if "mesh" not in locals():
-        print("tetgen module failed")
         if not cmdopt:
             status, cmdout = subprocess.getstatusoutput(cmdstr)
         else:

@@ -21,6 +21,7 @@ import numpy as np
 import os
 import iso2mesh as im
 import shutil
+import platform
 
 ##====================================================================================
 ## implementations
@@ -28,12 +29,13 @@ import shutil
 
 
 def getexeext():
+    osarch = platform.machine()
     ext = ".exe"
     if sys.platform == "linux":
         ext = ".mexa64"
     elif sys.platform.startswith("win"):
         ext = ".exe"
-    elif sys.platform == "darwin" and sys.maxsize > 2**32:
+    elif sys.platform == "darwin" and osarch == "arm64":
         ext = ".mexmaca64"
     elif sys.platform == "darwin":
         ext = ".mexmaci64"
