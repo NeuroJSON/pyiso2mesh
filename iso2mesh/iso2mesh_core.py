@@ -496,7 +496,7 @@ def surf2mesh(
         except:
             cmdopt = ""
     cmdstr = (
-        f"'{im.mcpath(method, exesuff)}' -A -q1.414a{maxvol} {moreopt} "
+        f'"{im.mcpath(method, exesuff)}" -A -q1.414a{maxvol} {moreopt} '
         + im.mwpath("post_vmesh.poly")
     )
     try:
@@ -516,11 +516,11 @@ def surf2mesh(
         if not cmdopt:
             status, cmdout = subprocess.getstatusoutput(cmdstr)
         else:
-            cmdstr = f"'{im.mcpath(method, exesuff)}' {cmdopt} " + im.mwpath(
+            cmdstr = f'"{im.mcpath(method, exesuff)}" {cmdopt} ' + im.mwpath(
                 "post_vmesh.poly"
             )
             status, cmdout = subprocess.getstatusoutput(
-                f"'{im.mcpath(method, exesuff)}' {cmdopt} "
+                f'"{im.mcpath(method, exesuff)}" {cmdopt} '
                 + im.mwpath("post_vmesh.poly")
             )
 
