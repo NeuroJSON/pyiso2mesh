@@ -519,7 +519,7 @@ class Test_surfaces(unittest.TestCase):
 
     def test_surfreorient(self):
         no1, fc1 = surfreorient(self.no, self.fc)
-        self.assertEqual(fc.shape, fc1.shape)
+        self.assertEqual(self.fc.shape, self.fc1.shape)
         self.assertFalse(np.any(elemvolume(no1, fc1) <= 0))
 
     def test_meshcheckrepairdeep(self):
