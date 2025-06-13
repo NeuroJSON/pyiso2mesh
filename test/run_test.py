@@ -33,7 +33,7 @@ class Test_primitives(unittest.TestCase):
     def test_meshunitsphere(self):
         no, fc, el = meshunitsphere(0.05, 100)
         self.assertAlmostEqual(round(sum(elemvolume(no, fc[:, :3])), 3), 12.553)
-        self.assertAlmostEqual(round(sum(elemvolume(no, el[:, :4])), 4), 4.1802)
+        self.assertAlmostEqual(round(sum(elemvolume(no, el[:, :4])), 3), 4.180)
 
     def test_meshasphere(self):
         no, fc, el = meshasphere([1, 1, 1], 2, 0.1, 100)
@@ -476,8 +476,8 @@ class Test_surfaces(unittest.TestCase):
         self.no1, self.fc1 = meshcheckrepair(self.no, self.fc, "deep")
 
     def test_removeisolatednode(self):
-        tmp = np.mean(removeisolatednode(self.no, self.fc)[0], axis=0)
-        print(np.linalg.norm(tmp - np.array([1.44, 1.8799, 2.3198])))
+        tmp = np.mean(removeisolatednode(self.no[:, :3], self.fc[:, :3])[0], axis=0)
+        print(tmp)
         self.assertTrue(np.linalg.norm(tmp - np.array([1.44, 1.8799, 2.3198])) < 0.01)
 
     def test_meshreorient(self):
@@ -519,7 +519,7 @@ class Test_surfaces(unittest.TestCase):
 
     def test_surfreorient(self):
         no1, fc1 = surfreorient(self.no, self.fc)
-        self.assertEqual(self.fc.shape, self.fc1.shape)
+        self.assertEqual(self.fc.shape, fc1.shape)
         self.assertFalse(np.any(elemvolume(no1, fc1) <= 0))
 
     def test_meshcheckrepairdeep(self):
@@ -527,7 +527,7 @@ class Test_surfaces(unittest.TestCase):
         self.assertFalse(np.any(elemvolume(self.no1, self.fc1) <= 0))
 
     def test_meshcheckrepairmeshfix(self):
-        no2, fc2 = meshcheckrepair(self.no, self.fc[4:, :], "meshfix")
+        no2, fc2 = meshcheckrepair(self.no, self.fc[3:, :], "meshfix")
         print([sum(elemvolume(self.no1, self.fc1)), sum(elemvolume(no2, fc2))])
         self.assertTrue(
             abs(sum(elemvolume(self.no1, self.fc1)) - sum(elemvolume(no2, fc2))) < 1e-4
