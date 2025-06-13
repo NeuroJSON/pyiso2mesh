@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-13, windows-2019]
+        os: [ubuntu-22.04, macos-13, macos-14, windows-2019, windows-latest]
         python_version: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
     outputs:
       perform_pypi_upload: ${{ steps.perform_pypi_upload_check.outputs.perform_pypi_upload }}
