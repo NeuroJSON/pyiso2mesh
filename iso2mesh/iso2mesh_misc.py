@@ -21,7 +21,6 @@ import numpy as np
 import os
 import iso2mesh as im
 import shutil
-import re
 
 ##====================================================================================
 ## implementations
@@ -32,7 +31,7 @@ def getexeext():
     ext = ".exe"
     if sys.platform == "linux":
         ext = ".mexa64"
-    elif re.match(r"^win", sys.platform):
+    elif sys.platform.startwith("win"):
         ext = ".exe"
     elif sys.platform == "darwin":
         ext = ".mexmaci64"

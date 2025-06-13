@@ -8,7 +8,7 @@
 * URL: [https://pypi.org/project/pyiso2mesh/](https://pypi.org/project/pyiso2mesh/)
 * Github: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
 
-![Python Module](https://github.com/NeuroJSON/pyiso2mesh/actions/workflows/build_package.yml/badge.svg)\\
+![Python Module](https://github.com/NeuroJSON/pyiso2mesh/actions/workflows/build_all.yml/badge.svg)
 
 Iso2Mesh is a versatile 3D mesh generation toolbox,
 originally developed for MATLAB and GNU Octave in 2007.
