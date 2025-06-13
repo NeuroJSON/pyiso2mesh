@@ -484,7 +484,7 @@ def mcpath(fname, ext=None):
             binname = w64bin
 
     # if no such executable exist in iso2mesh/bin, find it in PATH env variable
-    if ext and not os.path.isfile(binname):
+    if "extractfile" not in locals() and ext and not os.path.isfile(binname):
         binname = fname
 
     return binname
