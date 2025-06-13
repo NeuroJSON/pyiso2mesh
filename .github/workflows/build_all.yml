@@ -2,12 +2,12 @@ name: Build+Upload Python Wheels
 on:
   push:
     branches:
-      - master
+      - main
     tags:
       - '*'
   pull_request:
     branches:
-      - master
+      - main
 
 
 jobs:
