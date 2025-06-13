@@ -114,10 +114,10 @@ no2 = i2m.sms(no1, fc1, 20)
 i2m.plotmesh(no2, fc1)
 
 # meshing a cylinder
-no, fc, el = i2m.meshacylinder([0,0,0], [0, 0, 10], 2)
-i2m.plotmesh(no, el, 'x < 0')
+no, fc, el = i2m.meshacylinder([0,0,0], [0, 0, 10], 2, 50)
+i2m.plotmesh(no, el, 'x < 0', shade=False, edgecolor='r')
 
 # creating and plotting polyhedral solids (PLCs)
 mesh = i2m.latticegrid([0,1],[0,1,2], [0,2])
-i2m.plotmesh(mesh[0], mesh[1].tolist())
+i2m.plotmesh(mesh[0], mesh[1], alpha=0.5, linestyle='--')
 ```

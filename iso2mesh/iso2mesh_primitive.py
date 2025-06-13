@@ -83,8 +83,7 @@ def plotsurf(node, face, *args, **kwargs):
 
         patch = Poly3DCollection(poly3d, facecolors=colmap, edgecolors="k", **kwargs)
         ax.add_collection3d(patch)
-        ax.auto_scale_xyz(node[:, 0], node[:, 1], node[:, 2])
-        ax.set_box_aspect([1, 1, 1])
+        _autoscale_3d(ax, node)
         h.append(patch)
 
     else:
@@ -148,6 +147,7 @@ def plotasurf(node, face, *args, **kwargs):
         if node.shape[1] == 4:
             trisurf.set_array(node[:, 3])
             trisurf.autoscale()
+        _autoscale_3d(ax, node)
 
     if "trisurf" in locals():
         return trisurf
@@ -287,7 +287,7 @@ def plotedges(node, edges, *args, **kwargs):
             segments = [[node[start], node[end]] for start, end in edges]
             h = Line3DCollection(segments, **kwargs)
             ax.add_collection3d(h)
-            ax.auto_scale_xyz(node[:, 0], node[:, 1], node[:, 2])
+            _autoscale_3d(ax, node)
 
             hh.append(h)
         else:
@@ -364,7 +364,6 @@ def plotmesh(node, *args, **kwargs):
             return None
         ax.plot(x[idx], y[idx], z[idx], *opt)
         _autoscale_3d(ax, node)
-        plt.axis("equal")
         plt.show(block=False)
         return ax
 
@@ -402,8 +401,6 @@ def plotmesh(node, *args, **kwargs):
         ax = plottetra(node, elem[idx, :], opt, *args, **kwargs)
         handles.append(ax)
 
-    plt.gca().set_box_aspect([1, 1, 1])
-
     plt.show(block=False)
     return handles if len(handles) > 1 else handles[0]
 
@@ -427,6 +424,8 @@ def _autoscale_3d(ax, points):
     ax.set_xlim([x.min(), x.max()])
     ax.set_ylim([y.min(), y.max()])
     ax.set_zlim([z.min(), z.max()])
+    boxas = [x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]
+    ax.set_box_aspect(boxas)
 
 
 def _extract_poly_opts(opt):
