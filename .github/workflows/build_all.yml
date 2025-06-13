@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: python3 -m pip install numpy matplotlib jdata scipy
       - name: Run tests
-        run: python3 -m unittest test.run_test || true
+        run: python3 -m unittest test.run_test
 
   build_noarch_wheels:
     name: Build iso2mesh wheels
