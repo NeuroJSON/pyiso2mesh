@@ -33,10 +33,10 @@ def getexeext():
         ext = ".mexa64"
     elif sys.platform.startswith("win"):
         ext = ".exe"
-    elif sys.platform == "darwin":
-        ext = ".mexmaci64"
     elif sys.platform == "darwin" and sys.maxsize > 2**32:
         ext = ".mexmaca64"
+    elif sys.platform == "darwin":
+        ext = ".mexmaci64"
     else:
         print("Unable to find extension type")
 
