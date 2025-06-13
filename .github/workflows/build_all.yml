@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04, macos-13, windows-2019]
-        python_version: [ '3.6', '3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13', 'pypy3.7', 'pypy3.8', 'pypy3.9', 'pypy3.10' ]
+        python_version: ['3.6', '3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
     outputs:
       perform_pypi_upload: ${{ steps.perform_pypi_upload_check.outputs.perform_pypi_upload }}
     steps:
@@ -32,7 +32,7 @@ jobs:
       - name: Run tests
         run: python3 -m unittest test.run_test
 
-   build_noarch_wheels:
+  build_noarch_wheels:
     name: Build iso2mesh wheels
     runs-on: ubuntu-22.04
     outputs:
