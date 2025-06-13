@@ -445,7 +445,7 @@ def _extract_poly_opts(opt):
 # _________________________________________________________________________________________________________
 
 
-def meshabox(p0, p1, opt, nodesize=1):
+def meshabox(p0, p1, opt, nodesize=1, **kwargs):
     """
     Create the surface and tetrahedral mesh of a box geometry.
 
@@ -475,6 +475,7 @@ def meshabox(p0, p1, opt, nodesize=1):
         regions=None,
         holes=None,
         dobbx=nodesize,
+        **kwargs,
     )
 
     # Reorient the mesh elements

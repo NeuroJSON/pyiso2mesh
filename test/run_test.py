@@ -12,36 +12,20 @@ from iso2mesh import *
 
 class Test_primitives(unittest.TestCase):
     def test_meshabox(self):
-        no, fc, el = meshabox([0, 0, 0], [1, 1, 1], 1)
+        no, fc, el = meshabox([0, 0, 0], [1, 1, 1], 1, method="tetgen1.5")
         expected_fc = [
-            [9, 2, 1],
-            [2, 10, 1],
-            [9, 1, 10],
-            [2, 9, 12],
-            [11, 10, 2],
-            [2, 12, 11],
-            [12, 13, 3],
-            [14, 12, 3],
-            [14, 3, 13],
-            [8, 4, 9],
-            [4, 8, 13],
-            [4, 13, 9],
-            [15, 10, 5],
-            [10, 16, 5],
-            [15, 5, 16],
-            [7, 6, 14],
-            [7, 16, 6],
-            [14, 6, 11],
-            [16, 11, 6],
-            [14, 8, 7],
-            [15, 7, 8],
-            [15, 16, 7],
-            [15, 8, 9],
-            [13, 8, 14],
-            [15, 9, 10],
-            [13, 12, 9],
-            [10, 11, 16],
-            [14, 11, 12],
+            [1, 3, 2],
+            [6, 1, 2],
+            [1, 4, 3],
+            [4, 1, 8],
+            [1, 6, 5],
+            [8, 1, 5],
+            [7, 2, 3],
+            [6, 2, 7],
+            [4, 8, 3],
+            [8, 7, 3],
+            [6, 7, 5],
+            [8, 5, 7],
         ]
         self.assertEqual(fc.tolist(), expected_fc)
         self.assertEqual(round(sum(elemvolume(no, el)), 2), 1)
@@ -507,23 +491,21 @@ class Test_surfaces(unittest.TestCase):
         el1[:, :4][mask] = self.no.shape[0] + el1[:, :4][mask]
 
         self.assertTrue(
-            np.linalg.norm(np.mean(
-                   removedupnodes(np.vstack([self.no, self.no[:2]]), el1[:, :4])[0], axis=0
-                ) - np.array([1.43802, 1.875757, 2.31368])
-            ) < 0.01
+            np.linalg.norm(
+                np.mean(
+                    removedupnodes(np.vstack([self.no, self.no[:2]]), el1[:, :4])[0],
+                    axis=0,
+                )
+                - np.array([1.43802, 1.875757, 2.31368])
+            )
+            < 0.01
         )
 
     def test_removedupelem(self):
         print(removedupelem(np.vstack([self.el[:, :4], self.el[:-5, :4]])).tolist())
         self.assertEqual(
             removedupelem(np.vstack([self.el[:, :4], self.el[:-5, :4]])).tolist(),
-            [
-                [47, 34, 53, 45],
-                [47, 45, 53, 25],
-                [25, 45, 53, 46],
-                [34, 43, 53, 32],
-                [32, 43, 53, 28],
-            ],
+            self.el[-5:, :4].tolist(),
         )
 
     def test_surfreorient(self):
@@ -544,14 +526,19 @@ class Test_surfaces(unittest.TestCase):
     def test_meshresample(self):
         no2, fc2 = meshresample(self.no1[:, :3], self.fc1[:, :3], 0.1)
         self.assertTrue(
-            np.linalg.norm(no2[:6, :] - np.array([
-                [1.1988, 2.7369, 3.2748],
-                [1.2122, 1.6713, 1.7891],
-                [1.4297, 1.8648, 3.1964],
-                [1.8533, 2.6807, 4.2618],
-                [2.0276, 2.329, 2.6884],
-                [2.1149, 3.2916, 3.7673],
-                ]) < 0.01
+            np.linalg.norm(
+                no2[:6, :]
+                - np.array(
+                    [
+                        [1.1988, 2.7369, 3.2748],
+                        [1.2122, 1.6713, 1.7891],
+                        [1.4297, 1.8648, 3.1964],
+                        [1.8533, 2.6807, 4.2618],
+                        [2.0276, 2.329, 2.6884],
+                        [2.1149, 3.2916, 3.7673],
+                    ]
+                )
+                < 0.01
             )
         )
 

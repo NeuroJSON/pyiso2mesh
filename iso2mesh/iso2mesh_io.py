@@ -477,7 +477,7 @@ def mcpath(fname, ext=None):
         and "64" in os.environ["PROCESSOR_ARCHITECTURE"]
         and not re.search(r"_x86-64$", fname)
     ):
-        w64bin = re.sub(r"(\.[eE][xX][eE])$", "_x86-64.exe", binname, 1)
+        w64bin = re.sub(r"(\.[eE][xX][eE])$", "_x86-64.exe", binname, count=1)
         if os.path.isfile(w64bin):
             binname = w64bin
 
@@ -662,8 +662,8 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
         seg = [0] + list(np.where(np.isnan(loops))[0].tolist())
         segnum = len(seg) - 1
         bbxnum = 6
-        loopcount = np.zeros(bbxnum)
-        loopid = np.zeros(segnum)
+        loopcount = np.zeros(bbxnum, dtype=np.int32)
+        loopid = np.zeros(segnum, dtype=np.int32)
         for i in range(segnum):  # walk through the edge loops
             subloop = loops[seg[i] + 1 : seg[i + 1] - 1]
             if not subloop:
@@ -686,7 +686,7 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
 
     if dobbx and len(edges) == 0:
         bbxnum = 6
-        loopcount = np.zeros(bbxnum)
+        loopcount = np.zeros(bbxnum, dtype=np.int32)
 
     if dobbx or len(edges) > 0:
         nn = v.shape[0]
