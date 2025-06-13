@@ -466,7 +466,7 @@ def mcpath(fname, ext=None):
                         os.chmod(extractfile, 0o755)
         if ext:
             binname = os.path.join(
-                tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin", fname, ext
+                tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin", fname + ext
             )
         else:
             binname = os.path.join(

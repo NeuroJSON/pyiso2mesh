@@ -21,6 +21,7 @@ import numpy as np
 import os
 import iso2mesh as im
 import shutil
+import re
 
 ##====================================================================================
 ## implementations
@@ -31,9 +32,11 @@ def getexeext():
     ext = ".exe"
     if sys.platform == "linux":
         ext = ".mexa64"
-    elif "win" in sys.platform:
+    elif re.match(r"^win", sys.platform):
         ext = ".exe"
-    elif sys.platform == "aarch64":
+    elif sys.platform == "darwin":
+        ext = ".mexmaci64"
+    elif sys.platform == "darwin" and sys.maxsize > 2**32:
         ext = ".mexmaca64"
     else:
         print("Unable to find extension type")
