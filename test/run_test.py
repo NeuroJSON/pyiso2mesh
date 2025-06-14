@@ -547,5 +547,83 @@ class Test_surfaces(unittest.TestCase):
         self.assertTrue(np.sum(elemvolume(no2, el2[:, :4])) > 0.55)
 
 
+class Test_surfboolean(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super(Test_surfboolean, self).__init__(*args, **kwargs)
+
+        self.no1, self.el1 = meshgrid5(
+            np.arange(1, 3), np.arange(1, 3), np.arange(1, 3)
+        )
+        self.el1 = volface(self.el1)[0]
+        self.no1, self.el1, _ = removeisolatednode(self.no1, self.el1)
+
+        self.no2, self.el2 = meshgrid6(
+            np.arange(1.7, 4), np.arange(1.7, 4), np.arange(1.7, 4)
+        )
+        self.el2 = volface(self.el2)[0]
+        self.no2, self.el2, _ = removeisolatednode(self.no2, self.el2)
+
+    def test_surfboolean_and(self):
+        no3, el3 = surfboolean(self.no1, self.el1, "and", self.no2, self.el2)
+        no3, el3 = meshcheckrepair(no3, el3, "dup", tolerance=1e-4)
+        node, elem, _ = s2m(no3, el3, 1, 100)
+        self.assertEqual(round(sum(elemvolume(node, elem[:, :4])), 5), 0.027)
+
+    def test_surfboolean_or(self):
+        no3, el3 = surfboolean(self.no1, self.el1, "or", self.no2, self.el2)
+        no3, el3 = meshcheckrepair(no3, el3, "dup", tolerance=1e-4)
+        node, elem, _ = s2m(no3, el3, 1, 100)
+        self.assertEqual(round(sum(elemvolume(node, elem[:, :4])) * 1000), 8973)
+
+    def test_surfboolean_diff(self):
+        no3, el3 = surfboolean(self.no1, self.el1, "diff", self.no2, self.el2)
+        no3, el3 = meshcheckrepair(no3, el3, "dup", tolerance=1e-4)
+        node, elem, _ = s2m(no3, el3, 1, 100)
+        self.assertEqual(round(sum(elemvolume(node, elem[:, :4])), 5), 0.973)
+
+    def test_surfboolean_first(self):
+        no3, el3 = surfboolean(self.no1, self.el1, "first", self.no2, self.el2)
+        no3, el3 = meshcheckrepair(no3, el3, "dup", tolerance=1e-4)
+        node, elem, _ = s2m(no3, el3, 1, 100, "tetgen", np.array([1.5, 1.5, 1.5]))
+        self.assertEqual(
+            round(sum(elemvolume(node, elem[elem[:, 4] == 1, :4])), 5), 0.973
+        )
+        self.assertEqual(
+            round(sum(elemvolume(node, elem[elem[:, 4] == 0, :4])), 5), 0.027
+        )
+
+    def test_surfboolean_second(self):
+        no3, el3 = surfboolean(self.no1, self.el1, "second", self.no2, self.el2)
+        no3, el3 = meshcheckrepair(no3, el3, "dup", tolerance=1e-4)
+        node, elem, _ = s2m(no3, el3, 1, 100, "tetgen", np.array([2.6, 2.6, 2.6]))
+        self.assertEqual(
+            round(sum(elemvolume(node, elem[elem[:, 4] == 1, :4])), 5), 7.973
+        )
+        self.assertEqual(
+            round(sum(elemvolume(node, elem[elem[:, 4] == 0, :4])), 5), 0.027
+        )
+
+    def test_surfboolean_resolve(self):
+        no3, el3 = surfboolean(self.no1, self.el1, "resolve", self.no2, self.el2)
+        no3, el3 = meshcheckrepair(no3, el3, "dup", tolerance=1e-4)
+        node, elem, _ = s2m(
+            no3, el3, 1, 100, "tetgen", np.array([[1.5, 1.5, 1.5], [2.6, 2.6, 2.6]])
+        )
+        self.assertEqual(
+            round(sum(elemvolume(node, elem[elem[:, 4] == 0, :4])), 5), 0.027
+        )
+        self.assertEqual(
+            round(sum(elemvolume(node, elem[elem[:, 4] == 1, :4])), 5), 0.973
+        )
+        self.assertEqual(
+            round(sum(elemvolume(node, elem[elem[:, 4] == 2, :4])), 5), 7.973
+        )
+
+    def test_surfboolean_self(self):
+        self.assertEqual(
+            surfboolean(self.no1, self.el1, "self", self.no2, self.el2)[0], 1
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

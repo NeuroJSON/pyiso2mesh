@@ -469,7 +469,12 @@ def surf2mesh(
         holes = np.array([])
 
     # Warn if both maxvol and region-based volume constraints are specified
-    if len(regions) > 1 and regions.shape[1] >= 4 and maxvol is not None:
+    if (
+        isinstance(regions, np.ndarray)
+        and regions.ndim > 1
+        and regions.shape[1] >= 4
+        and maxvol is not None
+    ):
         print(
             "Warning: Both maxvol and region-based volume constraints are specified. maxvol will be ignored."
         )
@@ -530,7 +535,7 @@ def surf2mesh(
         node, elem, face = im.readtetgen(im.mwpath("post_vmesh.1"))
 
     print("Volume mesh generation complete")
-    return node, elem + 1, face + 1
+    return node, elem, face
 
 
 # _________________________________________________________________________________________________________
@@ -1097,7 +1102,7 @@ def qmeshcut(elem, node, value, cutat):
     return cutpos, cutvalue, facedata, elemid, nodeid
 
 
-def meshcheckrepair(node, elem, opt=None, *args):
+def meshcheckrepair(node, elem, opt=None, **kwargs):
     """
     Check and repair a surface mesh.
 
@@ -1123,11 +1128,10 @@ def meshcheckrepair(node, elem, opt=None, *args):
     elem : ndarray
         Repaired element list.
     """
-    extra = dict(*args)
 
     if opt in (None, "dupnode", "dup"):
         l1 = node.shape[0]
-        node, elem = removedupnodes(node, elem, extra.get("Tolerance", 0))
+        node, elem = removedupnodes(node, elem, kwargs.get("tolerance", 0))
         l2 = node.shape[0]
         if l2 != l1:
             print(f"{l1 - l2} duplicated nodes were removed")
@@ -1176,7 +1180,7 @@ def meshcheckrepair(node, elem, opt=None, *args):
 
     if opt == "meshfix":
         exesuff = im.fallbackexeext(im.getexeext(), "meshfix")
-        moreopt = extra.get("MeshfixParam", " -q -a 0.01 ")
+        moreopt = kwargs.get("meshfixparam", " -q -a 0.01 ")
         im.deletemeshfile(im.mwpath("pre_sclean.off"))
         im.deletemeshfile(im.mwpath("pre_sclean_fixed.off"))
         im.saveoff(node, elem, im.mwpath("pre_sclean.off"))

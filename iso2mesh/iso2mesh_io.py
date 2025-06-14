@@ -567,6 +567,7 @@ def readtetgen(fstub):
                 elem = np.append(elem, row)
             elem = elem.reshape(dim[0], dim[1] + dim[2] + 1)
             elem = elem[:, 1:].astype(int)
+            elem[:, :4] += 1
             # elem[:, :dim[1]] += (1 - idx[0])
     except FileNotFoundError:
         raise FileNotFoundError("elem file is missing!")
@@ -583,6 +584,7 @@ def readtetgen(fstub):
                 face = np.append(face, row)
             face = face.reshape(dim[0], 5)
             face = np.hstack((face[:, 1:-1], face[:, -1:])).astype(int)
+            face[:, :3] += 1
     except FileNotFoundError:
         raise FileNotFoundError("surface data file is missing!")
 
@@ -886,6 +888,9 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                 fp.write("{} {:.16f} {:.16f} {:.16f}\n".format(i + 1, *holelist[i, :]))
         else:
             fp.write("#hole list\n0\n")
+
+        if regionlist.ndim == 1 and len(regionlist) > 0:
+            regionlist = regionlist[:, np.newaxis].T
 
         if regionlist.shape[0]:
             fp.write("#region list\n{}\n".format(regionlist.shape[0]))
