@@ -373,21 +373,21 @@ def elemvolume(node, elem, option=None):
     """
 
     # Convert 1-based indices to 0-based for Python indexing
-    v1 = node[elem[:, 0] - 1, :]
-    v2 = node[elem[:, 1] - 1, :]
-    v3 = node[elem[:, 2] - 1, :]
+    v1 = node[elem[:, 0] - 1, :3]
+    v2 = node[elem[:, 1] - 1, :3]
+    v3 = node[elem[:, 2] - 1, :3]
 
     edge1 = v2 - v1
     edge2 = v3 - v1
 
-    if elem.shape[1] == node.shape[1]:
+    if elem.shape[1] == 3:
         # Triangle area in 2D or area in 3D projected onto a plane
         det12 = np.cross(edge1, edge2)
         det12 = np.sum(det12 * det12, axis=1)
         vol = 0.5 * np.sqrt(det12)
         return vol
 
-    v4 = node[elem[:, 3] - 1, :]
+    v4 = node[elem[:, 3] - 1, :3]
     edge3 = v4 - v1
 
     # Compute signed volume of tetrahedron

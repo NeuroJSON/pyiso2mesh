@@ -4,7 +4,7 @@
 
 * Copyright: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>, Edward Xu (2024) <xu.ed at northeastern.edu>
 * License: GNU Public License V3 or later
-* Version: 0.2.1
+* Version: 0.2.2
 * URL: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * Github: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
 
@@ -130,6 +130,10 @@ i2m.plotmesh(no, el, 'x < 0', shade=False, edgecolor='r')
 # creating and plotting polyhedral solids (PLCs)
 mesh = i2m.latticegrid([0,1],[0,1,2], [0,2])
 i2m.plotmesh(mesh[0], mesh[1], alpha=0.5, linestyle='--')
+
+# mesh and label PLC based domains using tetgen1.5
+mesh2 = i2m.s2m(mesh[0], mesh[1], 1, 0.03, method='tetgen1.5')
+i2m.plotmesh(mesh2[0], mesh2[1], alpha=0.5)
 ```
 
 `pyiso2mesh` subdivides all functions into sub-modules (**core, geometry, plot,

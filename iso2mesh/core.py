@@ -793,7 +793,7 @@ def cgalv2m(vol, opt, maxvol):
     if not isinstance(opt, dict):
         ssize = opt
 
-    if isinstance(opt, dict) and len(opt) == 1:
+    if isinstance(opt, dict):
         ssize = opt.get("radbound", ssize)
         ang = opt.get("angbound", ang)
         approx = opt.get("distbound", approx)
@@ -806,7 +806,7 @@ def cgalv2m(vol, opt, maxvol):
 
     cmd = f'"{mcpath("cgalmesh", exesuff)}" "{mwpath("pre_cgalmesh.inr")}" "{mwpath("post_cgalmesh.mesh")}" {ang} {ssize} {approx} {reratio} {maxvol} {randseed}'
 
-    os.system(cmd)
+    status, str_output = subprocess.getstatusoutput(cmd)
 
     if not os.path.exists(mwpath("post_cgalmesh.mesh")):
         raise RuntimeError(f"Output file was not found. Command failed: {cmd}")
