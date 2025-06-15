@@ -77,6 +77,17 @@ including Windows, Linux, and macOS.
 5. You can install the locally built package using:
    `python3 -m pip install --force-reinstall iso2mesh-*.whl`
 
+### Run built-in unit-tests
+
+If you want to modify the source, and verify that it still produces correct results, you can run
+the built-in unit-test script inside the downloaded git repository by using this command
+inside the `pyiso2mesh` root folder
+
+```bash
+   python -m unittest test.run_test
+```
+
+
 ## How to Use
 
 `pyiso2mesh` inherits the "trademark" **one-liner mesh generator** style from its MATLAB/Octave counterpart

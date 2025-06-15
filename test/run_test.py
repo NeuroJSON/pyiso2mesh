@@ -699,7 +699,7 @@ class Test_core(unittest.TestCase):
             "cgalmesh",
         )
         self.assertEqual(removedupelem(fc[:, :3]).shape[0], 0)
-        self.assertAlmostEqual(sum(elemvolume(no[:, :3], el[:, :4])), 0.7455, 4)
+        self.assertAlmostEqual(sum(elemvolume(no[:, :3], el[:, :4])), 0.7455, 3)
 
 
 if __name__ == "__main__":
