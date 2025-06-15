@@ -4,7 +4,7 @@
 
 * Copyright: (C) Qianqian Fang (2025) \<q.fang at neu.edu>
 * License: GNU Public License V3 or later
-* Version: 0.1.0
+* Version: 0.2.0
 * URL: [https://pypi.org/project/pyiso2mesh/](https://pypi.org/project/pyiso2mesh/)
 * Github: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
 
@@ -120,4 +120,21 @@ i2m.plotmesh(no, el, 'x < 0', shade=False, edgecolor='r')
 # creating and plotting polyhedral solids (PLCs)
 mesh = i2m.latticegrid([0,1],[0,1,2], [0,2])
 i2m.plotmesh(mesh[0], mesh[1], alpha=0.5, linestyle='--')
+```
+
+`pyiso2mesh` subdivide all functions into smaller modules that can be individually
+imported. For example, if one wants to create tetrahedral meshes from a 3-D binary
+array, one can use
+
+```python3
+from iso2mesh.core import v2m
+from iso2mesh.plot import plotmesh
+import numpy as np
+
+img = np.zeros([60,60,60], dtype=np.uint8)
+img[20:41, 10:51, 30:] = 1
+no, el, fc = v2m(img, [], 3, 100, 'cgalmesh')
+plotmesh(no, el)
+
+
 ```

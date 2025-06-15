@@ -654,15 +654,15 @@ def sortmesh(origin, node, elem, ecol=None, face=None, fcol=None):
         ecol = np.arange(elem.shape[1])
 
     # Update elements with sorted node indices
-    el[:, ecol] = np.sort(nidx[elem[:, ecol]], axis=1)
-    el = sortrows(el, ecol)
+    el[:, ecol] = np.sort(nidx[elem[:, ecol] - 1] + 1, axis=1)
+    el = sortrows(el, ecol)[0]
 
     # If face is provided, sort it as well
     fc = None
     if face is not None and fcol is not None:
         fc = face.copy()
-        fc[:, fcol] = np.sort(nidx[face[:, fcol]], axis=1)
-        fc = sortrows(fc, fcol)
+        fc[:, fcol] = np.sort(nidx[face[:, fcol] - 1] + 1, axis=1)
+        fc = sortrows(fc, fcol)[0]
 
     return no, el, fc, nodemap
 
@@ -675,12 +675,49 @@ def cart2sph(x, y, z):
     return theta, phi, R
 
 
-def sortrows(matrix, cols=None):
-    """Sort rows of the matrix based on specified columns."""
+import numpy as np
+
+
+def sortrows(A, cols=None):
+    """
+    Sort rows of a 2D NumPy array like MATLAB's sortrows(A, cols).
+
+    Parameters:
+        A (ndarray): 2D array to sort.
+        cols (list or None): List of columns to sort by.
+                             Positive for ascending, negative for descending.
+                             If None, sort by all columns ascending (left to right).
+
+    Returns:
+        sorted_A (ndarray): Sorted array.
+        row_indices (ndarray): Indices of original rows in sorted order.
+    """
+    A = np.asarray(A)
+
+    if A.ndim == 1:
+        A = A[:, np.newaxis]
+
+    n_cols = A.shape[1]
+
     if cols is None:
-        return np.sort(matrix, axis=0), np.argsort(matrix, axis=0)
+        # Default: sort by all columns, ascending
+        cols = list(range(n_cols))
+        ascending = [True] * n_cols
     else:
-        return np.sort(matrix[:, cols], axis=0), np.argsort(matrix[:, cols], axis=0)
+        ascending = [c > 0 for c in cols]
+        cols = [abs(c) - 1 for c in cols]  # MATLAB-style (1-based to 0-based)
+
+    # Build sort keys in reverse order (last key first)
+    keys = []
+    for col, asc in reversed(list(zip(cols, ascending))):
+        key = A[:, col]
+        if not asc:
+            key = -key  # For descending sort
+        keys.append(key)
+
+    row_indices = np.lexsort(keys)
+    sorted_A = A[row_indices]
+    return sorted_A, row_indices
 
 
 def mergemesh(node, elem, *args):

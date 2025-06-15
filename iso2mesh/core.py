@@ -33,10 +33,10 @@ import os
 import re
 import platform
 import subprocess
-from iso2mesh.trait import surfinterior, surfseeds, surfedge, elemvolume
+from iso2mesh.trait import surfinterior, surfseeds, surfedge, elemvolume, meshreorient
 from iso2mesh.utils import *
-from iso2mesh.io import saveoff, readoff, saveinr, readtetgen, savesurfpoly
-from iso2mesh.modify import meshcheckrepair
+from iso2mesh.io import saveoff, readoff, saveinr, readtetgen, savesurfpoly, readmedit
+from iso2mesh.modify import meshcheckrepair, sortmesh
 
 ##====================================================================================
 ## implementations
@@ -826,12 +826,12 @@ def cgalv2m(vol, opt, maxvol):
     print("Surface and volume meshes complete")
 
     if node.shape[0] > 0:
-        node, elem, face = sortmesh(
+        node, elem, face, _ = sortmesh(
             node[0, :], node, elem, list(range(4)), face, list(range(3))
         )
 
     node += 0.5
-    elem[:, :4] = meshreorient(node[:, :3], elem[:, :4])
+    elem[:, :4] = meshreorient(node[:, :3], elem[:, :4])[0]
 
     return node, elem, face
 

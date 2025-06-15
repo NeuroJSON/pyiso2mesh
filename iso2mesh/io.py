@@ -273,23 +273,29 @@ def readmedit(filename):
     node = []
     elem = []
     face = []
+    val = 0
 
     with open(filename, "r") as fid:
         while True:
-            key = fid.readline().strip()
+            line = fid.readline()
+            if not line:
+                break
+            key = line.strip()
             if key == "End":
                 break
-            val = int(fid.readline().strip())
 
             if key == "Vertices":
+                val = int(fid.readline().strip())
                 node_data = np.fromfile(fid, dtype=np.float32, count=4 * val, sep=" ")
                 node = node_data.reshape((val, 4))
 
             elif key == "Triangles":
+                val = int(fid.readline().strip())
                 face_data = np.fromfile(fid, dtype=np.int32, count=4 * val, sep=" ")
                 face = face_data.reshape((val, 4))
 
             elif key == "Tetrahedra":
+                val = int(fid.readline().strip())
                 elem_data = np.fromfile(fid, dtype=np.int32, count=5 * val, sep=" ")
                 elem = elem_data.reshape((val, 5))
 
