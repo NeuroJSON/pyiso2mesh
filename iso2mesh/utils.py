@@ -165,7 +165,7 @@ def mcpath(fname, ext=None):
 
     # the bin folder under iso2mesh is searched first
     # tempname = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', fname)
-    tempname = os.path.join(os.path.expanduser("~"), "pyiso2mesh-tools")
+    tempname = os.path.join(os.path.expanduser("~"), "iso2mesh-tools")
     binfolder = Path(os.path.join(tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin"))
 
     if os.path.isdir(tempname):
@@ -177,8 +177,6 @@ def mcpath(fname, ext=None):
             else:
                 binname = fname + ext
 
-    elif shutil.which(fname):
-        binname = fname
     else:
         import urllib.request
         import zipfile

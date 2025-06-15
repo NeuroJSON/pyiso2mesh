@@ -1,11 +1,11 @@
 ![](https://neurojson.org/wiki/upload/neurojson_banner_long.png)
 
-# pyiso2mesh - Versatile 3D Surface and Tetrahedral Mesh Generation and Processing Toolbox
+# pyiso2mesh - One-liner 3D Surface and Tetrahedral Mesh Generation Toolbox
 
-* Copyright: (C) Qianqian Fang (2025) \<q.fang at neu.edu>
+* Copyright: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>, Edward Xu (2024) <xu.ed at northeastern.edu>
 * License: GNU Public License V3 or later
 * Version: 0.2.0
-* URL: [https://pypi.org/project/pyiso2mesh/](https://pypi.org/project/pyiso2mesh/)
+* URL: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * Github: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
 
 ![Python Module](https://github.com/NeuroJSON/pyiso2mesh/actions/workflows/build_all.yml/badge.svg)
@@ -17,14 +17,14 @@ tetrahedral meshes from 3D volumetric images. It includes
 over 200 mesh processing scripts and programs, which can operate
 independently or in conjunction with external open-source
 meshing tools. The Iso2Mesh toolbox can directly convert
-3D image stacks—including binary, segmented, or grayscale
+3-D image stacks—including binary, segmented, or grayscale
 images such as MRI or CT scans—into high-quality volumetric
 meshes. This makes it especially suitable for multi-modality
 medical imaging data analysis and multi-physics modeling.
 
-This module provides a Python re-implementation of Iso2Mesh.
-Most functions are written in native Python, following algorithms
-nearly identical to those in the MATLAB/Octave versions of Iso2Mesh.
+The `iso2mesh` Python module provides a re-implementation of Iso2Mesh
+in the native Python language, following algorithms
+similar to those in the MATLAB/Octave versions of Iso2Mesh.
 
 ## How to Install
 
@@ -36,10 +36,13 @@ nearly identical to those in the MATLAB/Octave versions of Iso2Mesh.
 * **numpy**: `pyiso2mesh` relies heavily on vectorized NumPy
   matrix operations, similar to those used in the MATLAB version of Iso2Mesh.
 * **matplotlib**: Used for plotting results. Install with `pip install matplotlib`.
-* (optional) **pyvista** and **tetgen**: Required for generating tetrahedral meshes from surfaces. Install with `pip install pyvista tetgen`.
-* (optional) **jdata**: Only needed for reading/writing JNIfTI output files. Install with `pip install jdata`
-  on any operating system. On Debian-based Linux distributions, you can also install it to the system interpreter
-  using `sudo apt-get install python3-jdata`. See [https://pypi.org/project/jdata/](https://pypi.org/project/jdata/) for more details.
+
+Many core meshing functions in `pyiso2mesh` require the set of mesh processing
+executables provided in the Iso2Mesh package under the `iso2mesh/bin` folder.
+These binaries are not needed at the time when installing `pyiso2mesh`; when
+any of them becomes needed during mesh processing, `pyiso2mesh` dynamically
+downloads these external tools and store those under the user's home directory
+(`$HOME/iso2mesh-tools`) for future use. This download operation only runs once.
 
 ## Build Instructions
 
@@ -122,7 +125,8 @@ mesh = i2m.latticegrid([0,1],[0,1,2], [0,2])
 i2m.plotmesh(mesh[0], mesh[1], alpha=0.5, linestyle='--')
 ```
 
-`pyiso2mesh` subdivide all functions into smaller modules that can be individually
+`pyiso2mesh` subdivides all functions into sub-modules (**core, geometry, plot,
+io, trait, modify, utils, register, raster**) that can be individually
 imported. For example, if one wants to create tetrahedral meshes from a 3-D binary
 array, one can use
 
@@ -133,9 +137,11 @@ import numpy as np
 
 img = np.zeros([60,60,60], dtype=np.uint8)
 img[20:41, 10:51, 30:] = 1
+
 no, el, fc = v2m(img, [], 3, 100, 'cgalmesh')
 plotmesh(no, el)
 
 no, fc, _, _ = v2s(img, 0.5, {'distbound': 0.2})
-plotmesh(no, fc)
+ax = plotmesh(no, fc, 'y < 30', alpha=0.5,  edgecolor='none')
+plotmesh(no, fc, 'y > 30', parent = ax)
 ```

@@ -334,8 +334,13 @@ def plotmesh(node, *args, **kwargs):
 
     handles = []
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
+    ax = kwargs.get("parent", None)
+
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+    else:
+        del kwargs["parent"]
 
     # Plot points if no face/elem
     if face is None and elem is None:

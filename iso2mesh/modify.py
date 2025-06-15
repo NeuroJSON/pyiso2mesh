@@ -671,7 +671,9 @@ def cart2sph(x, y, z):
     """Convert Cartesian coordinates to spherical (R, phi, theta)."""
     R = np.sqrt(x**2 + y**2 + z**2)
     theta = np.arctan2(y, x)
-    phi = np.arccos(z / R)
+    idx = R > 0.0
+    phi = np.copy(R)
+    phi[idx] = z[idx] / R[idx]
     return theta, phi, R
 
 
