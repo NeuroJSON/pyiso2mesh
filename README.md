@@ -4,7 +4,7 @@
 
 * Copyright: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>, Edward Xu (2024) <xu.ed at northeastern.edu>
 * License: GNU Public License V3 or later
-* Version: 0.2.0
+* Version: 0.2.1
 * URL: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * Github: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
 
@@ -28,8 +28,15 @@ similar to those in the MATLAB/Octave versions of Iso2Mesh.
 
 ## How to Install
 
-* PIP: `python3 -m pip install iso2mesh`, see [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
-* PIP+Git: `python3 -m pip install git+https://github.com/NeuroJSON/pyiso2mesh.git`
+* PIP: `python3 -m pip install iso2mesh`
+* PIP+Git (latest version): `python3 -m pip install git+https://github.com/NeuroJSON/pyiso2mesh.git`
+
+MacOS users: you need to run the following commands to install this module
+```bash
+   python3 -m venv /tmp/pyiso2mesh-venv
+   source /tmp/pyiso2mesh-venv/bin/activate
+   python3 -m pip install iso2mesh
+```
 
 ## Runtime Dependencies
 
@@ -48,8 +55,8 @@ downloads these external tools and store those under the user's home directory
 
 ### Build Dependencies
 
-* **Operating System**: `pyiso2mesh` can be built on most operating systems, including Windows, Linux, and macOS.
-  The module is written in pure Python and is portable across platforms.
+* **Operating System**: The module is written in pure Python and is portable across platforms, 
+including Windows, Linux, and macOS.
 
 ### Build Steps
 

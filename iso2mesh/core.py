@@ -804,7 +804,7 @@ def cgalv2m(vol, opt, maxvol):
 
     randseed = int("623F9A9E", 16)
 
-    cmd = f'"{mcpath("cgalmesh")}{exesuff}" "{mwpath("pre_cgalmesh.inr")}" "{mwpath("post_cgalmesh.mesh")}" {ang} {ssize} {approx} {reratio} {maxvol} {randseed}'
+    cmd = f'"{mcpath("cgalmesh", exesuff)}" "{mwpath("pre_cgalmesh.inr")}" "{mwpath("post_cgalmesh.mesh")}" {ang} {ssize} {approx} {reratio} {maxvol} {randseed}'
 
     os.system(cmd)
 
@@ -893,7 +893,7 @@ def cgals2m(v, f, opt, maxvol, *args):
     randseed = os.getenv("ISO2MESH_SESSION", int("623F9A9E", 16))
 
     cmd = (
-        f'"{mcpath("cgalpoly")}{exesuff}" "{mwpath("pre_cgalpoly.off")}" "{mwpath("post_cgalpoly.mesh")}" '
+        f'"{mcpath("cgalpoly", exesuff)}" "{mwpath("pre_cgalpoly.off")}" "{mwpath("post_cgalpoly.mesh")}" '
         f"{ang:.16f} {ssize:.16f} {approx:.16f} {reratio:.16f} {maxvol:.16f} {randseed}"
     )
 
@@ -930,7 +930,7 @@ def getintersecttri(tmppath):
     """
     exesuff = getexeext()
     exesuff = fallbackexeext(exesuff, "tetgen")
-    tetgen_path = mcpath("tetgen") + exesuff
+    tetgen_path = mcpath("tetgen", exesuff)
 
     command = f'"{tetgen_path}" -d "{os.path.join(tmppath, "post_vmesh.poly")}"'
     status, str_output = subprocess.getstatusoutput(command)
@@ -993,7 +993,7 @@ def vol2restrictedtri(vol, thres, cent, brad, ang, radbound, distbound, maxnode)
 
     # Build the system command to run CGAL mesher
     cmd = (
-        f'"{mcpath("cgalsurf",exesuff)}" "{mwpath("pre_extract.inr")}" '
+        f'"{mcpath("cgalsurf", exesuff)}" "{mwpath("pre_extract.inr")}" '
         f"{thres:.16f} {cent[0]:.16f} {cent[1]:.16f} {cent[2]:.16f} {brad:.16f} {ang:.16f} {radbound:.16f} "
         f'{distbound:.16f} {maxnode} "{mwpath("post_extract.off")}" {randseed} {initnum}'
     )

@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
     name="iso2mesh",
     packages=["iso2mesh"],
-    version="0.2.0",
+    version="0.2.1",
     license='GPLv3+',
     description="Image-based 3D Surface and Volumetric Mesh Generator",
     long_description=readme,
@@ -28,7 +28,7 @@ setup(
         "Decoder",
     ],
     platforms="any",
-    install_requires=["numpy>=1.8.0"],
+    install_requires=["numpy>=1.8.0", "matplotlib"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
