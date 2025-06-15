@@ -21,8 +21,6 @@ jobs:
         exclude:
           - os: macos-14
             python_version: 3.7
-    outputs:
-      perform_pypi_upload: ${{ steps.perform_pypi_upload_check.outputs.perform_pypi_upload }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
