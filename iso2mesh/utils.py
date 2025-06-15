@@ -25,6 +25,7 @@ import numpy as np
 import os
 import shutil
 import platform
+import re
 
 ISO2MESH_BIN_VER = "1.9.8"
 
