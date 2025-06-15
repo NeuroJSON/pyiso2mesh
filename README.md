@@ -127,7 +127,7 @@ imported. For example, if one wants to create tetrahedral meshes from a 3-D bina
 array, one can use
 
 ```python3
-from iso2mesh.core import v2m
+from iso2mesh.core import v2m, v2s
 from iso2mesh.plot import plotmesh
 import numpy as np
 
@@ -136,5 +136,6 @@ img[20:41, 10:51, 30:] = 1
 no, el, fc = v2m(img, [], 3, 100, 'cgalmesh')
 plotmesh(no, el)
 
-
+no, fc, _, _ = v2s(img, 0.5, {'distbound': 0.2})
+plotmesh(no, fc)
 ```
