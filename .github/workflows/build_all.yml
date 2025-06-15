@@ -38,8 +38,7 @@ jobs:
   build_noarch_wheels:
     name: Build iso2mesh wheels
     runs-on: ubuntu-22.04
-    outputs:
-      perform_pypi_upload: ${{ steps.perform_pypi_upload_check.outputs.perform_pypi_upload }}
+    needs: run_unit_test
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -51,27 +50,12 @@ jobs:
         run: python3 -m build
       - name: Check If the Build Version Exists on PyPI
         id: perform_pypi_upload_check
+        shell: bash
         run: |
-          bash $GITHUB_WORKSPACE/.github/check-pypi-upload.sh
-      - name: Prepare Wheels for Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: noarch-wheels-${{ matrix.python_version }}
-          path: dist/
-
-  upload_noarch_wheels:
-    needs: build_noarch_wheels
-    runs-on: ubuntu-22.04
-    if: ${{ github.repository_owner == 'fangq' && needs.build_noarch_wheels.outputs.perform_pypi_upload == 1 && github.event_name != 'pull_request'}}
-    steps:
-      - name: Download Wheels from Build Job
-        uses: actions/download-artifact@v4
-        with:
-          pattern: noarch-wheels-*
-          merge-multiple: true
-          path: dist/
+          $GITHUB_WORKSPACE/.github/check-pypi-upload.sh
       - name: Upload packages to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        if: ${{ github.repository_owner == 'fangq' && steps.perform_pypi_upload_check.outputs.perform_pypi_upload == 1  && github.event_name != 'pull_request'}}
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           verify_metadata: false
