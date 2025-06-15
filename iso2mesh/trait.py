@@ -10,7 +10,6 @@ __all__ = [
     "volface",
     "extractloops",
     "meshconn",
-    "meshcentroid",
     "nodevolume",
     "elemvolume",
     "neighborelem",
@@ -19,7 +18,11 @@ __all__ = [
     "edgeneighbors",
     "maxsurf",
     "flatsegment",
+    "mesheuler",
+    "orderloopedge",
+    "bbxflatsegment",
     "surfplane",
+    "raytrace",
     "surfinterior",
     "surfpart",
     "surfseeds",
@@ -31,15 +34,12 @@ __all__ = [
     "uniqedges",
     "uniqfaces",
     "innersurf",
-    "outersurf",
-    "surfvolume",
-    "insurface",
     "advancefront",
     "meshreorient",
-    "mesheuler",
-    "raytrace",
+    "meshcentroid",
     "elemfacecenter",
     "barydualmesh",
+    "highordertet",
 ]
 
 ##====================================================================================
@@ -48,7 +48,7 @@ __all__ = [
 
 import numpy as np
 from itertools import combinations
-import iso2mesh as im
+from iso2mesh.utils import mcpath
 
 ##====================================================================================
 ## implementations
@@ -960,7 +960,7 @@ def raytrace(p0, v0, node, face):
 
     den = np.dot(N, v0.T).flatten()
     t = -(d + np.dot(N, p0.T).flatten())
-    P = p0 + t[:, np.newaxis] * v0
+    P = (np.outer(p0, den) + np.outer(v0, t)).T
 
     u = np.einsum("ij,ij->i", P, N1) + den * d1
     v = np.einsum("ij,ij->i", P, N2) + den * d2
@@ -1484,109 +1484,6 @@ def ismember_rows(A, B):
     return np.in1d(A_view, B_view)
 
 
-def outersurf(node, face):
-    """
-    Extract the outer-most shell of a complex surface mesh.
-
-    Parameters:
-    node: Node coordinates
-    face: Surface triangle list
-
-    Returns:
-    outface: The outer-most shell of the surface mesh
-    """
-
-    face = face[:, :3]  # Limit face to first 3 columns
-    ed = surfedge(face)[0]  # Find surface edges
-
-    # If surface is open, raise an error
-    if ed.size != 0:
-        raise ValueError(
-            "Open surface detected, close it first. Consider meshcheckrepair() with meshfix option."
-        )
-
-    # Fill the surface and extract the volume's outer surface
-    no, el = im.fillsurf(node, face)
-    outface = volface(el)
-
-    # Remove isolated nodes
-    no, outface = removeisolatednode(no, outface)
-
-    # Check matching of node coordinates
-    maxfacenode = np.max(outface)
-    I, J = ismember_rows(np.round(no[:maxfacenode, :] * 1e10), np.round(node * 1e10))
-
-    # Map faces to the original node set
-    outface = J[outface]
-
-    # Remove faces with unmapped (zero-indexed) nodes
-    ii, jj = np.where(outface == 0)
-    outface = np.delete(outface, ii, axis=0)
-
-    return outface
-
-
-def surfvolume(node, face, option=None):
-    """
-    Calculate the enclosed volume for a closed surface.
-
-    Parameters:
-    node: Node coordinates
-    face: Surface triangle list
-    option: (Optional) additional option, currently unused
-
-    Returns:
-    vol: Total volume of the enclosed space
-    """
-
-    face = face[:, :3]  # Limit face to first 3 columns
-    ed = surfedge(face)[0]  # Detect surface edges
-
-    # If surface is open, raise an error
-    if ed.size != 0:
-        raise ValueError(
-            "Open surface detected, you need to close it first. Consider meshcheckrepair() with the meshfix option."
-        )
-
-    # Fill the surface and calculate the volume of enclosed elements
-    no, el = im.fillsurf(node, face)
-    vol = elemvolume(no, el)
-
-    # Sum the volume of all elements
-    vol = np.sum(vol)
-
-    return vol
-
-
-def insurface(node, face, points):
-    """
-    Test if a set of 3D points is located inside a 3D triangular surface.
-
-    Parameters:
-    node: Node coordinates (Nx3 array)
-    face: Surface triangle list (Mx3 array)
-    points: A set of 3D points to test (Px3 array)
-
-    Returns:
-    tf: A binary vector of length equal to the number of points.
-        1 indicates the point is inside the surface, and 0 indicates outside.
-    """
-
-    from scipy.spatial import Delaunay
-
-    # Fill the surface and get nodes and elements
-    no, el = im.fillsurf(node, face)
-
-    # Check if points are inside the surface using Delaunay triangulation
-    tri = Delaunay(no)
-    tf = tri.find_simplex(points) >= 0
-
-    # Set points inside the surface to 1, and outside to 0
-    tf = tf.astype(int)
-
-    return tf
-
-
 def advancefront(edges, loop, elen=3):
     """
     advance an edge-front on an oriented surface to the next separated by
@@ -1790,13 +1687,13 @@ def barydualmesh(node, elem, flag=None):
     """
 
     # Compute edge-centers
-    enodes, eidx = im.highordertet(node, elem)
+    enodes, eidx = highordertet(node, elem)
 
     # Compute face-centers
     fnodes, fidx = elemfacecenter(node, elem)
 
     # Compute element centers
-    c0 = im.meshcentroid(node, elem[:, : min(elem.shape[1], 4)])
+    c0 = meshcentroid(node, elem[:, : min(elem.shape[1], 4)])
 
     # Concatenate new nodes and their indices
     newnode = np.vstack((enodes, fnodes, c0))
@@ -1835,5 +1732,92 @@ def barydualmesh(node, elem, flag=None):
     # If the 'cell' flag is set, return `newelem` as a list of lists (cells)
     if flag == "cell":
         newelem = [newelem[i, :].tolist() for i in range(newelem.shape[0])]
+
+    return newnode, newelem
+
+
+# _________________________________________________________________________________________________________
+
+
+def highordertet(node, elem, order=2, opt=None):
+    """
+    Generate a higher-order tetrahedral mesh by refining a linear tetrahedral mesh.
+
+    Args:
+        node: Nodal coordinates of the linear tetrahedral mesh (n_nodes, 3).
+        elem: Element connectivity (n_elements, 4).
+        order: Desired order of the output mesh (default is 2 for quadratic mesh).
+        opt: Optional dictionary to control mesh refinement options.
+
+    Returns:
+        newnode: Nodal coordinates of the higher-order tetrahedral mesh.
+        newelem: Element connectivity of the higher-order tetrahedral mesh.
+    """
+
+    if order < 2:
+        raise ValueError("Order must be greater than or equal to 2")
+
+    if opt is None:
+        opt = {}
+
+    # Example: linear to quadratic conversion (order=2)
+    if order == 2:
+        newnode, newelem = lin_to_quad_tet(node, elem)
+    else:
+        raise NotImplementedError(
+            f"Higher order {order} mesh refinement is not yet implemented"
+        )
+
+    return newnode, newelem
+
+
+# _________________________________________________________________________________________________________
+
+
+def lin_to_quad_tet(node, elem):
+    """
+    Convert linear tetrahedral elements (4-node) to quadratic tetrahedral elements (10-node).
+
+    Args:
+        node: Nodal coordinates (n_nodes, 3).
+        elem: Element connectivity (n_elements, 4).
+
+    Returns:
+        newnode: Nodal coordinates of the quadratic mesh.
+        newelem: Element connectivity of the quadratic mesh.
+    """
+
+    n_elem = elem.shape[0]
+    n_node = node.shape[0]
+
+    # Initialize new node and element lists
+    edge_midpoints = {}
+    new_nodes = []
+    new_elements = []
+
+    for i in range(n_elem):
+        element = elem[i] - 1
+        quad_element = list(element)  # Start with linear nodes
+
+        # Loop over each edge of the tetrahedron
+        edges = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
+
+        for e in edges:
+            n1, n2 = sorted([element[e[0]], element[e[1]]])
+            edge_key = (n1, n2)
+
+            if edge_key not in edge_midpoints:
+                # Compute midpoint and add it as a new node
+                midpoint = (node[n1] + node[n2]) / 2
+                new_nodes.append(midpoint)
+                edge_midpoints[edge_key] = n_node + len(new_nodes) - 1
+
+            quad_element.append(edge_midpoints[edge_key])
+
+        new_elements.append(quad_element)
+
+    # Combine old and new nodes
+    newnode = np.vstack([node, np.array(new_nodes)])
+    newelem = np.array(new_elements) + 1
 
     return newnode, newelem

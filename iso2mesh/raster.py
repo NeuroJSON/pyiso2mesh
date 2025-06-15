@@ -4,7 +4,7 @@ Iso2Mesh for Python - Mesh-to-volume mesh rasterization
 Copyright (c) 2024-2025 Qianqian Fang <q.fang at neu.edu>
 """
 
-__all__ = ["m2v", "mesh2vol", "mesh2mask", "qmeshcut", "barycentricgrid"]
+__all__ = ["m2v", "mesh2vol", "mesh2mask", "barycentricgrid"]
 
 ##====================================================================================
 ## dependent libraries

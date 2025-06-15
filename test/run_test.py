@@ -625,5 +625,71 @@ class Test_surfboolean(unittest.TestCase):
         )
 
 
+class Test_core(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super(Test_core, self).__init__(*args, **kwargs)
+        self.im = np.zeros((3, 3, 3))
+        self.im[1, 1, 1:3] = 1
+
+    def test_binsurface(self):
+        no, fc = binsurface(self.im)
+        expected_fc = [
+            [10, 4, 1],
+            [7, 10, 1],
+            [12, 6, 5],
+            [11, 5, 4],
+            [2, 3, 9],
+            [1, 2, 8],
+            [11, 12, 5],
+            [10, 11, 4],
+            [2, 9, 8],
+            [1, 8, 7],
+            [8, 9, 12],
+            [7, 8, 11],
+            [6, 3, 2],
+            [5, 2, 1],
+            [8, 12, 11],
+            [7, 11, 10],
+            [5, 6, 2],
+            [4, 5, 1],
+        ]
+        self.assertEqual(fc.tolist(), expected_fc)
+
+        expected_sum = [3, 4, 5, 4, 5, 6, 4, 5, 6, 5, 6, 7]
+        self.assertEqual(np.sum(no, axis=1).tolist(), expected_sum)
+
+        expected_edge = [[6, 3], [3, 9], [12, 6], [9, 12]]
+        self.assertEqual(surfedge(fc)[0].tolist(), expected_edge)
+
+    def test_binsurface4(self):
+        no, fc = binsurface(self.im, 4)
+        expected_quad = [
+            [1, 3, 7, 5],
+            [5, 7, 11, 9],
+            [2, 4, 8, 6],
+            [6, 8, 12, 10],
+            [1, 2, 6, 5],
+            [5, 6, 10, 9],
+            [3, 4, 8, 7],
+            [7, 8, 12, 11],
+            [1, 2, 4, 3],
+        ]
+        self.assertEqual(fc.tolist(), expected_quad)
+
+    def test_binsurface0(self):
+        no = binsurface(self.im, 0)[0]
+        expected_mask = [[[0, 0], [0, -1]], [[0, 0], [0, -1]]]
+        self.assertEqual(no.tolist(), expected_mask)
+
+    def test_v2s(self):
+        no, fc, _, _ = v2s(self.im, 0.5, 0.03)
+        self.assertAlmostEqual(round(sum(elemvolume(no, fc[:, :3])), 2), 5.01)
+
+    def test_v2m(self):
+        no, el, fc = v2m(self.im, 0.5, 0.03, 10)
+        self.assertAlmostEqual(round(sum(elemvolume(no, fc[:, :3])), 2), 5.01)
+        self.assertAlmostEqual(round(sum(elemvolume(no, el[:, :4])), 4), 0.8786)
+
+
 if __name__ == "__main__":
     unittest.main()

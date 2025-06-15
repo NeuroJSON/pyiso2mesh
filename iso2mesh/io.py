@@ -9,14 +9,11 @@ __all__ = [
     "saveinr",
     "saveoff",
     "saveasc",
-    "saveasc",
     "savestl",
     "savebinstl",
-    "mwpath",
-    "deletemeshfile",
+    "readmedit",
     "readtetgen",
     "savesurfpoly",
-    "mcpath",
     "readoff",
 ]
 
@@ -27,13 +24,8 @@ __all__ = [
 import numpy as np
 import struct
 from datetime import datetime
-import os
 import re
-import iso2mesh as im
-import shutil
-
-
-ISO2MESH_BIN_VER = "1.9.8"
+from iso2mesh.trait import meshreorient, surfedge, extractloops
 
 ##====================================================================================
 ## implementations
@@ -149,65 +141,6 @@ def saveasc(v, f, fname):
             # Write faces (subtract 1 to adjust from MATLAB 1-based indexing to Python 0-based)
             for face in f:
                 fid.write(f"{face[0] - 1} {face[1] - 1} {face[2] - 1} 0\n")
-
-    except PermissionError:
-        raise PermissionError("You do not have permission to save mesh files.")
-
-
-def saveasc(node, face=None, elem=None, fname=None):
-    """
-    Save a surface mesh to DXF format.
-
-    Parameters:
-    node : ndarray
-        Surface node list, dimension (nn, 3), where nn is the number of nodes.
-    face : ndarray, optional
-        Surface face element list, dimension (be, 3), where be is the number of faces.
-    elem : ndarray, optional
-        Tetrahedral element list, dimension (ne, 4), where ne is the number of elements.
-    fname : str
-        Output file name.
-    """
-
-    if fname is None:
-        if elem is None:
-            fname = face
-            face = None
-        else:
-            fname = elem
-            elem = None
-
-    try:
-        with open(fname, "wt") as fid:
-            fid.write("0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n")
-
-            if face is not None:
-                fid.write(
-                    f"0\nPOLYLINE\n66\n1\n8\nI2M\n70\n64\n71\n{len(node)}\n72\n{len(face)}\n"
-                )
-
-            if node is not None:
-                node = node[:, :3]
-                for vertex in node:
-                    fid.write(
-                        f"0\nVERTEX\n8\nI2M\n10\n{vertex[0]:.16f}\n20\n{vertex[1]:.16f}\n30\n{vertex[2]:.16f}\n70\n192\n"
-                    )
-
-            if face is not None:
-                face = face[:, :3]
-                for f in face:
-                    fid.write(
-                        f"0\nVERTEX\n8\nI2M\n62\n254\n10\n0.0\n20\n0.0\n30\n0.0\n70\n128\n71\n{f[0]}\n72\n{f[1]}\n73\n{f[2]}\n"
-                    )
-
-            fid.write("0\nSEQEND\n0\nENDSEC\n")
-
-            if face is not None:
-                fid.write(
-                    "0\nSECTION\n2\nENTITIES\n0\nINSERT\n8\n1\n2\nMesh\n10\n0.0\n20\n0.0\n30\n0.0\n41\n1.0\n42\n1.0\n43\n1.0\n50\n0.0\n0\nENDSEC\n"
-                )
-
-            fid.write("0\nEOF\n")
 
     except PermissionError:
         raise PermissionError("You do not have permission to save mesh files.")
@@ -366,161 +299,6 @@ def readmedit(filename):
 # _________________________________________________________________________________________________________
 
 
-def mwpath(fname=""):
-    """
-    Get the full temporary file path by prepending the working directory
-    and current session name.
-
-    Parameters:
-    fname : str, optional
-        Input file name string (default is empty string).
-
-    Returns:
-    tempname : str
-        Full file name located in the working directory.
-    """
-
-    # Retrieve the ISO2MESH_TEMP and ISO2MESH_SESSION environment variables
-    p = os.getenv("ISO2MESH_TEMP")
-    session = os.getenv("ISO2MESH_SESSION", "")
-
-    # Get the current user's name for Linux/Unix/Mac/Windows
-    username = os.getenv("USER") or os.getenv("UserName", "")
-    if username:
-        username = f"pyiso2mesh-{username}"
-
-    tempname = ""
-
-    if not p:
-        tdir = os.path.abspath(
-            os.path.join(os.sep, "tmp")
-        )  # Use default temp directory
-        if username:
-            tdir = os.path.join(tdir, username)
-            if not os.path.exists(tdir):
-                os.makedirs(tdir)
-
-        tempname = os.path.join(tdir, session, fname)
-    else:
-        tempname = os.path.join(p, session, fname)
-
-    return tempname
-
-
-# _________________________________________________________________________________________________________
-
-
-def mcpath(fname, ext=None):
-    """
-    Get full executable path by prepending a command directory path.
-
-    Parameters:
-    fname : str
-        Input file name string.
-    ext : str, optional
-        File extension.
-
-    Returns:
-    str
-        Full file name located in the bin directory.
-    """
-    from pathlib import Path
-
-    binname = ""
-
-    # the bin folder under iso2mesh is searched first
-    # tempname = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', fname)
-    tempname = os.path.join(os.path.expanduser("~"), "pyiso2mesh-tools")
-    binfolder = Path(os.path.join(tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin"))
-
-    if os.path.isdir(tempname):
-        binname = os.path.join(tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin", fname)
-
-        if ext:
-            if os.path.isfile(binname + ext):
-                binname = binname + ext
-            else:
-                binname = fname + ext
-
-    elif shutil.which(fname):
-        binname = fname
-    else:
-        import urllib.request
-        import zipfile
-
-        print("Iso2mesh meshing utilities do not exist locally, downloading now ...")
-        os.makedirs(tempname)
-        binurl = f"https://github.com/fangq/iso2mesh/archive/refs/tags/v{ISO2MESH_BIN_VER}.zip"
-        filehandle, _ = urllib.request.urlretrieve(binurl)
-
-        with zipfile.ZipFile(filehandle, "r") as zip_ref:
-            for file in zip_ref.namelist():
-                if file.startswith(f"iso2mesh-{ISO2MESH_BIN_VER}/bin/"):
-                    zip_ref.extract(file, tempname)
-                    extractfile = os.path.join(tempname, file)
-                    print("Extracting " + extractfile)
-                    if os.path.isfile(extractfile):
-                        print("Setting permission " + extractfile)
-                        os.chmod(extractfile, 0o755)
-        if ext:
-            binname = os.path.join(
-                tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin", fname + ext
-            )
-        else:
-            binname = os.path.join(
-                tempname, "iso2mesh-" + ISO2MESH_BIN_VER, "bin", fname
-            )
-
-    # on 64bit windows machine, try 'exename_x86-64.exe' first
-    if (
-        os.name == "nt"
-        and "64" in os.environ["PROCESSOR_ARCHITECTURE"]
-        and not re.search(r"_x86-64$", fname)
-    ):
-        w64bin = re.sub(r"(\.[eE][xX][eE])$", "_x86-64.exe", binname, count=1)
-        if os.path.isfile(w64bin):
-            binname = w64bin
-
-    # if no such executable exist in iso2mesh/bin, find it in PATH env variable
-    if "extractfile" not in locals() and ext and not os.path.isfile(binname):
-        binname = fname
-
-    return binname
-
-
-# _________________________________________________________________________________________________________
-
-
-def deletemeshfile(fname):
-    """
-    delete a given work mesh file under the working directory
-
-    author: Qianqian Fang, <q.fang at neu.edu>
-
-    input:
-        fname: specified file name (without path)
-
-    output:
-        flag: not used
-    """
-
-    try:
-        if os.path.exists(fname):
-            os.remove(fname)
-    except Exception as e:
-        raise PermissionError(
-            "You do not have permission to delete temporary files. If you are working in a multi-user "
-            "environment, such as Unix/Linux and there are other users using iso2mesh, "
-            "you may need to define ISO2MESH_SESSION='yourstring' to make your output "
-            "files different from others; if you do not have permission to "
-            f"{os.getcwd()} as the temporary directory, you have to define "
-            "ISO2MESH_TEMP='/path/you/have/write/permission' in Python base workspace."
-        ) from e
-
-
-# _________________________________________________________________________________________________________
-
-
 def readtetgen(fstub):
     """
     [node, elem, face] = readtetgen(fstub)
@@ -588,7 +366,7 @@ def readtetgen(fstub):
     except FileNotFoundError:
         raise FileNotFoundError("surface data file is missing!")
 
-    elem[:, :4], evol, idx = im.meshreorient(node[:, :3], elem[:, :4])
+    elem[:, :4], evol, idx = meshreorient(node[:, :3], elem[:, :4])
 
     return node, elem, face
 
@@ -640,13 +418,13 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
     )
 
     # Handle edges
-    edges = im.surfedge(f)[0] if not isinstance(f, list) else []
+    edges = surfedge(f)[0] if not isinstance(f, list) else []
 
     node = v
     bbxnum, loopvert, loopid, loopnum = 0, [], [], 1
 
     if len(edges) > 0:
-        loops = im.extractloops(edges)
+        loops = extractloops(edges)
         if len(loops) < 3:
             raise ValueError("Degenerated loops detected")
         seg = [0] + list(np.where(np.isnan(loops))[0].tolist())
