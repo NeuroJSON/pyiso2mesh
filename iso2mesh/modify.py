@@ -40,7 +40,7 @@ import platform
 import subprocess
 from iso2mesh.utils import *
 from iso2mesh.io import saveoff, readoff
-from iso2mesh.trait import meshconn
+from iso2mesh.trait import meshconn, mesheuler
 
 ##====================================================================================
 ## implementations
@@ -179,52 +179,129 @@ def qmeshcut(elem, node, value, cutat):
     nodeid: Interpolation info for intersection points
     """
 
-    if len(value) != len(node) and len(value) != len(elem) and len(value) != 0:
-        raise ValueError("Length of value must match either node or elem")
+    if (
+        value.shape[0] != node.shape[0]
+        and value.shape[0] != elem.shape[0]
+        and value.size != 0
+    ):
+        raise ValueError("the length of value must be either that of node or elem")
 
-    # Handle implicit plane definitions
-    if isinstance(cutat, str):
+    if value.size == 0:
+        cutvalue = []
+
+    if isinstance(cutat, str) or (
+        isinstance(cutat, list) and len(cutat) == 2 and isinstance(cutat[0], str)
+    ):
         x, y, z = node[:, 0], node[:, 1], node[:, 2]
-        expr = cutat.split("=")
-        if len(expr) != 2:
-            raise ValueError('Expression must contain a single "=" sign')
-        dist = eval(expr[0]) - eval(expr[1])
-    elif isinstance(cutat, list) and len(cutat) == 4:
-        a, b, c, d = cutat
-        dist = a * node[:, 0] + b * node[:, 1] + c * node[:, 2] + d
+        if isinstance(cutat, str):
+            match = re.match(r"(.+)=([^=]+)", cutat)
+            if not match:
+                raise ValueError('single expression must contain a single "=" sign')
+            expr1, expr2 = match.groups()
+            dist = eval(expr1) - eval(expr2)
+        else:
+            dist = eval(cutat[0]) - cutat[1]
+        asign = np.where(dist <= 0, -1, 1)
+    elif not isinstance(cutat, (int, float)) and (len(cutat) == 9 or len(cutat) == 4):
+        if len(cutat) == 9:
+            a, b, c, d = getplanefrom3pt(np.array(cutat).reshape(3, 3))
+        else:
+            a, b, c, d = cutat
+        dist = np.dot(node, np.array([a, b, c])) + d
+        asign = np.where(dist >= 0, 1, -1)
     else:
+        if value.shape[0] != node.shape[0]:
+            raise ValueError(
+                "must use nodal value list when cutting mesh at an isovalue"
+            )
         dist = value - cutat
+        asign = np.where(dist > 0, 1, -1)
 
-    # Determine which nodes are above/below the cut surface
-    asign = np.sign(dist)
-
-    # Find edges that cross the cut
-    edges = np.vstack([elem[:, [i, j]] for i in range(3) for j in range(i + 1, 4)])
-    cutedges = np.where(np.sum(asign[edges], axis=1) == 0)[0]
-
-    # Interpolation for cut positions
-    nodeid = edges[cutedges]
-    cutweight = np.abs(
-        dist[nodeid] / (dist[nodeid[:, 0]] - dist[nodeid[:, 1]]).reshape(-1, 1)
-    )
-    cutpos = (
-        node[nodeid[:, 0]] * cutweight[:, 1][:, None]
-        + node[nodeid[:, 1]] * cutweight[:, 0][:, None]
-    )
-
-    cutvalue = None
-    if len(value) == len(node):
-        cutvalue = (
-            value[nodeid[:, 0]] * cutweight[:, 1]
-            + value[nodeid[:, 1]] * cutweight[:, 0]
+    esize = elem.shape[1]
+    if esize == 4:
+        edges = np.vstack(
+            [
+                elem[:, [0, 1]],
+                elem[:, [0, 2]],
+                elem[:, [0, 3]],
+                elem[:, [1, 2]],
+                elem[:, [1, 3]],
+                elem[:, [2, 3]],
+            ]
+        )
+    elif esize == 3:
+        edges = np.vstack([elem[:, [0, 1]], elem[:, [0, 2]], elem[:, [1, 2]]])
+    elif esize == 10:
+        edges = np.vstack(
+            [
+                elem[:, [0, 4]],
+                elem[:, [0, 7]],
+                elem[:, [0, 6]],
+                elem[:, [1, 4]],
+                elem[:, [1, 5]],
+                elem[:, [1, 8]],
+                elem[:, [2, 5]],
+                elem[:, [2, 6]],
+                elem[:, [2, 9]],
+                elem[:, [3, 7]],
+                elem[:, [3, 8]],
+                elem[:, [3, 9]],
+            ]
         )
 
-    # Organize intersection polygons (faces) and element ids
-    emap = np.zeros(edges.shape[0])
-    emap[cutedges] = np.arange(len(cutedges))
-    elemid = np.where(np.sum(emap.reshape(-1, 6), axis=1) > 0)[0]
+    edgemask = np.sum(asign[edges - 1], axis=1)
+    cutedges = np.where(edgemask == 0)[0]
 
-    facedata = np.vstack([emap[cutedges].reshape(-1, 3)])
+    cutweight = dist[edges[cutedges] - 1]
+    totalweight = np.diff(cutweight, axis=1)[:, 0]
+    cutweight = np.abs(cutweight / totalweight[:, np.newaxis])
+
+    nodeid = edges[cutedges] - 1
+    nodeid = np.column_stack([nodeid, cutweight[:, 1]])
+
+    cutpos = (
+        node[edges[cutedges, 0] - 1] * cutweight[:, [1]]
+        + node[edges[cutedges, 1] - 1] * cutweight[:, [0]]
+    )
+
+    if value.shape[0] == node.shape[0]:
+        if isinstance(cutat, (str, list)) or (
+            not isinstance(cutat, (int, float)) and len(cutat) in [4, 9]
+        ):
+            cutvalue = (
+                value[edges[cutedges, 0] - 1] * cutweight[:, [1]]
+                + value[edges[cutedges, 1] - 1] * cutweight[:, [0]]
+            )
+        elif np.isscalar(cutat):
+            cutvalue = np.full((cutpos.shape[0], 1), cutat)
+
+    emap = np.zeros(edges.shape[0], dtype=int)
+    emap[cutedges] = np.arange(1, len(cutedges) + 1)
+    emap = emap.reshape((-1, int(edges.shape[0] / elem.shape[0])))
+
+    etag = np.sum(emap > 0, axis=1)
+    if esize == 3:
+        linecut = np.where(etag == 2)[0]
+        lineseg = emap[linecut].T
+        facedata = lineseg[lineseg > 0].reshape((2, len(linecut))).T
+        elemid = linecut
+        if value.shape[0] == elem.shape[0] and "cutvalue" not in locals():
+            cutvalue = value[elemid]
+        return cutpos, cutvalue, facedata, elemid, nodeid
+
+    tricut = np.where(etag == 3)[0]
+    quadcut = np.where(etag == 4)[0]
+    elemid = np.concatenate([tricut, quadcut])
+    if value.shape[0] == elem.shape[0] and "cutvalue" not in locals():
+        cutvalue = value[elemid]
+
+    tripatch = emap[tricut].T
+    tripatch = tripatch[tripatch > 0].reshape((3, len(tricut))).T
+
+    quadpatch = emap[quadcut].T
+    quadpatch = quadpatch[quadpatch > 0].reshape((4, len(quadcut))).T
+
+    facedata = np.vstack([tripatch[:, [0, 1, 2, 2]], quadpatch[:, [0, 1, 3, 2]]])
 
     return cutpos, cutvalue, facedata, elemid, nodeid
 
@@ -740,15 +817,15 @@ def mergemesh(node, elem, *args):
         To remove self-intersecting elements, use mergesurf() instead.
     """
     # Initialize newnode and newelem with input mesh
-    newnode = node
-    newelem = elem
+    newnode = np.copy(node)
+    newelem = np.copy(elem)
 
     # Check if the number of extra arguments is valid
     if len(args) > 0 and len(args) % 2 != 0:
         raise ValueError("You must give node and element in pairs")
 
     # Compute the Euler characteristic
-    X = mesheuler(newelem)
+    X = mesheuler(newelem)[0]
 
     # Add a 5th column to tetrahedral elements if not present
     if newelem.shape[1] == 4 and X >= 0:
@@ -771,6 +848,7 @@ def mergemesh(node, elem, *args):
         # Update element indices and append nodes/elements to the merged mesh
         if el.shape[1] == 5 or el.shape[1] == 4:
             el[:, :4] += baseno
+
             if el.shape[1] == 4 and X >= 0:
                 el = np.column_stack(
                     (el, np.ones((el.shape[0], 1), dtype=int) * (i // 2 + 1))

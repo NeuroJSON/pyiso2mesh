@@ -27,7 +27,7 @@ def plotsurf(node, face, *args, **kwargs):
     rngstate = np.random.get_state()
     h = []
 
-    randseed = int("623F9A9E", 16)  # "U+623F U+9A9E"
+    randseed = int("623F9A9E", 16)
 
     if "ISO2MESH_RANDSEED" in globals():
         randseed = globals()["ISO2MESH_RANDSEED"]
@@ -161,7 +161,7 @@ def plottetra(node, elem, *args, **kwargs):
     rngstate = np.random.get_state()
 
     # Set deterministic seed for consistent coloring
-    randseed = int("623F9A9E", 16)  # "U+623F U+9A9E"
+    randseed = int("623F9A9E", 16)
 
     if "ISO2MESH_RANDSEED" in globals():
         randseed = globals()["ISO2MESH_RANDSEED"]
