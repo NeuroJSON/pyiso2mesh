@@ -706,6 +706,8 @@ class Test_modify(unittest.TestCase):
         )
         self.el = meshreorient(self.no, self.el[:, :4])[0]
         self.no1, self.fc1 = meshcheckrepair(self.no, self.fc, "deep")
+        self.nbox, self.ebox = meshgrid5([0, 1], [1, 2], [0, 2])
+        self.fbox = volface(self.ebox)[0]
 
     def test_removeisolatednode(self):
         no1 = removeisolatednode(self.no[:, :3], self.fc[:, :3])[0]
@@ -777,6 +779,74 @@ class Test_modify(unittest.TestCase):
         no1 = sms(no, el, 10, 0.5, "lowpass")
         no2, el2, _ = s2m(no1, el, 1, 100)
         self.assertTrue(np.sum(elemvolume(no2, el2[:, :4])) > 0.55)
+
+    def test_qmeshcut_elem(self):
+        cutpos, cutvalue, facedata, _, _ = qmeshcut(
+            self.ebox, self.nbox, self.nbox[:, 0] + self.nbox[:, 1], 2
+        )
+        expected_fc = [
+            [1, 16, 29, 29],
+            [2, 17, 30, 30],
+            [3, 42, 55, 55],
+            [4, 44, 57, 57],
+            [5, 45, 58, 58],
+            [19, 46, 71, 71],
+            [6, 20, 32, 32],
+            [7, 21, 33, 33],
+            [35, 60, 72, 72],
+            [36, 61, 73, 73],
+            [8, 48, 62, 62],
+            [24, 49, 75, 75],
+            [37, 64, 76, 76],
+            [10, 50, 65, 65],
+            [12, 51, 67, 67],
+            [39, 69, 78, 78],
+            [13, 53, 70, 70],
+            [14, 27, 40, 40],
+            [15, 28, 54, 41],
+            [18, 31, 56, 43],
+            [22, 34, 59, 47],
+            [9, 23, 74, 63],
+            [11, 25, 77, 66],
+            [26, 38, 68, 52],
+        ]
+        self.assertEqual(np.sum(cutpos), 234.0)
+        self.assertEqual(facedata.tolist(), expected_fc)
+
+    def test_qmeshcut_face(self):
+        no2, fc2, _ = removeisolatednode(self.nbox, self.fbox)
+        cutpos, cutvalue, facedata, _, _ = qmeshcut(fc2[:, :3], no2, no2[:, 0], 0)
+        expected_fc = [
+            [1, 22],
+            [2, 12],
+            [13, 23],
+            [14, 24],
+            [3, 15],
+            [4, 25],
+            [5, 16],
+            [6, 26],
+            [7, 27],
+            [8, 17],
+            [18, 28],
+            [9, 19],
+            [10, 29],
+            [20, 30],
+            [21, 31],
+            [11, 32],
+        ]
+        self.assertEqual(np.sum(cutpos), 80.0)
+        self.assertEqual(facedata.tolist(), expected_fc)
+
+    def test_extractloops(self):
+        no2, fc2, _ = removeisolatednode(self.nbox, self.fbox)
+        cutpos, cutvalue, facedata, _, _ = qmeshcut(fc2[:, :3], no2, no2[:, 0], 0)
+        _, ed2 = removedupnodes(cutpos, facedata)
+        bcutloop = extractloops(ed2)
+
+        expected_fc = [1, 4, 6, 7, 8, 5, 3, 2, 1]
+        self.assertNotEqual(bcutloop[-1], bcutloop[-1])
+        bcutloop.pop()
+        self.assertEqual(bcutloop, expected_fc)
 
 
 class Test_surfboolean(unittest.TestCase):

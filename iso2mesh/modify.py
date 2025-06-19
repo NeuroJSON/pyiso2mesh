@@ -277,13 +277,13 @@ def qmeshcut(elem, node, value, cutat):
 
     emap = np.zeros(edges.shape[0], dtype=int)
     emap[cutedges] = np.arange(1, len(cutedges) + 1)
-    emap = emap.reshape((-1, int(edges.shape[0] / elem.shape[0])))
+    emap = emap.reshape((elem.shape[0], -1), order="F")
 
     etag = np.sum(emap > 0, axis=1)
     if esize == 3:
         linecut = np.where(etag == 2)[0]
-        lineseg = emap[linecut].T
-        facedata = lineseg[lineseg > 0].reshape((2, len(linecut))).T
+        lineseg = emap[linecut, :]
+        facedata = lineseg[lineseg > 0].reshape((2, len(linecut)), order="F").T
         elemid = linecut
         if value.shape[0] == elem.shape[0] and "cutvalue" not in locals():
             cutvalue = value[elemid]
@@ -292,14 +292,15 @@ def qmeshcut(elem, node, value, cutat):
     tricut = np.where(etag == 3)[0]
     quadcut = np.where(etag == 4)[0]
     elemid = np.concatenate([tricut, quadcut])
+
     if value.shape[0] == elem.shape[0] and "cutvalue" not in locals():
         cutvalue = value[elemid]
 
-    tripatch = emap[tricut].T
-    tripatch = tripatch[tripatch > 0].reshape((3, len(tricut))).T
+    tripatch = emap[tricut, :]
+    tripatch = tripatch[tripatch > 0].reshape((3, len(tricut)), order="F").T
 
-    quadpatch = emap[quadcut].T
-    quadpatch = quadpatch[quadpatch > 0].reshape((4, len(quadcut))).T
+    quadpatch = emap[quadcut, :]
+    quadpatch = quadpatch[quadpatch > 0].reshape((4, len(quadcut)), order="F").T
 
     facedata = np.vstack([tripatch[:, [0, 1, 2, 2]], quadpatch[:, [0, 1, 3, 2]]])
 
