@@ -772,11 +772,7 @@ def mesheuler(face):
     V = len(np.unique(face))
 
     # Construct edges from faces
-    E = np.vstack((face[:, [0, 2]], face[:, [0, 1]], face[:, [1, 2]]))
-    E = np.unique(
-        np.sort(E, axis=1), axis=0
-    )  # Sort edge vertex pairs and remove duplicates
-    E = len(E)
+    E = uniqedges(face)[0].shape[0]
 
     # Number of faces
     F = face.shape[0]
@@ -1382,14 +1378,13 @@ def uniqedges(elem):
     edges = edges[idx, :]
 
     # Compute edgemap if requested
-    edgemap = None
     edgemap = np.reshape(
-        jdx,
-        (elem.shape[0], np.array(list(combinations(range(elem.shape[1]), 2))).shape[0]),
+        jdx + 1,
+        (-1, elem.shape[0]),
     )
     edgemap = edgemap.T
 
-    return edges, idx, edgemap
+    return edges, idx + 1, edgemap
 
 
 # _________________________________________________________________________________________________________
@@ -1436,7 +1431,7 @@ def uniqfaces(elem):
         order="F",
     )
 
-    return faces, idx, facemap
+    return faces, idx + 1, facemap
 
 
 def innersurf(node, face, outface=None):
@@ -1653,13 +1648,8 @@ def elemfacecenter(node, elem):
     faces, idx, newelem = uniqfaces(elem[:, :4])
 
     # Extract the coordinates of the nodes forming these faces
-    newnode = node[faces.flatten() - 1, :3]
-
-    # Reshape newnode to group coordinates of nodes in each face
-    newnode = newnode.reshape(3, 3, faces.shape[0])
-
-    # Compute the mean of the coordinates to find the face centers
-    newnode = np.mean(np.transpose(newnode, (2, 1, 0)), axis=1).squeeze()
+    newnode = node[faces.T - 1, :3]
+    newnode = np.mean(newnode, axis=0)
 
     return newnode, newelem
 
@@ -1724,10 +1714,7 @@ def barydualmesh(node, elem, flag=None):
     )  # Adjust to 0-based indexing for Python
 
     newelem = newidx[:, newelem.flatten()]
-
-    newelem = newelem.reshape((elem.shape[0], 4, 6))
-    newelem = np.transpose(newelem, (0, 2, 1))
-    newelem = newelem.reshape((elem.shape[0] * 6, 4))
+    newelem = newelem.T.reshape(4, -1).T
 
     # If the 'cell' flag is set, return `newelem` as a list of lists (cells)
     if flag == "cell":
@@ -1754,70 +1741,10 @@ def highordertet(node, elem, order=2, opt=None):
         newelem: Element connectivity of the higher-order tetrahedral mesh.
     """
 
-    if order < 2:
-        raise ValueError("Order must be greater than or equal to 2")
+    if order >= 3 or order <= 1:
+        raise ValueError("currently this function only supports order=2")
 
-    if opt is None:
-        opt = {}
-
-    # Example: linear to quadratic conversion (order=2)
-    if order == 2:
-        newnode, newelem = lin_to_quad_tet(node, elem)
-    else:
-        raise NotImplementedError(
-            f"Higher order {order} mesh refinement is not yet implemented"
-        )
-
-    return newnode, newelem
-
-
-# _________________________________________________________________________________________________________
-
-
-def lin_to_quad_tet(node, elem):
-    """
-    Convert linear tetrahedral elements (4-node) to quadratic tetrahedral elements (10-node).
-
-    Args:
-        node: Nodal coordinates (n_nodes, 3).
-        elem: Element connectivity (n_elements, 4).
-
-    Returns:
-        newnode: Nodal coordinates of the quadratic mesh.
-        newelem: Element connectivity of the quadratic mesh.
-    """
-
-    n_elem = elem.shape[0]
-    n_node = node.shape[0]
-
-    # Initialize new node and element lists
-    edge_midpoints = {}
-    new_nodes = []
-    new_elements = []
-
-    for i in range(n_elem):
-        element = elem[i] - 1
-        quad_element = list(element)  # Start with linear nodes
-
-        # Loop over each edge of the tetrahedron
-        edges = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
-
-        for e in edges:
-            n1, n2 = sorted([element[e[0]], element[e[1]]])
-            edge_key = (n1, n2)
-
-            if edge_key not in edge_midpoints:
-                # Compute midpoint and add it as a new node
-                midpoint = (node[n1] + node[n2]) / 2
-                new_nodes.append(midpoint)
-                edge_midpoints[edge_key] = n_node + len(new_nodes) - 1
-
-            quad_element.append(edge_midpoints[edge_key])
-
-        new_elements.append(quad_element)
-
-    # Combine old and new nodes
-    newnode = np.vstack([node, np.array(new_nodes)])
-    newelem = np.array(new_elements) + 1
-
-    return newnode, newelem
+    edges, idx, newelem = uniqedges(elem[:, : min(elem.shape[1], 4)])
+    newnode = node[edges.T - 1, :3]  # adjust for 1-based index
+    newnode = np.mean(newnode, axis=0)
+    return newnode, newelem + 1

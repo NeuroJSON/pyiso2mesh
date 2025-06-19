@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from iso2mesh import *
 
 
-class Test_primitives(unittest.TestCase):
+class Test_geometry(unittest.TestCase):
     def test_meshabox(self):
         no, fc, el = meshabox([0, 0, 0], [1, 1, 1], 1, method="tetgen1.5")
         expected_fc = [
@@ -133,7 +133,7 @@ class Test_primitives(unittest.TestCase):
         self.assertEqual(round(sum(elemvolume(no, fc[:, :3])), 2), 63.41)
         self.assertEqual(round(sum(elemvolume(no, el[:, :4])), 2), 33.44)
 
-    def test_meshacylinderplc(self):
+    def test_meshacylinder_plc(self):
         (
             no,
             fc,
@@ -158,9 +158,9 @@ class Test_primitives(unittest.TestCase):
         self.assertEqual(round(sum(elemvolume(no, el[:, :4])), 4), 1402.8993)
 
 
-class Test_utils(unittest.TestCase):
+class Test_trait(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(Test_utils, self).__init__(*args, **kwargs)
+        super(Test_trait, self).__init__(*args, **kwargs)
         self.no, self.el = meshgrid6(
             np.arange(1, 3), np.arange(-1, 1), np.arange(2, 3.5, 0.5)
         )
@@ -276,8 +276,63 @@ class Test_utils(unittest.TestCase):
         ]
         self.assertEqual(output.tolist(), expected)
 
-    def test_uniqedges(self):
+    def test_meshface(self):
+        output = meshface(self.el)
         expected = [
+            [1, 2, 8],
+            [5, 6, 12],
+            [1, 3, 4],
+            [5, 7, 8],
+            [1, 2, 6],
+            [5, 6, 10],
+            [1, 5, 8],
+            [5, 9, 12],
+            [1, 3, 8],
+            [5, 7, 12],
+            [1, 5, 7],
+            [5, 9, 11],
+            [1, 2, 4],
+            [5, 6, 8],
+            [1, 3, 8],
+            [5, 7, 12],
+            [1, 2, 8],
+            [5, 6, 12],
+            [1, 5, 6],
+            [5, 9, 10],
+            [1, 3, 7],
+            [5, 7, 11],
+            [1, 5, 8],
+            [5, 9, 12],
+            [1, 8, 4],
+            [5, 12, 8],
+            [1, 4, 8],
+            [5, 8, 12],
+            [1, 6, 8],
+            [5, 10, 12],
+            [1, 8, 6],
+            [5, 12, 10],
+            [1, 8, 7],
+            [5, 12, 11],
+            [1, 7, 8],
+            [5, 11, 12],
+            [2, 8, 4],
+            [6, 12, 8],
+            [3, 4, 8],
+            [7, 8, 12],
+            [2, 6, 8],
+            [6, 10, 12],
+            [5, 8, 6],
+            [9, 12, 10],
+            [3, 8, 7],
+            [7, 12, 11],
+            [5, 7, 8],
+            [9, 11, 12],
+        ]
+        self.assertEqual(output.tolist(), expected)
+
+    def test_uniqedges(self):
+        ed, idx, newel = uniqedges(self.el)
+        expected_ed = [
             [1, 2],
             [1, 3],
             [1, 4],
@@ -312,7 +367,60 @@ class Test_utils(unittest.TestCase):
             [10, 12],
             [12, 11],
         ]
-        self.assertEqual(uniqedges(self.el)[0].tolist(), expected)
+        expected_el = [
+            [1, 7, 3, 10, 8, 14],
+            [15, 21, 17, 24, 22, 28],
+            [2, 3, 7, 11, 13, 14],
+            [16, 17, 21, 25, 27, 28],
+            [1, 5, 7, 9, 10, 22],
+            [15, 19, 21, 23, 24, 32],
+            [4, 7, 5, 17, 15, 22],
+            [18, 21, 19, 31, 29, 32],
+            [2, 7, 6, 13, 12, 25],
+            [16, 21, 20, 27, 26, 33],
+            [4, 6, 7, 16, 17, 25],
+            [18, 20, 21, 30, 31, 33],
+        ]
+        self.assertEqual(ed.tolist(), expected_ed)
+        self.assertEqual(
+            idx.tolist(),
+            [
+                1,
+                3,
+                15,
+                7,
+                17,
+                23,
+                13,
+                49,
+                41,
+                37,
+                39,
+                57,
+                45,
+                61,
+                2,
+                4,
+                16,
+                8,
+                18,
+                24,
+                14,
+                50,
+                42,
+                38,
+                40,
+                58,
+                46,
+                62,
+                56,
+                48,
+                44,
+                66,
+                70,
+            ],
+        )
+        self.assertEqual(newel.tolist(), expected_el)
 
     def test_meshconn(self):
         expected = [
@@ -330,6 +438,13 @@ class Test_utils(unittest.TestCase):
             [5, 6, 7, 8, 9, 10, 11],
         ]
         self.assertEqual(meshconn(self.el, self.no.shape[0])[0], expected)
+
+    def test_mesheuler(self):
+        eu = mesheuler(self.el)
+        self.assertEqual(eu, (-9, 12, 33, 12))
+
+        eu = mesheuler(self.fc)
+        self.assertEqual(eu, (2, 12, 30, 20))
 
     def test_neighborelem(self):
         expected = [
@@ -465,10 +580,127 @@ class Test_utils(unittest.TestCase):
         result = insurface(self.no, self.fc, pts).tolist()
         self.assertEqual(result, expected)
 
+    def test_highordertet(self):
+        no1, el1 = highordertet(self.no, self.el)
+        expected_el = [
+            [2, 8, 4, 11, 9, 15],
+            [16, 22, 18, 25, 23, 29],
+            [3, 4, 8, 12, 14, 15],
+            [17, 18, 22, 26, 28, 29],
+            [2, 6, 8, 10, 11, 23],
+            [16, 20, 22, 24, 25, 33],
+            [5, 8, 6, 18, 16, 23],
+            [19, 22, 20, 32, 30, 33],
+            [3, 8, 7, 14, 13, 26],
+            [17, 22, 21, 28, 27, 34],
+            [5, 7, 8, 17, 18, 26],
+            [19, 21, 22, 31, 32, 34],
+        ]
+        self.assertEqual(el1.tolist(), expected_el)
+        self.assertEqual(np.sum(no1), 115.5)
 
-class Test_surfaces(unittest.TestCase):
+    def test_elemfacecenter(self):
+        no1, el1 = elemfacecenter(self.no, self.el)
+        expected_el = [
+            [3, 1, 7, 13],
+            [19, 17, 23, 29],
+            [4, 6, 7, 15],
+            [20, 22, 23, 31],
+            [2, 3, 11, 14],
+            [18, 19, 27, 30],
+            [10, 8, 11, 17],
+            [26, 24, 27, 33],
+            [6, 5, 12, 16],
+            [22, 21, 28, 32],
+            [9, 10, 12, 20],
+            [25, 26, 28, 34],
+        ]
+        self.assertEqual(el1.tolist(), expected_el)
+        self.assertEqual(np.sum(no1), 119.0)
+
+    def test_barydualmesh(self):
+        no1, el1 = barydualmesh(self.no, self.el)
+        expected_el = [
+            [2, 34, 68, 36],
+            [16, 50, 69, 52],
+            [3, 39, 70, 37],
+            [17, 55, 71, 53],
+            [2, 36, 72, 35],
+            [16, 52, 73, 51],
+            [5, 41, 74, 43],
+            [19, 57, 75, 59],
+            [3, 38, 76, 39],
+            [17, 54, 77, 55],
+            [5, 43, 78, 42],
+            [19, 59, 79, 58],
+            [8, 36, 68, 40],
+            [22, 52, 69, 56],
+            [4, 37, 70, 40],
+            [18, 53, 71, 56],
+            [6, 35, 72, 44],
+            [20, 51, 73, 60],
+            [8, 43, 74, 44],
+            [22, 59, 75, 60],
+            [8, 39, 76, 45],
+            [22, 55, 77, 61],
+            [7, 42, 78, 45],
+            [21, 58, 79, 61],
+            [4, 40, 68, 34],
+            [18, 56, 69, 50],
+            [8, 40, 70, 39],
+            [22, 56, 71, 55],
+            [8, 44, 72, 36],
+            [22, 60, 73, 52],
+            [6, 44, 74, 41],
+            [20, 60, 75, 57],
+            [7, 45, 76, 38],
+            [21, 61, 77, 54],
+            [8, 45, 78, 43],
+            [22, 61, 79, 59],
+            [11, 36, 68, 46],
+            [25, 52, 69, 62],
+            [12, 37, 70, 48],
+            [26, 53, 71, 64],
+            [10, 35, 72, 47],
+            [24, 51, 73, 63],
+            [18, 43, 74, 50],
+            [32, 59, 75, 66],
+            [14, 39, 76, 49],
+            [28, 55, 77, 65],
+            [17, 42, 78, 53],
+            [31, 58, 79, 67],
+            [9, 34, 68, 46],
+            [23, 50, 69, 62],
+            [14, 39, 70, 48],
+            [28, 55, 71, 64],
+            [11, 36, 72, 47],
+            [25, 52, 73, 63],
+            [16, 41, 74, 50],
+            [30, 57, 75, 66],
+            [13, 38, 76, 49],
+            [27, 54, 77, 65],
+            [18, 43, 78, 53],
+            [32, 59, 79, 67],
+            [15, 40, 68, 46],
+            [29, 56, 69, 62],
+            [15, 40, 70, 48],
+            [29, 56, 71, 64],
+            [23, 44, 72, 47],
+            [33, 60, 73, 63],
+            [23, 44, 74, 50],
+            [33, 60, 75, 66],
+            [26, 45, 76, 49],
+            [34, 61, 77, 65],
+            [26, 45, 78, 53],
+            [34, 61, 79, 67],
+        ]
+        self.assertEqual(el1.tolist(), expected_el)
+        self.assertEqual(np.sum(no1), 276.5)
+
+
+class Test_modify(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(Test_surfaces, self).__init__(*args, **kwargs)
+        super(Test_modify, self).__init__(*args, **kwargs)
         self.no, self.fc, self.el = meshacylinder(
             [1, 1, 1], [2, 3, 4], [0.5, 0.7], 1, 100, 8
         )
@@ -500,13 +732,13 @@ class Test_surfaces(unittest.TestCase):
         self.assertEqual(self.fc.shape, fc1.shape)
         self.assertFalse(np.any(elemvolume(no1, fc1) <= 0))
 
-    def test_meshcheckrepairdeep(self):
+    def test_meshcheckrepair_deep(self):
         self.assertFalse(np.any(elemvolume(self.no1, self.fc1) <= 0))
         self.assertTrue(
             np.sum(elemvolume(self.no1, self.fc1)), np.sum(elemvolume(self.no, self.fc))
         )
 
-    def test_meshcheckrepairmeshfix(self):
+    def test_meshcheckrepair_meshfix(self):
         no2, fc2 = meshcheckrepair(self.no, self.fc[3:, :], "meshfix")
         self.assertTrue(
             abs(sum(elemvolume(self.no1, self.fc1)) - sum(elemvolume(no2, fc2))) < 1e-4
@@ -658,10 +890,12 @@ class Test_core(unittest.TestCase):
         expected_sum = [3, 4, 5, 4, 5, 6, 4, 5, 6, 5, 6, 7]
         self.assertEqual(np.sum(no, axis=1).tolist(), expected_sum)
 
+    def test_surfedge(self):
+        no, fc = binsurface(self.im)
         expected_edge = [[6, 3], [3, 9], [12, 6], [9, 12]]
         self.assertEqual(surfedge(fc)[0].tolist(), expected_edge)
 
-    def test_binsurface4(self):
+    def test_binsurface_4(self):
         no, fc = binsurface(self.im, 4)
         expected_quad = [
             [1, 3, 7, 5],
@@ -676,7 +910,7 @@ class Test_core(unittest.TestCase):
         ]
         self.assertEqual(fc.tolist(), expected_quad)
 
-    def test_binsurface0(self):
+    def test_binsurface_0(self):
         no = binsurface(self.im, 0)[0]
         expected_mask = [[[0, 0], [0, -1]], [[0, 0], [0, -1]]]
         self.assertEqual(no.tolist(), expected_mask)

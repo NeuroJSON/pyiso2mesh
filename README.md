@@ -32,10 +32,11 @@ similar to those in the MATLAB/Octave versions of Iso2Mesh.
 * PIP+Git (latest version): `python3 -m pip install git+https://github.com/NeuroJSON/pyiso2mesh.git`
 
 MacOS users: you need to run the following commands to install this module
-```bash
-   python3 -m venv /tmp/pyiso2mesh-venv
-   source /tmp/pyiso2mesh-venv/bin/activate
-   python3 -m pip install iso2mesh
+
+```
+python3 -m venv /tmp/pyiso2mesh-venv
+source /tmp/pyiso2mesh-venv/bin/activate
+python3 -m pip install iso2mesh
 ```
 
 ## Runtime Dependencies
@@ -64,9 +65,9 @@ including Windows, Linux, and macOS.
 
 2. Clone the repository:
 
-```bash
-   git clone --recursive https://github.com/NeuroJSON/pyiso2mesh.git
-   cd pyiso2mesh
+```
+git clone --recursive https://github.com/NeuroJSON/pyiso2mesh.git
+cd pyiso2mesh
 ```
 
 3. Type `python3 -m build` to build the package
@@ -83,8 +84,8 @@ If you want to modify the source, and verify that it still produces correct resu
 the built-in unit-test script inside the downloaded git repository by using this command
 inside the `pyiso2mesh` root folder
 
-```bash
-   python -m unittest test.run_test
+```
+python -m unittest test.run_test
 ```
 
 
