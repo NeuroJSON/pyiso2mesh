@@ -325,7 +325,7 @@ def vol2surf(img, ix, iy, iz, opt, dofix=0, method="cgalsurf", isovalues=None):
 
                 keepratio = (
                     opt.get("keepratio", 1)
-                    if len(opt) == 1
+                    if isinstance(opt, dict)
                     else opt[i].get("keepratio", 1)
                 )
                 print(f"Resampling surface mesh for level {i + 1}...")
@@ -337,21 +337,23 @@ def vol2surf(img, ix, iy, iz, opt, dofix=0, method="cgalsurf", isovalues=None):
             else:
                 radbound = (
                     opt.get("radbound", 1)
-                    if len(opt) == 1
+                    if isinstance(opt, dict)
                     else opt[i].get("radbound", 1)
                 )
                 distbound = (
                     opt.get("distbound", radbound)
-                    if len(opt) == 1
+                    if isinstance(opt, dict)
                     else opt[i].get("distbound", radbound)
                 )
                 maxsurfnode = (
                     opt.get("maxnode", 40000)
-                    if len(opt) == 1
+                    if isinstance(opt, dict)
                     else opt[i].get("maxnode", 40000)
                 )
                 surfside = (
-                    opt.get("side", "") if len(opt) == 1 else opt[i].get("side", "")
+                    opt.get("side", "")
+                    if isinstance(opt, dict)
+                    else opt[i].get("side", "")
                 )
 
                 if surfside == "upper":

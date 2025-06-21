@@ -193,6 +193,9 @@ def extractloops(edges):
     # Remove degenerate edges (edges where the start and end points are the same)
     edges = edges[edges[:, 0] != edges[:, 1], :]
 
+    if len(edges) == 0:
+        return loops
+
     # Initialize the loop with the first edge
     loops.extend(edges[0, :])
     loophead = edges[0, 0]
@@ -751,7 +754,7 @@ def flatsegment(node, edge):
 
 def mesheuler(face):
     """
-    X, V, E, F = mesheuler(face)
+    X, V, E, F, b, g, C = mesheuler(face)
 
     Compute Euler's characteristic of a mesh.
 
@@ -759,10 +762,13 @@ def mesheuler(face):
     face : a closed surface mesh (Mx3 array where M is the number of faces and each row contains vertex indices)
 
     Output:
-    X : Euler's characteristic (X = 2 - 2 * g, where g is the genus)
+    X : Euler's characteristic (X = V - E + F - C)
     V : number of vertices
     E : number of edges
-    F : number of faces
+    F : number of triangles (if face is tetrahedral mesh, exterior surface)
+    b : number of boundary loops (for surfaces)
+    g : genus (holes)
+    C : number of tetrahedra
 
     Author: Qianqian Fang
     This function is part of the iso2mesh toolbox (http://iso2mesh.sf.net)
@@ -771,16 +777,30 @@ def mesheuler(face):
     # Number of vertices
     V = len(np.unique(face))
 
-    # Construct edges from faces
+    # Number of unique edges
     E = uniqedges(face)[0].shape[0]
 
-    # Number of faces
-    F = face.shape[0]
+    b = 0  # open-boundary loops
+    g = 0  # genus
+    C = 0  # tet cells
 
-    # Euler's characteristic formula: X = V - E + F
-    X = V - E + F
+    # Number of unique faces
+    if face.shape[1] == 4:
+        F = uniqfaces(face)[0].shape[0]
+        C = face.shape[0]
+    else:
+        ed = surfedge(face)[0]
+        loops = extractloops(ed)
+        b = np.sum(np.isnan(loops))
+        F = face.shape[0]
 
-    return X, V, E, F
+    # Euler's formula, X = V - E + F - C - 2*g
+    X = V - E + F - C
+
+    if face.shape[1] == 3:
+        g = (X + b - 2) // 2
+
+    return X, V, E, F, b, g, C
 
 
 def orderloopedge(edge):

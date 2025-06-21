@@ -441,10 +441,13 @@ class Test_trait(unittest.TestCase):
 
     def test_mesheuler(self):
         eu = mesheuler(self.el)
-        self.assertEqual(eu, (-9, 12, 33, 12))
+        self.assertEqual(eu, (1, 12, 33, 34, 0, 0, 12))
 
         eu = mesheuler(self.fc)
-        self.assertEqual(eu, (2, 12, 30, 20))
+        self.assertEqual(eu, (2, 12, 30, 20, 0, 0, 0))
+
+        eu = mesheuler(self.fc[1:-2, :])
+        self.assertEqual(eu, (0, 12, 29, 17, 2, 0, 0))
 
     def test_neighborelem(self):
         expected = [
@@ -936,8 +939,9 @@ class Test_core(unittest.TestCase):
         xi, yi, zi = np.meshgrid(
             np.arange(0, 61), np.arange(0, 58), np.arange(0, 55), indexing="ij"
         )
-        dist = (xi - 30) ** 2 + (yi - 30) ** 2 + (zi - 30) ** 2
-        self.mask = dist < 400
+        self.dist = (xi - 30) ** 2 + (yi - 30) ** 2 + (zi - 30) ** 2
+        self.dist = self.dist.astype(float)
+        self.mask = self.dist < 400
         self.mask = self.mask.astype(float)
         self.mask[25:35, 25:35, :] = 2
 
@@ -1014,10 +1018,21 @@ class Test_core(unittest.TestCase):
         self.assertAlmostEqual(sum(elemvolume(no[:, :3], el[:, :4])), 0.7455, 3)
 
     def test_v2s_label(self):
-        no, fc, _, _ = v2s(self.mask, 0.04, 1)
+        no, fc, _, _ = v2s(self.mask, 0.5, 1)
         self.assertAlmostEqual(
-            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.001, 6.356848339883229, 3
+            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.001, 5.802998130608866, 2
         )
+
+    def test_v2s_grayscale(self):
+        no, fc, _, _ = v2s(self.dist, [200, 400], 1)
+        self.assertAlmostEqual(
+            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 4.816236473144449, 3
+        )
+
+    def test_finddisconnsurf(self):
+        no, fc, _, _ = v2s(self.dist, [90, 200, 400], 5)
+        fcs = finddisconnsurf(fc[:, :3])
+        self.assertEqual(len(fcs), 5)
 
     def test_v2m_cgalmesh(self):
         no, el, _ = v2m(
@@ -1036,7 +1051,7 @@ class Test_core(unittest.TestCase):
             self.mask.astype(np.uint8), 1.5, {"keepratio": 0.5}, 10, "simplify"
         )
         self.assertAlmostEqual(
-            sum(elemvolume(no[:, :3], el[:, :4])), 5456.390624999979, 0
+            sum(elemvolume(no[:, :3], el[:, :4])) * 0.001, 5.456390624999979, 2
         )
 
 
