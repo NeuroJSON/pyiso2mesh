@@ -1018,9 +1018,9 @@ class Test_core(unittest.TestCase):
         self.assertAlmostEqual(sum(elemvolume(no[:, :3], el[:, :4])), 0.7455, 3)
 
     def test_v2s_label(self):
-        no, fc, _, _ = v2s(self.mask, 0.5, 1)
+        no, fc, _, _ = v2s(self.mask, 0.5, 0.5)
         self.assertAlmostEqual(
-            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.001, 5.802998130608866, 2
+            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.001, 5.946015081617472, 2
         )
 
     def test_v2s_grayscale(self):

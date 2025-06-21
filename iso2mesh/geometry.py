@@ -34,7 +34,7 @@ from iso2mesh.modify import removeisolatednode
 # _________________________________________________________________________________________________________
 
 
-def meshabox(p0, p1, opt, nodesize=1, **kwargs):
+def meshabox(p0, p1, maxvol=None, nodesize=1, **kwargs):
     """
     Create the surface and tetrahedral mesh of a box geometry.
 
@@ -60,7 +60,7 @@ def meshabox(p0, p1, opt, nodesize=1, **kwargs):
         p0,
         p1,
         1,
-        opt,
+        maxvol,
         regions=None,
         holes=None,
         dobbx=nodesize,
