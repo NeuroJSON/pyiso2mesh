@@ -33,10 +33,17 @@ import os
 import re
 import platform
 import subprocess
-from iso2mesh.trait import surfinterior, surfseeds, surfedge, elemvolume, meshreorient
+from iso2mesh.trait import (
+    surfinterior,
+    surfseeds,
+    surfedge,
+    elemvolume,
+    meshreorient,
+    finddisconnsurf,
+)
 from iso2mesh.utils import *
 from iso2mesh.io import saveoff, readoff, saveinr, readtetgen, savesurfpoly, readmedit
-from iso2mesh.modify import meshcheckrepair, sortmesh
+from iso2mesh.modify import meshcheckrepair, sortmesh, meshresample, removeisolatedsurf
 
 ##====================================================================================
 ## implementations
@@ -732,7 +739,7 @@ def binsurface(img, nface=3):
         )
 
     # Compress the node indices
-    maxid = elem.max() + 1
+    maxid = np.max(elem) + 1
     nodemap = np.zeros(maxid, dtype=int)
     nodemap[elem.ravel(order="F")] = 1
     id = np.where(nodemap)[0]

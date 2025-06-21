@@ -933,6 +933,14 @@ class Test_core(unittest.TestCase):
         self.im = np.zeros((3, 3, 3))
         self.im[1, 1, 1:3] = 1
 
+        xi, yi, zi = np.meshgrid(
+            np.arange(0, 61), np.arange(0, 58), np.arange(0, 55), indexing="ij"
+        )
+        dist = (xi - 30) ** 2 + (yi - 30) ** 2 + (zi - 30) ** 2
+        self.mask = dist < 400
+        self.mask = self.mask.astype(float)
+        self.mask[25:35, 25:35, :] = 2
+
     def test_binsurface(self):
         no, fc = binsurface(self.im)
         expected_fc = [
@@ -1004,6 +1012,32 @@ class Test_core(unittest.TestCase):
         )
         self.assertEqual(removedupelem(fc[:, :3]).shape[0], 0)
         self.assertAlmostEqual(sum(elemvolume(no[:, :3], el[:, :4])), 0.7455, 3)
+
+    def test_v2s_label(self):
+        no, fc, _, _ = v2s(self.mask, 0.04, 1)
+        self.assertAlmostEqual(
+            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.001, 6.356848339883229, 3
+        )
+
+    def test_v2m_cgalmesh(self):
+        no, el, _ = v2m(
+            self.mask.astype(np.uint8),
+            [],
+            {"radbound": 1, "distbound": 0.5},
+            5,
+            "cgalmesh",
+        )
+        self.assertAlmostEqual(
+            sum(elemvolume(no[:, :3], el[:, :4])) * 0.0001, 3.4780013268627226, 2
+        )
+
+    def test_v2m_simplify(self):
+        no, el, _ = v2m(
+            self.mask.astype(np.uint8), 1.5, {"keepratio": 0.5}, 10, "simplify"
+        )
+        self.assertAlmostEqual(
+            sum(elemvolume(no[:, :3], el[:, :4])), 5456.390624999979, 0
+        )
 
 
 if __name__ == "__main__":

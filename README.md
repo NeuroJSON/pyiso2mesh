@@ -4,7 +4,7 @@
 
 * Copyright: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>, Edward Xu (2024) <xu.ed at northeastern.edu>
 * License: GNU Public License V3 or later
-* Version: 0.2.3
+* Version: 0.2.4
 * URL: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * Github: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
 
@@ -85,7 +85,7 @@ the built-in unit-test script inside the downloaded git repository by using this
 inside the `pyiso2mesh` root folder
 
 ```
-python -m unittest test.run_test
+python3 -m unittest test.run_test
 ```
 
 

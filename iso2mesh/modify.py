@@ -40,7 +40,7 @@ import platform
 import subprocess
 from iso2mesh.utils import *
 from iso2mesh.io import saveoff, readoff
-from iso2mesh.trait import meshconn, mesheuler
+from iso2mesh.trait import meshconn, mesheuler, finddisconnsurf
 
 ##====================================================================================
 ## implementations
@@ -549,17 +549,17 @@ def removeisolatedsurf(v, f, maxdiameter):
     """
     fc = finddisconnsurf(f)
     for i in range(len(fc)):
-        xdia = v[fc[i], 0]
+        xdia = v[fc[i] - 1, 0]
         if np.max(xdia) - np.min(xdia) <= maxdiameter:
             fc[i] = []
             continue
 
-        ydia = v[fc[i], 1]
+        ydia = v[fc[i] - 1, 1]
         if np.max(ydia) - np.min(ydia) <= maxdiameter:
             fc[i] = []
             continue
 
-        zdia = v[fc[i], 2]
+        zdia = v[fc[i] - 1, 2]
         if np.max(zdia) - np.min(zdia) <= maxdiameter:
             fc[i] = []
             continue

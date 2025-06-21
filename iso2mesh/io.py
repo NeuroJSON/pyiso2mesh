@@ -77,7 +77,7 @@ def saveinr(vol, fname):
 
     # Write the header and the volume data to the file
     fid.write(header.encode("ascii"))
-    fid.write(vol.astype(dtype).tobytes())
+    fid.write(np.transpose(vol, [2, 1, 0]).astype(dtype).tobytes())
 
     # Close the file
     fid.close()
