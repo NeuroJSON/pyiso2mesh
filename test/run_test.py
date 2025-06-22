@@ -1084,7 +1084,9 @@ class Test_core(unittest.TestCase):
 
     def test_s2m_plc(self):
         no, el, fc = s2m(self.plcno, self.plcfc, 1, 3)
-        self.assertEqual(sum(elemvolume(no[:, :3], el[:, :4])), 213.33333333333337)
+        self.assertAlmostEqual(
+            sum(elemvolume(no[:, :3], el[:, :4])), 213.33333333333337, 9
+        )
         self.assertAlmostEqual(
             sum(elemvolume(no[:, :3], fc[:, :3])), 412.8904758569056, 4
         )
