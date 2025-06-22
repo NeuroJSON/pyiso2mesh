@@ -48,7 +48,6 @@ def plotsurf(node, face, *args, **kwargs):
         kwargs["cmap"] = plt.get_cmap("jet")
 
     if isinstance(face, list):  # polyhedral facets
-
         newsurf = {}
         colormap = []
 
@@ -88,6 +87,7 @@ def plotsurf(node, face, *args, **kwargs):
 
     elif face.shape[1] == 2:
         h = plotedges(node, face, *args, **kwargs)
+        return h
     elif face.shape[1] == 4:
         tag = face[:, 3]
         types = np.unique(tag)

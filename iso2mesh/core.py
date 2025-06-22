@@ -43,7 +43,13 @@ from iso2mesh.trait import (
 )
 from iso2mesh.utils import *
 from iso2mesh.io import saveoff, readoff, saveinr, readtetgen, savesurfpoly, readmedit
-from iso2mesh.modify import meshcheckrepair, sortmesh, meshresample, removeisolatedsurf
+from iso2mesh.modify import (
+    meshcheckrepair,
+    sortmesh,
+    meshresample,
+    removeisolatedsurf,
+    removeisolatednode,
+)
 
 ##====================================================================================
 ## implementations

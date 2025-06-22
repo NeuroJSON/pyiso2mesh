@@ -945,6 +945,34 @@ class Test_core(unittest.TestCase):
         self.mask = self.mask.astype(float)
         self.mask[25:35, 25:35, :] = 2
 
+        self.plcno = (
+            np.array(
+                [
+                    [0, 0, 0],
+                    [0, 1, 0],
+                    [1, 1, 0],
+                    [1, 0, 0],
+                    [0.5, 0.5, 1],
+                    [0.2, 0.2, 0],
+                    [0.2, 0.8, 0],
+                    [0.8, 0.8, 0],
+                    [0.8, 0.2, 0],
+                ]
+            )
+            * 10
+        )
+        self.plcfc = [
+            [1, 2, 5],
+            [2, 3, 5],
+            [3, 4, 5],
+            [4, 1, 5],
+            [1, 2, 3, 4, np.nan, 9, 8, 7, 6],
+            [6, 7, 5],
+            [7, 8, 5],
+            [8, 9, 5],
+            [9, 6, 5],
+        ]
+
     def test_binsurface(self):
         no, fc = binsurface(self.im)
         expected_fc = [
@@ -1052,6 +1080,13 @@ class Test_core(unittest.TestCase):
         )
         self.assertAlmostEqual(
             sum(elemvolume(no[:, :3], el[:, :4])) * 0.001, 5.456390624999979, 2
+        )
+
+    def test_s2m_plc(self):
+        no, el, fc = s2m(self.plcno, self.plcfc, 1, 3)
+        self.assertEqual(sum(elemvolume(no[:, :3], el[:, :4])), 213.33333333333337)
+        self.assertAlmostEqual(
+            sum(elemvolume(no[:, :3], fc[:, :3])), 412.8904758569056, 4
         )
 
 

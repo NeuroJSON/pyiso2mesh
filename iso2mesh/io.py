@@ -567,20 +567,21 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                         np.isnan(plc)
                     ):  # we use nan to separate outer contours and holes
                         holeid = np.where(np.isnan(plc))[0]
+                        plc = np.array(plc, dtype=np.int32)
                         if faceid > 0:
                             fp.write(
                                 "{} {} {}\n{}".format(
-                                    len(holeid) + 1, len(holeid), faceid, holeid[0] - 1
+                                    len(holeid) + 1, len(holeid), faceid, holeid[0]
                                 )
                             )
                         else:
                             fp.write(
                                 "{} {}\n{}".format(
-                                    len(holeid) + 1, len(holeid), holeid[0] - 1
+                                    len(holeid) + 1, len(holeid), holeid[0]
                                 )
                             )
                         fp.write(
-                            "\t{}".format("\t".join(map(str, plc[: holeid[0] - 1] - 1)))
+                            "\t{}".format("\t".join(map(str, plc[: holeid[0]] - 1)))
                         )
                         fp.write("\t1\n")
                         for j in range(len(holeid)):
@@ -608,24 +609,35 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                         for j in range(len(holeid)):
                             if j == len(holeid) - 1:
                                 fp.write(
-                                    "{} {:.16f} {:.16f} {:.16f}\n".format(
-                                        j,
-                                        np.mean(
-                                            node[plc[holeid[j] + 1 :] - 1, 1:4], axis=0
+                                    "{} {}\n".format(
+                                        j + 1,
+                                        "".join(
+                                            "{:.16f} ".format(x)
+                                            for x in np.mean(
+                                                node[plc[holeid[j] + 1 :] - 1, 1:4],
+                                                axis=0,
+                                            )
                                         ),
                                     )
                                 )
                             else:
                                 fp.write(
-                                    "{} {:.16f} {:.16f} {:.16f}\n".format(
-                                        j,
-                                        np.mean(
-                                            node[
-                                                plc[holeid[j] + 1 : holeid[j + 1] - 1]
-                                                - 1,
-                                                1:4,
-                                            ],
-                                            axis=0,
+                                    "{} {}\n".format(
+                                        j + 1,
+                                        "".join(
+                                            "{:.16f} ".format(x)
+                                            for x in np.mean(
+                                                node[
+                                                    plc[
+                                                        holeid[j]
+                                                        + 1 : holeid[j + 1]
+                                                        - 1
+                                                    ]
+                                                    - 1,
+                                                    1:4,
+                                                ],
+                                                axis=0,
+                                            )
                                         ),
                                     )
                                 )
