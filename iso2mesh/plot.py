@@ -24,6 +24,8 @@ from iso2mesh.trait import volface, meshcentroid
 
 
 def plotsurf(node, face, *args, **kwargs):
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
     rngstate = np.random.get_state()
     h = []
 
@@ -33,11 +35,16 @@ def plotsurf(node, face, *args, **kwargs):
         randseed = globals()["ISO2MESH_RANDSEED"]
     np.random.seed(randseed)
 
-    if isinstance(face, list):  # polyhedral facets
-        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-        from matplotlib.patches import Polygon
+    sc = np.random.rand(10, 3)
 
-        sc = np.random.rand(10, 3)
+    ax = plt.gca()
+
+    if ax.name != "3d":
+        plt.figure()  # Create a new figure
+        ax = plt.gcf().add_subplot(projection="3d")  # Add 3D axes to the current figure
+
+    if isinstance(face, list):  # polyhedral facets
+
         newsurf = {}
         for fc in face:
             if (
@@ -52,51 +59,61 @@ def plotsurf(node, face, *args, **kwargs):
             else:
                 newsurf.setdefault(1, []).append(np.asarray(fc) - 1)
 
-        ax = plt.gca()
-
-        if ax.name != "3d":
-            plt.figure()  # Create a new figure
-            ax = plt.gcf().add_subplot(
-                projection="3d"
-            )  # Add 3D axes to the current figure
-
-        poly3d = [
+        polydata = [
             node[np.array(subf).flatten(), :3]
             for subface in newsurf.values()
             for subf in subface
         ]
-        colmap = [sc[i - 1, :] for i, subface in newsurf.items() for subf in subface]
+        colormap = [sc[i - 1, :] for i, subface in newsurf.items() for subf in subface]
 
-        patch = Poly3DCollection(poly3d, facecolors=colmap, edgecolors="k", **kwargs)
-        ax.add_collection3d(patch)
-        _autoscale_3d(ax, node)
-        h.append(patch)
+    elif face.shape[1] == 2:
+        h = plotedges(node, face, *args, **kwargs)
+    elif face.shape[1] == 4:
+        tag = face[:, 3]
+        types = np.unique(tag)
 
+        if len(types) > sc.shape[0]:
+            sc = np.vstack([sc, np.random.rand(len(types) - sc.shape[0], 3)])
+
+        # plt.hold(True)
+        polydata = []
+        colormap = []
+        for i in range(len(types)):
+            pdata, _ = plotasurf(
+                node,
+                face[tag == types[i], 0:3],
+                *args,
+                **kwargs,
+            )
+            polydata.extend(pdata)
+            colormap.extend([sc[i].tolist()] * len(pdata))
     else:
-        if face.shape[1] == 4:
-            tag = face[:, 3]
-            types = np.unique(tag)
-            # plt.hold(True)
-            h = []
-            for i in range(len(types)):
-                if node.shape[1] == 3:
-                    h.append(
-                        plotasurf(
-                            node,
-                            face[tag == types[i], 0:3],
-                            *args,
-                            **kwargs,
-                        )
-                    )
-                else:
-                    h.append(
-                        plotasurf(node, face[tag == types[i], 0:3], *args, **kwargs)
-                    )
-        else:
-            h = plotasurf(node, face, *args, **kwargs)
+        polydata, colormap = plotasurf(node, face, *args, **kwargs)
 
-    #        if np.all(np.array(plt.gca().view) == [0, 90]):
-    #            plt.view(3)
+    if node.shape[1] > 3 and not "color" in kwargs and not "facecolors" in kwargs:
+        colormap = []
+        maxval = np.max(node[:, 3])
+        minval = np.min(node[:, 3])
+
+        for tri in polydata:
+            val = node[tri, 3]
+            val = np.mean(val)
+            face_color = kwargs["cmap"](
+                (val - minval) / (maxval - minval)
+            )  # Normalize for colormap
+            colormap.append(face_color)
+
+    if "colormap" in locals() and len(colormap) > 0 and not "facecolors" in kwargs:
+        kwargs["facecolors"] = colormap
+        print(len(colormap))
+
+    if not "color" in kwargs and not "cmap" in kwargs:
+        kwargs["cmap"] = plt.get_cmap("jet")
+
+    patch = Poly3DCollection(polydata, edgecolors="k", **kwargs)
+    ax.add_collection3d(patch)
+    _autoscale_3d(ax, node)
+    h.append(patch)
 
     np.random.set_state(rngstate)
     # plt.axis("equal")
@@ -108,35 +125,24 @@ def plotsurf(node, face, *args, **kwargs):
 
 
 def plotasurf(node, face, *args, **kwargs):
-    if face.shape[1] <= 2:
-        ax = plotedges(node, face, *args, **kwargs)
-    else:
-        ax = plt.gca()
+    poly3d = [[node[i, :3] for i in p] for p in face[:, :3] - 1]
+    colmap = []
+    if node.shape[1] > 3 and not "color" in kwargs and not "facecolors" in kwargs:
+        maxval = np.max(node[:, 3])
+        minval = np.min(node[:, 3])
 
-        if ax.name != "3d":
-            plt.figure()  # Create a new figure
-            ax = plt.gcf().add_subplot(
-                projection="3d"
-            )  # Add 3D axes to the current figure
+        for tri in face:
+            val = node[tri, 3]
+            val = np.mean(val)
+            face_color = kwargs["cmap"](
+                (val - minval) / (maxval - minval)
+            )  # Normalize for colormap
+            colmap.append(face_color)
 
-        if not "color" in kwargs and not "cmap" in kwargs:
-            kwargs["cmap"] = plt.get_cmap("jet")
-        if not "edgecolor" in kwargs:
-            kwargs["edgecolor"] = "k"
-        trisurf = ax.plot_trisurf(
-            node[:, 0],
-            node[:, 1],
-            node[:, 2],
-            triangles=face - 1,
-            **kwargs,
-        )
-        if node.shape[1] == 4:
-            trisurf.set_array(node[:, 3])
-            trisurf.autoscale()
-        _autoscale_3d(ax, node)
+        if not "facecolors" in kwargs:
+            kwargs["facecolors"] = colmap
 
-    if "trisurf" in locals():
-        return trisurf
+    return poly3d, colmap
 
 
 # _________________________________________________________________________________________________________
@@ -157,6 +163,8 @@ def plottetra(node, elem, *args, **kwargs):
         hm: list of plot handles.
     """
 
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
     # Save current RNG state
     rngstate = np.random.get_state()
 
@@ -168,22 +176,45 @@ def plottetra(node, elem, *args, **kwargs):
 
     np.random.seed(randseed)
 
-    h = []
+    ax = plt.gca()
 
-    if not isinstance(elem, list):
-        if elem.shape[1] > 4:
-            tag = elem[:, 4]  # 1-based -> column 5 in MATLAB
-            types = np.unique(tag)
-            for t in types:
-                idx = np.where(tag == t)[0]
-                face = volface(elem[idx, :4])[
-                    0
-                ]  # Pass only first 4 columns (1-based in MATLAB)
-                kwargs["color"] = np.random.rand(1, 3)
-                h.append(plotsurf(node, face, *args, **kwargs))
-        else:
-            face = volface(elem[:, :4])[0]
-            h.append(plotsurf(node, face, *args, **kwargs))
+    if ax.name != "3d":
+        plt.figure()  # Create a new figure
+        ax = plt.gcf().add_subplot(projection="3d")  # Add 3D axes to the current figure
+
+    h = []
+    polydata = []
+    colormap = []
+
+    if isinstance(elem, list):
+        elem = np.array(elem)
+
+    if elem.shape[1] > 4:
+        tag = elem[:, 4]  # 1-based -> column 5 in MATLAB
+        types = np.unique(tag)
+        for t in types:
+            idx = np.where(tag == t)[0]
+            face = volface(elem[idx, :4])[0]
+            pdata, _ = plotasurf(node, face, *args, **kwargs)
+            polydata.extend(pdata)
+            colormap.extend(np.random.rand(1, 3).tolist() * len(pdata))
+    else:
+        face = volface(elem[:, :4])[0]
+        polydata, colormap = plotasurf(node, face, *args, **kwargs)
+
+    if "colormap" in locals() and len(colormap) > 0 and not "facecolors" in kwargs:
+        kwargs["facecolors"] = colormap
+
+    if not "color" in kwargs and not "cmap" in kwargs:
+        kwargs["cmap"] = plt.get_cmap("jet")
+        print("set cmap to jet")
+
+    print(kwargs.keys())
+
+    patch = Poly3DCollection(polydata, edgecolors="k", **kwargs)
+    ax.add_collection3d(patch)
+    _autoscale_3d(ax, node)
+    h.append(patch)
 
     # Restore RNG state
     np.random.set_state(rngstate)

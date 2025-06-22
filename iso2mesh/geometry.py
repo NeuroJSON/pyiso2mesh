@@ -268,7 +268,7 @@ def meshgrid5(*args):
         indexing="ij",
     )
     ind = np.ravel_multi_index(
-        (ix.flatten() - 1, iy.flatten() - 1, iz.flatten() - 1), nodecount
+        (ix.flatten() - 1, iy.flatten() - 1, iz.flatten() - 1), nodecount, order="F"
     )
 
     nodeshift = np.array(
