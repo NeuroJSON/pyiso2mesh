@@ -4,7 +4,7 @@
 
 * Copyright: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>, Edward Xu (2024) <xu.ed at northeastern.edu>
 * License: GNU Public License V3 or later
-* Version: 0.2.4
+* Version: 0.3.0
 * URL: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * Github: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
 
@@ -44,6 +44,8 @@ python3 -m pip install iso2mesh
 * **numpy**: `pyiso2mesh` relies heavily on vectorized NumPy
   matrix operations, similar to those used in the MATLAB version of Iso2Mesh.
 * **matplotlib**: Used for plotting results. Install with `pip install matplotlib`.
+* **jdata** (optional): A lightweight module to load JSON-encoded volume/mesh data,
+  including dynamically downloading data from [NeuroJSON.io](https://neurojson.io) `pip install jdata`.
 
 Many core meshing functions in `pyiso2mesh` require the set of mesh processing
 executables provided in the Iso2Mesh package under the `iso2mesh/bin` folder.
@@ -137,7 +139,7 @@ i2m.plotmesh(no2, fc1)
 
 # meshing a cylinder
 no, fc, el = i2m.meshacylinder([0,0,0], [0, 0, 10], 2, 50)
-i2m.plotmesh(no, el, 'x < 0', shade=False, edgecolor='r')
+i2m.plotmesh(no, el, 'x < 0', edgecolor='r')
 
 # creating and plotting polyhedral solids (PLCs)
 mesh = i2m.latticegrid([0,1],[0,1,2], [0,2])

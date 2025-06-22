@@ -25,6 +25,7 @@ from iso2mesh.trait import volface, meshcentroid
 
 def plotsurf(node, face, *args, **kwargs):
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+    from matplotlib.colors import Normalize
 
     rngstate = np.random.get_state()
     h = []
@@ -43,9 +44,14 @@ def plotsurf(node, face, *args, **kwargs):
         plt.figure()  # Create a new figure
         ax = plt.gcf().add_subplot(projection="3d")  # Add 3D axes to the current figure
 
+    if not "color" in kwargs and not "cmap" in kwargs:
+        kwargs["cmap"] = plt.get_cmap("jet")
+
     if isinstance(face, list):  # polyhedral facets
 
         newsurf = {}
+        colormap = []
+
         for fc in face:
             if (
                 isinstance(fc, (list, tuple))
@@ -64,7 +70,21 @@ def plotsurf(node, face, *args, **kwargs):
             for subface in newsurf.values()
             for subf in subface
         ]
-        colormap = [sc[i - 1, :] for i, subface in newsurf.items() for subf in subface]
+        if node.shape[1] > 3:
+            node_values = node[:, 3]
+            face_values = np.array(
+                [
+                    np.mean(node_values[np.array(subf).flatten()])
+                    for subface in newsurf.values()
+                    for subf in subface
+                ]
+            )
+            norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
+            colormap = kwargs["cmap"](norm(face_values))
+        else:
+            colormap = [
+                sc[i - 1, :] for i, subface in newsurf.items() for subf in subface
+            ]
 
     elif face.shape[1] == 2:
         h = plotedges(node, face, *args, **kwargs)
@@ -90,27 +110,17 @@ def plotsurf(node, face, *args, **kwargs):
     else:
         polydata, colormap = plotasurf(node, face, *args, **kwargs)
 
-    if node.shape[1] > 3 and not "color" in kwargs and not "facecolors" in kwargs:
-        colormap = []
-        maxval = np.max(node[:, 3])
-        minval = np.min(node[:, 3])
-
-        for tri in polydata:
-            val = node[tri, 3]
-            val = np.mean(val)
-            face_color = kwargs["cmap"](
-                (val - minval) / (maxval - minval)
-            )  # Normalize for colormap
-            colormap.append(face_color)
-
     if "colormap" in locals() and len(colormap) > 0 and not "facecolors" in kwargs:
         kwargs["facecolors"] = colormap
-        print(len(colormap))
 
-    if not "color" in kwargs and not "cmap" in kwargs:
-        kwargs["cmap"] = plt.get_cmap("jet")
+    if "cmap" in kwargs and not "facecolors" in kwargs:
+        node_values = node[:, 3] if node.shape[1] > 3 else node[:, 2]
+        face_values = np.array([np.mean(node_values[f]) for f in face[:, :3] - 1])
+        norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
+        kwargs["facecolors"] = kwargs["cmap"](norm(face_values))
 
     patch = Poly3DCollection(polydata, edgecolors="k", **kwargs)
+
     ax.add_collection3d(patch)
     _autoscale_3d(ax, node)
     h.append(patch)
@@ -125,23 +135,13 @@ def plotsurf(node, face, *args, **kwargs):
 
 
 def plotasurf(node, face, *args, **kwargs):
+    from matplotlib.colors import Normalize
+
     poly3d = [[node[i, :3] for i in p] for p in face[:, :3] - 1]
-    colmap = []
-    if node.shape[1] > 3 and not "color" in kwargs and not "facecolors" in kwargs:
-        maxval = np.max(node[:, 3])
-        minval = np.min(node[:, 3])
-
-        for tri in face:
-            val = node[tri, 3]
-            val = np.mean(val)
-            face_color = kwargs["cmap"](
-                (val - minval) / (maxval - minval)
-            )  # Normalize for colormap
-            colmap.append(face_color)
-
-        if not "facecolors" in kwargs:
-            kwargs["facecolors"] = colmap
-
+    node_values = node[:, 3] if node.shape[1] > 3 else node[:, 2]
+    face_values = np.array([np.mean(node_values[f]) for f in face[:, :3] - 1])
+    norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
+    colmap = kwargs["cmap"](norm(face_values))
     return poly3d, colmap
 
 
@@ -164,6 +164,7 @@ def plottetra(node, elem, *args, **kwargs):
     """
 
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+    from matplotlib.colors import Normalize
 
     # Save current RNG state
     rngstate = np.random.get_state()
@@ -181,6 +182,9 @@ def plottetra(node, elem, *args, **kwargs):
     if ax.name != "3d":
         plt.figure()  # Create a new figure
         ax = plt.gcf().add_subplot(projection="3d")  # Add 3D axes to the current figure
+
+    if not "color" in kwargs and not "cmap" in kwargs:
+        kwargs["cmap"] = plt.get_cmap("jet")
 
     h = []
     polydata = []
@@ -205,14 +209,15 @@ def plottetra(node, elem, *args, **kwargs):
     if "colormap" in locals() and len(colormap) > 0 and not "facecolors" in kwargs:
         kwargs["facecolors"] = colormap
 
-    if not "color" in kwargs and not "cmap" in kwargs:
-        kwargs["cmap"] = plt.get_cmap("jet")
-        print("set cmap to jet")
-
-    print(kwargs.keys())
+    if "cmap" in kwargs and not "facecolors" in kwargs:
+        node_values = node[:, 3] if node.shape[1] > 3 else node[:, 2]
+        face_values = np.array([np.mean(node_values[f]) for f in elem[:, :4] - 1])
+        norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
+        kwargs["facecolors"] = kwargs["cmap"](norm(face_values))
 
     patch = Poly3DCollection(polydata, edgecolors="k", **kwargs)
     ax.add_collection3d(patch)
+
     _autoscale_3d(ax, node)
     h.append(patch)
 
