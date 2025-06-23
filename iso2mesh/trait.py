@@ -142,8 +142,7 @@ def surfedge(f, junction=None):
     openedge = edges[ix[qx], :]
 
     elemid = None
-    if junction is not None:
-        elemid, iy = np.unravel_index(ix[qx], f.shape)
+    elemid, _ = np.unravel_index(ix[qx], f.shape)
 
     return openedge, elemid
 

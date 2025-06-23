@@ -20,6 +20,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from iso2mesh.trait import volface, meshcentroid
 
+COLOR_OFFSET = 3
 # _________________________________________________________________________________________________________
 
 
@@ -30,7 +31,7 @@ def plotsurf(node, face, *args, **kwargs):
     rngstate = np.random.get_state()
     h = []
 
-    randseed = int("623F9A9E", 16)
+    randseed = int("623F9A9E", 16) + COLOR_OFFSET
 
     if "ISO2MESH_RANDSEED" in globals():
         randseed = globals()["ISO2MESH_RANDSEED"]
@@ -119,6 +120,9 @@ def plotsurf(node, face, *args, **kwargs):
         norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
         kwargs["facecolors"] = kwargs["cmap"](norm(face_values))
 
+    if not "linewidth" in kwargs:
+        kwargs["linewidth"] = 0.3
+
     patch = Poly3DCollection(polydata, edgecolors="k", **kwargs)
 
     ax.add_collection3d(patch)
@@ -170,7 +174,7 @@ def plottetra(node, elem, *args, **kwargs):
     rngstate = np.random.get_state()
 
     # Set deterministic seed for consistent coloring
-    randseed = int("623F9A9E", 16)
+    randseed = int("623F9A9E", 16) + COLOR_OFFSET
 
     if "ISO2MESH_RANDSEED" in globals():
         randseed = globals()["ISO2MESH_RANDSEED"]
@@ -214,6 +218,9 @@ def plottetra(node, elem, *args, **kwargs):
         face_values = np.array([np.mean(node_values[f]) for f in elem[:, :4] - 1])
         norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
         kwargs["facecolors"] = kwargs["cmap"](norm(face_values))
+
+    if not "linewidth" in kwargs:
+        kwargs["linewidth"] = 0.3
 
     patch = Poly3DCollection(polydata, edgecolors="k", **kwargs)
     ax.add_collection3d(patch)
@@ -263,7 +270,7 @@ def plotedges(node, edges, *args, **kwargs):
 
     if edges.ndim == 1 or edges.shape[1] == 1:
         # Loop: NaN-separated index list
-        randseed = int("623F9A9E", 16)
+        randseed = int("623F9A9E", 16) + COLOR_OFFSET
         if "iso2mesh_randseed" in kwargs:
             randseed = kwargs["iso2mesh_randseed"]
         np.random.seed(randseed)
@@ -368,6 +375,10 @@ def plotmesh(node, *args, **kwargs):
                 face = args[0]
                 elem = a
 
+    extraarg = {}
+    if len(opt) > 1 and len(opt) % 2 == 0:
+        extraarg = dict(zip(opt[::2], opt[1::2]))
+
     handles = []
 
     ax = kwargs.get("parent", None)
@@ -389,9 +400,10 @@ def plotmesh(node, *args, **kwargs):
         if getattr(idx, "size", None) == 0:
             print("Warning: nothing to plot")
             return None
-        ax.plot(x[idx], y[idx], z[idx], *opt)
+        ax.plot(x[idx], y[idx], z[idx], **kwargs)
         _autoscale_3d(ax, node)
-        plt.show(block=False)
+        if "hide" in extraarg and not extraarg["hide"]:
+            plt.show(block=False)
         return ax
 
     # Plot surface mesh
@@ -428,22 +440,10 @@ def plotmesh(node, *args, **kwargs):
         ax = plottetra(node, elem[idx, :], opt, *args, **kwargs)
         handles.append(ax)
 
-    plt.show(block=False)
+    if "hide" in extraarg and not extraarg["hide"]:
+        plt.show(block=False)
+
     return handles if len(handles) > 1 else handles[0]
-
-
-def _get_face_triangles(node, face, selector):
-    """Convert 1-based faces to triangles and apply selector filter."""
-    face = np.asarray(face)
-    face3 = face[:, :3].astype(int) - 1
-    tris = node[face3, :3]
-    if selector:
-        cent = tris.mean(axis=1)
-        idx = np.where(
-            eval(selector, {"x": cent[:, 0], "y": cent[:, 1], "z": cent[:, 2]})
-        )[0]
-        tris = tris[idx]
-    return tris
 
 
 def _autoscale_3d(ax, points):
@@ -453,17 +453,3 @@ def _autoscale_3d(ax, points):
     ax.set_zlim([z.min(), z.max()])
     boxas = [x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]
     ax.set_box_aspect(boxas)
-
-
-def _extract_poly_opts(opt):
-    """Extract facecolor/edgecolor options for Poly3DCollection."""
-    d = {}
-    if "facecolor" in opt:
-        d["facecolor"] = opt[opt.index("facecolor") + 1]
-    else:
-        d["facecolor"] = "white"
-    if "edgecolor" in opt:
-        d["edgecolor"] = opt[opt.index("edgecolor") + 1]
-    else:
-        d["edgecolor"] = "k"
-    return d
