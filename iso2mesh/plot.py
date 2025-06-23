@@ -127,7 +127,7 @@ def plotsurf(node, face, *args, **kwargs):
 
     ax.add_collection3d(patch)
     _autoscale_3d(ax, node)
-    h.append(patch)
+    h.append(ax)
 
     np.random.set_state(rngstate)
     # plt.axis("equal")
@@ -226,7 +226,7 @@ def plottetra(node, elem, *args, **kwargs):
     ax.add_collection3d(patch)
 
     _autoscale_3d(ax, node)
-    h.append(patch)
+    h.append(ax)
 
     # Restore RNG state
     np.random.set_state(rngstate)
@@ -402,7 +402,7 @@ def plotmesh(node, *args, **kwargs):
             return None
         ax.plot(x[idx], y[idx], z[idx], **kwargs)
         _autoscale_3d(ax, node)
-        if "hide" in extraarg and not extraarg["hide"]:
+        if not "hold" in extraarg or not extraarg["hold"] or extraarg["hold"] == "off":
             plt.show(block=False)
         return ax
 
@@ -440,7 +440,7 @@ def plotmesh(node, *args, **kwargs):
         ax = plottetra(node, elem[idx, :], opt, *args, **kwargs)
         handles.append(ax)
 
-    if "hide" in extraarg and not extraarg["hide"]:
+    if not "hold" in extraarg or not extraarg["hold"] or extraarg["hold"] == "off":
         plt.show(block=False)
 
     return handles if len(handles) > 1 else handles[0]
