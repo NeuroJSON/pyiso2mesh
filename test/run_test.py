@@ -8,6 +8,9 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from iso2mesh import *
+import matplotlib
+
+mpl_ver = matplotlib.__version__.split(".")
 
 
 class Test_geometry(unittest.TestCase):
@@ -1093,6 +1096,9 @@ class Test_core(unittest.TestCase):
 
 
 class Test_plot(unittest.TestCase):
+    @unittest.skipIf(
+        (int(mpl_ver[0]), int(mpl_ver[1])) < (3, 6), "Requires Matplotlib 3.6 or higher"
+    )
     def __init__(self, *args, **kwargs):
         super(Test_plot, self).__init__(*args, **kwargs)
         self.no, self.el = meshgrid6(
