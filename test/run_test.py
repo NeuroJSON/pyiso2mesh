@@ -1095,10 +1095,10 @@ class Test_core(unittest.TestCase):
         )
 
 
+@unittest.skipIf(
+    (int(mpl_ver[0]), int(mpl_ver[1])) < (3, 6), "Requires Matplotlib 3.6 or higher"
+)
 class Test_plot(unittest.TestCase):
-    @unittest.skipIf(
-        (int(mpl_ver[0]), int(mpl_ver[1])) < (3, 6), "Requires Matplotlib 3.6 or higher"
-    )
     def __init__(self, *args, **kwargs):
         super(Test_plot, self).__init__(*args, **kwargs)
         self.no, self.el = meshgrid6(
