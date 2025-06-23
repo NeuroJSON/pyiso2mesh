@@ -1102,7 +1102,7 @@ class Test_plot(unittest.TestCase):
 
     def test_plotmesh_face(self):
         patch = plotmesh(self.no, self.fc, "hide", True)
-        facecolors = np.array(patch[0].get_fc())
+        facecolors = np.array(patch[0].get_facecolors())
         expected_fc = [9.0, 8.6803, 9.0, 20.0]
 
         self.assertEqual(len(facecolors), 20)
@@ -1110,7 +1110,7 @@ class Test_plot(unittest.TestCase):
 
     def test_plotmesh_elem(self):
         patch = plotmesh(self.no, self.el, "hide", True)
-        facecolors = np.array(patch[0].get_fc())
+        facecolors = np.array(patch[0].get_facecolors())
         expected_fc = [9.0, 8.6803, 9.0, 20.0]
 
         self.assertEqual(len(facecolors), 20)
@@ -1123,7 +1123,7 @@ class Test_plot(unittest.TestCase):
             "hide",
             True,
         )
-        facecolors = np.array(patch[0].get_fc())
+        facecolors = np.array(patch[0].get_facecolors())
         expected_fc = (1, 4)
 
         self.assertEqual(len(facecolors), 20)
@@ -1137,7 +1137,7 @@ class Test_plot(unittest.TestCase):
             "hide",
             True,
         )
-        facecolors = np.array(patch[0].get_fc())
+        facecolors = np.array(patch[0].get_facecolors())
         expected_fc = (2, 4)
 
         self.assertEqual(len(facecolors), 20)
@@ -1145,7 +1145,7 @@ class Test_plot(unittest.TestCase):
 
     def test_plotmesh_elemnodeval(self):
         patch = plotmesh(self.no[:, [0, 1, 2, 0]], self.el, "hide", True)
-        facecolors = np.array(patch[0].get_fc())
+        facecolors = np.array(patch[0].get_facecolors())
         expected_fc = [8.0, 10.4074, 8.0, 20.0]
 
         self.assertEqual(len(facecolors), 20)
@@ -1153,7 +1153,7 @@ class Test_plot(unittest.TestCase):
 
     def test_plotmesh_facenodeval(self):
         patch = plotmesh(self.no[:, [0, 1, 2, 0]], self.fc, "z < 3", "hide", True)
-        facecolors = np.array(patch[0].get_fc())
+        facecolors = np.array(patch[0].get_facecolors())
         expected_fc = [7.0, 8.6728, 7.0, 18.0]
 
         self.assertEqual(len(facecolors), 18)
@@ -1163,7 +1163,7 @@ class Test_plot(unittest.TestCase):
         patch = plotmesh(
             self.no[:, [0, 1, 2, 0]], self.fc, "(z < 3) & (x < 2)", "hide", True
         )
-        facecolors = np.array(patch[0].get_fc())
+        facecolors = np.array(patch[0].get_facecolors())
         expected_fc = [4.8877, 5.0, 4.451, 14.0]
 
         self.assertEqual(len(facecolors), 14)
@@ -1171,7 +1171,7 @@ class Test_plot(unittest.TestCase):
 
     def test_plotmesh_elemselector(self):
         patch = plotmesh(self.no, self.fc, "z < 2.5", "hide", True)
-        facecolors = np.array(patch[0].get_fc())
+        facecolors = np.array(patch[0].get_facecolors())
         expected_fc = [3.9102, 4.0, 2.9608, 10.0]
 
         self.assertEqual(len(facecolors), 10)
