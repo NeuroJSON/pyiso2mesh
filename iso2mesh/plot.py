@@ -29,7 +29,6 @@ def plotsurf(node, face, *args, **kwargs):
     from matplotlib.colors import Normalize
 
     rngstate = np.random.get_state()
-    h = []
 
     randseed = int("623F9A9E", 16) + COLOR_OFFSET
 
@@ -39,11 +38,11 @@ def plotsurf(node, face, *args, **kwargs):
 
     sc = np.random.rand(10, 3)
 
-    ax = plt.gca()
+    ax = _createaxis(*args, **kwargs)
 
-    if ax.name != "3d":
-        plt.figure()  # Create a new figure
-        ax = plt.gcf().add_subplot(projection="3d")  # Add 3D axes to the current figure
+    h = {"fig": [], "ax": [], "obj": []}
+    h["fig"].append(plt.gcf())
+    h["ax"].append(ax)
 
     if not "color" in kwargs and not "cmap" in kwargs:
         kwargs["cmap"] = plt.get_cmap("jet")
@@ -127,7 +126,7 @@ def plotsurf(node, face, *args, **kwargs):
 
     ax.add_collection3d(patch)
     _autoscale_3d(ax, node)
-    h.append(ax)
+    h["obj"].append(patch)
 
     np.random.set_state(rngstate)
     # plt.axis("equal")
@@ -181,16 +180,15 @@ def plottetra(node, elem, *args, **kwargs):
 
     np.random.seed(randseed)
 
-    ax = plt.gca()
+    ax = _createaxis(*args, **kwargs)
 
-    if ax.name != "3d":
-        plt.figure()  # Create a new figure
-        ax = plt.gcf().add_subplot(projection="3d")  # Add 3D axes to the current figure
+    h = {"fig": [], "ax": [], "obj": []}
+    h["fig"].append(plt.gcf())
+    h["ax"].append(ax)
 
     if not "color" in kwargs and not "cmap" in kwargs:
         kwargs["cmap"] = plt.get_cmap("jet")
 
-    h = []
     polydata = []
     colormap = []
 
@@ -224,16 +222,15 @@ def plottetra(node, elem, *args, **kwargs):
 
     patch = Poly3DCollection(polydata, edgecolors="k", **kwargs)
     ax.add_collection3d(patch)
-
     _autoscale_3d(ax, node)
-    h.append(ax)
+
+    h["obj"].append(patch)
 
     # Restore RNG state
     np.random.set_state(rngstate)
 
     # Return handle if needed
-    if h:
-        return h
+    return h
 
 
 # _________________________________________________________________________________________________________
@@ -260,13 +257,18 @@ def plotedges(node, edges, *args, **kwargs):
         Handles to plotted elements.
     """
     edges = np.asarray(edges, order="F")  # Flatten in F order if needed
-    hh = []
 
     if edges.size == 0:
         return hh
 
     edlen = edges.shape[0]
     rng_state = np.random.get_state()
+
+    ax = _createaxis(*args, **kwargs)
+
+    hh = {"fig": [], "ax": [], "obj": []}
+    hh["fig"].append(plt.gcf())
+    hh["ax"].append(ax)
 
     if edges.ndim == 1 or edges.shape[1] == 1:
         # Loop: NaN-separated index list
@@ -296,7 +298,7 @@ def plotedges(node, edges, *args, **kwargs):
                     *args,
                     **kwargs,
                 )
-                hh.append(h)
+                hh["obj"].append(h)
             seghead = i + 1
     else:
         from mpl_toolkits.mplot3d.art3d import Line3DCollection
@@ -318,13 +320,12 @@ def plotedges(node, edges, *args, **kwargs):
             ax.add_collection3d(h)
             _autoscale_3d(ax, node)
 
-            hh.append(h)
         else:
             x = node[:, 0].flatten()
             y = node[:, 1].flatten()
             h = plt.plot(x[edges.T], y[edges.T], *args, **kwargs)
 
-        hh.append(h)
+        hh["obj"].append(h)
 
     np.random.set_state(rng_state)
     return hh
@@ -335,7 +336,7 @@ def plotedges(node, edges, *args, **kwargs):
 
 def plotmesh(node, *args, **kwargs):
     """
-    plotmesh(node, face, elem, opt) → hm
+    handles = plotmesh(node, face, elem, selector, ...)
     Plot surface and volumetric meshes in 3D.
     Converts 1-based MATLAB indices in `face` and `elem` to 0-based.
     Supports optional selector strings and stylistic options.
@@ -376,18 +377,18 @@ def plotmesh(node, *args, **kwargs):
                 elem = a
 
     extraarg = {}
-    if len(opt) > 1 and len(opt) % 2 == 0:
-        extraarg = dict(zip(opt[::2], opt[1::2]))
+    if "hold" in kwargs:
+        extraarg["hold"] = kwargs["hold"]
 
-    handles = []
+    ax = _createaxis(True, *args, **kwargs)
 
-    ax = kwargs.get("parent", None)
+    handles = {"fig": [], "ax": [], "obj": []}
+    handles["fig"].append(plt.gcf())
+    handles["ax"].append(ax)
 
-    if ax is None:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
-    else:
-        del kwargs["parent"]
+    for extraopt in ["hold", "parent", "subplot"]:
+        if extraopt in kwargs:
+            del kwargs[extraopt]
 
     # Plot points if no face/elem
     if face is None and elem is None:
@@ -400,17 +401,17 @@ def plotmesh(node, *args, **kwargs):
         if getattr(idx, "size", None) == 0:
             print("Warning: nothing to plot")
             return None
-        ax.plot(x[idx], y[idx], z[idx], **kwargs)
+        (h,) = ax.plot(x[idx], y[idx], z[idx], *opt, **kwargs)
+        handles["obj"].append(h)
         _autoscale_3d(ax, node)
         if not "hold" in extraarg or not extraarg["hold"] or extraarg["hold"] == "off":
             plt.show(block=False)
-        return ax
+        return handles
 
     # Plot surface mesh
     if face is not None:
         if isinstance(face, list):
-            ax = plotsurf(node, face, opt, *args, **kwargs)
-            handles.append(ax)
+            handles = plotsurf(node, face, opt, *args, **kwargs)
         else:
             c0 = meshcentroid(node[:, :3], face[:, :3])
             x, y, z = c0[:, 0], c0[:, 1], c0[:, 2]
@@ -422,8 +423,7 @@ def plotmesh(node, *args, **kwargs):
             if getattr(idx, "size", None) == 0:
                 print("Warning: nothing to plot")
                 return None
-            ax = plotsurf(node, face[idx, :], opt, *args, **kwargs)
-            handles.append(ax)
+            handles = plotsurf(node, face[idx, :], opt, *args, **kwargs)
 
     # Plot tetrahedral mesh
     if elem is not None:
@@ -437,13 +437,12 @@ def plotmesh(node, *args, **kwargs):
         if getattr(idx, "size", None) == 0:
             print("Warning: nothing to plot")
             return None
-        ax = plottetra(node, elem[idx, :], opt, *args, **kwargs)
-        handles.append(ax)
+        handles = plottetra(node, elem[idx, :], opt, *args, **kwargs)
 
     if not "hold" in extraarg or not extraarg["hold"] or extraarg["hold"] == "off":
         plt.show(block=False)
 
-    return handles if len(handles) > 1 else handles[0]
+    return handles
 
 
 def _autoscale_3d(ax, points):
@@ -453,3 +452,27 @@ def _autoscale_3d(ax, points):
     ax.set_zlim([z.min(), z.max()])
     boxas = [x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]
     ax.set_box_aspect(boxas)
+
+
+def _createaxis(*args, **kwargs):
+    subplotid = kwargs.get("subplot", 111)
+    docreate = False if len(args) == 0 else args[0]
+
+    if "parent" in kwargs:
+        ax = kwargs["parent"]
+        if isinstance(ax, dict):
+            ax = ax["ax"][-1]
+        elif isinstance(ax, list):
+            ax = ax[-1]
+    elif not docreate and len(plt.get_fignums()) > 0 and len(plt.gcf().axes) > 0:
+        ax = plt.gcf().axes[-1]
+    else:
+        if docreate:
+            plt.figure()
+        ax = plt.gcf().add_subplot(subplotid, projection="3d")
+
+    if ax.name != "3d":
+        plt.figure()  # Create a new figure
+        ax = plt.gcf().add_subplot(subplotid, projection="3d")
+
+    return ax

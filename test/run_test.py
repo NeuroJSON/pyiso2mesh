@@ -1106,78 +1106,94 @@ class Test_plot(unittest.TestCase):
         )
         self.fc = volface(self.el)[0]
 
+    def test_plotmesh_node(self):
+        ax = plotmesh(self.no, "ro", hold="on")
+        xy = ax["obj"][-1]._xy
+        expected_fc = [
+            [1.0, -1.0],
+            [2.0, -1.0],
+            [1.0, 0.0],
+            [2.0, 0.0],
+            [1.0, -1.0],
+            [2.0, -1.0],
+            [1.0, 0.0],
+            [2.0, 0.0],
+            [1.0, -1.0],
+            [2.0, -1.0],
+            [1.0, 0.0],
+            [2.0, 0.0],
+        ]
+
+        self.assertEqual(xy.tolist(), expected_fc)
+
     def test_plotmesh_face(self):
-        patch = plotmesh(self.no, self.fc, "hold", True)
-        facecolors = np.array(patch[0].get_facecolors())
+        ax = plotmesh(self.no, self.fc, hold="on")
+        facecolors = np.array(ax["obj"][-1].get_facecolors())
         expected_fc = [9.0, 8.6803, 9.0, 20.0]
 
         self.assertEqual(len(facecolors), 20)
         self.assertEqual(np.round(np.sum(facecolors, axis=0), 4).tolist(), expected_fc)
 
     def test_plotmesh_elem(self):
-        patch = plotmesh(self.no, self.el, "hold", True)
-        facecolors = np.array(patch[0].get_facecolors())
+        ax = plotmesh(self.no, self.el, hold="on")
+        facecolors = np.array(ax["obj"][-1].get_facecolors())
         expected_fc = [9.0, 8.6803, 9.0, 20.0]
 
         self.assertEqual(len(facecolors), 20)
         self.assertEqual(np.round(np.sum(facecolors, axis=0), 4).tolist(), expected_fc)
 
     def test_plotmesh_elemlabel(self):
-        patch = plotmesh(
+        ax = plotmesh(
             self.no,
             np.hstack((self.el, np.ones(self.el.shape[0], dtype=int).reshape(-1, 1))),
-            "hold",
-            True,
+            hold="on",
         )
-        facecolors = np.array(patch[0].get_facecolors())
+        facecolors = np.array(ax["obj"][-1].get_facecolors())
         expected_fc = (1, 4)
 
         self.assertEqual(len(facecolors), 20)
         self.assertEqual(np.unique(facecolors, axis=0).shape, expected_fc)
 
     def test_plotmesh_facelabel(self):
-        patch = plotmesh(
+        ax = plotmesh(
             self.no,
             np.hstack((self.fc, np.array([1, 2] * 10).reshape(-1, 1))),
             None,
-            "hold",
-            True,
+            hold="on",
         )
-        facecolors = np.array(patch[0].get_facecolors())
+        facecolors = np.array(ax["obj"][-1].get_facecolors())
         expected_fc = (2, 4)
 
         self.assertEqual(len(facecolors), 20)
         self.assertEqual(np.unique(facecolors, axis=0).shape, expected_fc)
 
     def test_plotmesh_elemnodeval(self):
-        patch = plotmesh(self.no[:, [0, 1, 2, 0]], self.el, "hold", True)
-        facecolors = np.array(patch[0].get_facecolors())
+        ax = plotmesh(self.no[:, [0, 1, 2, 0]], self.el, hold="on")
+        facecolors = np.array(ax["obj"][-1].get_facecolors())
         expected_fc = [8.0, 10.4074, 8.0, 20.0]
 
         self.assertEqual(len(facecolors), 20)
         self.assertEqual(np.round(np.sum(facecolors, axis=0), 4).tolist(), expected_fc)
 
     def test_plotmesh_facenodeval(self):
-        patch = plotmesh(self.no[:, [0, 1, 2, 0]], self.fc, "z < 3", "hold", True)
-        facecolors = np.array(patch[0].get_facecolors())
+        ax = plotmesh(self.no[:, [0, 1, 2, 0]], self.fc, "z < 3", hold="on")
+        facecolors = np.array(ax["obj"][-1].get_facecolors())
         expected_fc = [7.0, 8.6728, 7.0, 18.0]
 
         self.assertEqual(len(facecolors), 18)
         self.assertEqual(np.round(np.sum(facecolors, axis=0), 4).tolist(), expected_fc)
 
     def test_plotmesh_selector(self):
-        patch = plotmesh(
-            self.no[:, [0, 1, 2, 0]], self.fc, "(z < 3) & (x < 2)", "hold", True
-        )
-        facecolors = np.array(patch[0].get_facecolors())
+        ax = plotmesh(self.no[:, [0, 1, 2, 0]], self.fc, "(z < 3) & (x < 2)", hold="on")
+        facecolors = np.array(ax["obj"][-1].get_facecolors())
         expected_fc = [4.8877, 5.0, 4.451, 14.0]
 
         self.assertEqual(len(facecolors), 14)
         self.assertEqual(np.round(np.sum(facecolors, axis=0), 4).tolist(), expected_fc)
 
     def test_plotmesh_elemselector(self):
-        patch = plotmesh(self.no, self.fc, "z < 2.5", "hold", True)
-        facecolors = np.array(patch[0].get_facecolors())
+        ax = plotmesh(self.no, self.fc, "z < 2.5", hold="on")
+        facecolors = np.array(ax["obj"][-1].get_facecolors())
         expected_fc = [3.9102, 4.0, 2.9608, 10.0]
 
         self.assertEqual(len(facecolors), 10)
