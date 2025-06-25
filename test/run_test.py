@@ -577,8 +577,57 @@ class Test_trait(unittest.TestCase):
         result = np.unique(elemvolume(self.no, self.el).round(decimals=6)).tolist()
         self.assertEqual(result, expected)
 
+    def test_nodevolume(self):
+        expected = np.sum(elemvolume(self.no, self.el))
+        result = np.sum(nodevolume(self.no, self.el))
+        self.assertAlmostEqual(result, expected, 7)
+
     def test_surfvolume(self):
         self.assertEqual(surfvolume(self.no, self.fc), 1)
+
+    def test_surfacenorm(self):
+        snorm = surfacenorm(self.no, self.fc)
+        expected = [
+            [0.0, 0.0, -1.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, -1.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0],
+        ]
+        self.assertEqual(snorm.tolist(), expected)
+
+    def test_nodesurfnorm(self):
+        nnorm = nodesurfnorm(self.no, self.fc)
+        expected = [
+            [-0.57735, -0.57735, -0.57735],
+            [0.816497, -0.408248, -0.408248],
+            [-0.408248, 0.816497, -0.408248],
+            [0.408248, 0.408248, -0.816497],
+            [-0.707107, -0.707107, 0.0],
+            [0.707107, -0.707107, 0.0],
+            [-0.707107, 0.707107, 0.0],
+            [0.707107, 0.707107, 0.0],
+            [-0.408248, -0.408248, 0.816497],
+            [0.408248, -0.816497, 0.408248],
+            [-0.816497, 0.408248, 0.408248],
+            [0.57735, 0.57735, 0.57735],
+        ]
+        self.assertEqual(nnorm.round(6).tolist(), expected)
 
     def test_insurface(self):
         pts = np.array([[1.5, -0.9, 2.1], [1, 0, 2], [-1, 0, 2], [1.2, 0, 2.5]])

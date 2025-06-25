@@ -347,7 +347,7 @@ def nodevolume(node, elem, evol=None):
 
     # Loop through each element and accumulate the volumes
     for i in range(elemnum):
-        nodevol[elem[i, :dim]] += evol[i]
+        nodevol[elem[i, :dim] - 1] += evol[i]
 
     # Divide by the dimensionality to get the final node volumes
     nodevol /= dim

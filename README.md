@@ -1,12 +1,17 @@
-![](https://neurojson.org/wiki/upload/neurojson_banner_long.png)
+![](https://iso2mesh.sourceforge.net/images/iso2mesh_2015_banner.png)
 
 # pyiso2mesh - One-liner 3D Surface and Tetrahedral Mesh Generation Toolbox
 
-* Copyright: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>, Edward Xu (2024) <xu.ed at northeastern.edu>
-* License: GNU Public License V3 or later
-* Version: 0.3.3
-* URL: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
-* Github: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
+* **Copyright**: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>
+* **License**: GNU Public License V3 or later
+* **Version**: 0.3.4
+* **URL**: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
+* **Homepage**: [https://iso2mesh.sf.net](https://iso2mesh.sf.net)
+* **Github**: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
+* **Acknowledgement**: This project is supported by the US National Institute of Health (NIH)
+  grants [U24-NS124027](https://reporter.nih.gov/project-details/10308329) and 
+  [R01-CA204443](https://reporter.nih.gov/project-details/10982160)
+
 
 ![Python Module](https://github.com/NeuroJSON/pyiso2mesh/actions/workflows/build_all.yml/badge.svg)
 
@@ -170,3 +175,140 @@ no, fc, _, _ = v2s(img, 0.5, {'distbound': 0.2})
 ax = plotmesh(no, fc, 'y < 30', alpha=0.5,  edgecolor='none')
 plotmesh(no, fc, 'y > 30', parent = ax)
 ```
+
+## Iso2Mesh function port status
+
+The progress of converting MATLAB-based Iso2Mesh functions to Python is
+tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
+
+| Ported | Tested |     | Ported | Tested |
+| ------ | ------ | --- | ------ | ------ |
+| > Streamlined mesh generation - shortcuts| |  | > File I/O | |
+| ✅ `v2m.m` | ✅ tested |                    | ✅ `saveasc.m` | ⭕️ tested |
+| ✅ `v2s.m` | ✅ tested |                    | ✅ `savedxf.m` | ⭕️ tested |
+| ✅ `s2m.m` | ✅ tested |                    | ✅ `savestl.m` | ⭕️ tested |
+| ✅ `s2v.m` | ⭕️ tested |                    | ✅ `savebinstl.m` | ⭕️ tested |
+| ✅ `m2v.m` | ⭕️ tested |                    | ✅ `saveinr.m` | ⭕️ tested |
+| ✅ `sms.m` | ✅ tested |                    | ✅ `saveoff.m` | ✅ tested |
+| > Streamlined mesh generation| |            | ⭕️ `savesmf.m` | ⭕️ tested |
+| ✅ `vol2mesh.m` | ✅ tested |               | ✅ `savesurfpoly.m` | ✅ tested |
+| ✅ `vol2surf.m` | ✅ tested |               | ⭕️ `savegts.m` | ⭕️ tested |
+| ✅ `surf2mesh.m` | ✅ tested |              | ⭕️ `readgts.m` | ⭕️ tested |
+| ✅ `surf2vol.m` | ⭕️ tested |               | ⭕️ `savemsh.m` | ⭕️ tested |
+| ✅ `mesh2vol.m` | ⭕️ tested |               | ⭕️ `savevrml.m` | ⭕️ tested |
+| > Iso2mesh main function backend| |         | ✅ `readasc.m` | ⭕️ tested |
+| ✅ `binsurface.m` | ✅ tested |             | ⭕️ `readinr.m` | ⭕️ tested |
+| ✅ `cgalv2m.m` | ✅ tested |                | ✅ `readmedit.m` | ⭕️ tested |
+| ✅ `cgals2m.m` | ⭕️ tested |                | ✅ `readoff.m` | ✅ tested |
+| ✅ `vol2restrictedtri.m` | ✅ tested |      | ⭕️ `readsmf.m` | ⭕️ tested |
+| ✅ `surf2volz.m` | ⭕️ tested |              | ✅ `readtetgen.m` | ✅ tested |
+| ✅ `mesh2mask.m` | ⭕️ tested |              | ✅ `deletemeshfile.m` | ✅ tested |
+| > Iso2mesh primitive meshing functions| |   | ✅ `mcpath.m` | ✅ tested |
+| ✅ `meshabox.m` | ✅ tested |               | ✅ `mwpath.m` | ✅ tested |
+| ✅ `meshasphere.m` | ✅ tested |            | ✅ `savemedit.m` | ✅ tested |
+| ✅ `meshanellip.m` | ✅ tested |            | ⭕️ `savejson.m` | ⭕️ tested |
+| ✅ `meshunitsphere.m` | ✅ tested |         | ⭕️ `loadjson.m` | ⭕️ tested |
+| ✅ `meshacylinder.m` | ✅ tested |          | ⭕️ `saveubjson.m` | ⭕️ tested |
+| ✅ `meshgrid5.m` | ✅ tested |              | ⭕️ `loadubjson.m` | ⭕️ tested |
+| ✅ `meshgrid6.m` | ✅ tested |              | ⭕️ `loadmsgpack.m` | ⭕️ tested |
+| ✅ `latticegrid.m` | ✅ tested |            | ⭕️ `savemsgpack.m` | ⭕️ tested |
+| ✅ `extrudecurve.m` | ⭕️ tested |           | ⭕️ `savebj.m` | ⭕️ tested |
+| ✅ `meshcylinders.m` | ✅ tested |          | ⭕️ `loadbj.m` | ⭕️ tested |
+| > Mesh decomposition and query| |           | ⭕️ `savemphtxt.m` | ⭕️ tested |
+| ✅ `finddisconnsurf.m` | ✅ tested |        | ⭕️ `savetetgenele.m` | ⭕️ tested |
+| ✅ `surfedge.m` | ✅ tested |               | ⭕️ `savetetgennode.m` | ⭕️ tested |
+| ✅ `volface.m` | ✅ tested |                | ⭕️ `saveabaqus.m` | ⭕️ tested |
+| ✅ `extractloops.m` | ✅ tested |           | ⭕️ `savenirfast.m` | ⭕️ tested |
+| ✅ `meshconn.m` | ✅ tested |               | ⭕️ `readnirfast.m` | ⭕️ tested |
+| ✅ `meshcentroid.m` | ✅ tested |           | ⭕️ `readnifti.m` | ⭕️ tested |
+| ✅ `nodevolume.m` | ✅ tested |             | ⭕️ `readmptiff.m` | ⭕️ tested |
+| ✅ `elemvolume.m` | ✅ tested |             | ⭕️ `loadjsnirf.m` | ⭕️ tested |
+| ✅ `neighborelem.m` | ✅ tested |           | ⭕️ `savejsnirf.m` | ⭕️ tested |
+| ✅ `layersurf.m` | ⭕️ tested |              | ⭕️ `loadsnirf.m` | ⭕️ tested |
+| ✅ `faceneighbors.m` | ✅ tested |          | ⭕️ `savesnirf.m` | ⭕️ tested |
+| ✅ `edgeneighbors.m` | ✅ tested |          | ⭕️ `readobjmesh.m` | ⭕️ tested |
+| ✅ `maxsurf.m` | ⭕️ tested |                | ⭕️ `loadjmesh.m` | ⭕️ tested |
+| ✅ `flatsegment.m` | ⭕️ tested |            | ⭕️ `readobjmesh.m` | ⭕️ tested |
+| ✅ `orderloopedge.m` | ⭕️ tested |          | > Volumetric image pre-processing| |
+| ✅ `mesheuler.m` | ✅ tested |              | ⭕️ `bwislands.m` | ⭕️ tested |
+| ✅ `bbxflatsegment.m` | ⭕️ tested |         | ⭕️ `fillholes3d.m` | ⭕️ tested |
+| ✅ `surfplane.m` | ⭕️ tested |              | ⭕️ `deislands2d.m` | ⭕️ tested |
+| ✅ `surfinterior.m` | ⭕️ tested |           | ⭕️ `deislands3d.m` | ⭕️ tested |
+| ✅ `surfpart.m` | ⭕️ tested |               | ⭕️ `ndgaussian.m` | ⭕️ tested |
+| ✅ `surfseeds.m` | ⭕️ tested |              | ⭕️ `ndimfilter.m` | ⭕️ tested |
+| ✅ `meshquality.m` | ✅ tested |            | ⭕️ `imedge3d.m` | ⭕️ tested |
+| ✅ `meshedge.m` | ✅ tested |               | ⭕️ `internalpoint.m` | ⭕️ tested |
+| ✅ `meshface.m` | ✅ tested |               | ⭕️ `smoothbinvol.m` | ⭕️ tested |
+| ✅ `surfacenorm.m` | ✅ tested |            | ⭕️ `thickenbinvol.m` | ⭕️ tested |
+| ✅ `nodesurfnorm.m` | ✅ tested |           | ⭕️ `thinbinvol.m` | ⭕️ tested |
+| ✅ `uniqedges.m` | ✅ tested |              | ⭕️ `maskdist.m` | ⭕️ tested |
+| ✅ `uniqfaces.m` | ✅ tested |              | > Mesh plotting| |
+| ✅ `advancefront.m` | ⭕️ tested |           | ✅ `plotmesh.m` | ✅ tested |
+| ✅ `innersurf.m` | ⭕️ tested |              | ✅ `plotsurf.m` | ✅ tested |
+| ✅ `outersurf.m` | ⭕️ tested |              | ✅ `plottetra.m` | ✅ tested |
+| ✅ `surfvolume.m` | ✅ tested |             | ✅ `plotedges.m` | ✅ tested |
+| ✅ `insurface.m` | ✅ tested |              | ✅ `qmeshcut.m` | ✅ tested |
+| > Mesh processing and reparing| |           | > Miscellaneous functions| |
+| ✅ `meshcheckrepair.m` | ✅ tested |        | ⭕️ `surfdiffuse.m` | ⭕️ tested |
+| ✅ `meshreorient.m` | ✅ tested |           | ⭕️ `volmap2mesh.m` | ⭕️ tested |
+| ✅ `removedupelem.m` | ✅ tested |          | ⭕️ `isoctavemesh.m` | ⭕️ tested |
+| ✅ `removedupnodes.m` | ✅ tested |         | ⭕️ `getvarfrom.m` | ⭕️ tested |
+| ✅ `removeisolatednode.m` | ✅ tested |     | ✅ `raytrace.m` | ✅ tested |
+| ✅ `removeisolatedsurf.m` | ⭕️ tested |     | ⭕️ `linextriangle.m` | ⭕️ tested |
+| ✅ `surfaceclean.m` | ⭕️ tested |           | ⭕️ `getplanefrom3pt.m` | ⭕️ tested |
+| ✅ `getintersecttri.m` | ⭕️ tested |        | ✅ `getexeext.m` | ✅ tested |
+| ✅ `delendelem.m` | ⭕️ tested |             | ✅ `fallbackexeext.m` | ✅ tested |
+| ✅ `surfreorient.m` | ✅ tested |           | ⭕️ `iso2meshver.m` | ⭕️ tested |
+| > Mesh registration - Metch Toolbox| |      | ⭕️ `raysurf.m` | ⭕️ tested |
+| ✅ `proj2mesh.m` | ⭕️ tested |              | ⭕️ `getoptkey.m` | ⭕️ tested |
+| ✅ `dist2surf.m` | ⭕️ tested |              | ✅ `rotatevec3d.m` | ⭕️ tested |
+| ✅ `regpt2surf.m` | ⭕️ tested |             | ✅ `rotmat2vec.m` | ⭕️ tested |
+| ✅ `affinemap.m` | ⭕️ tested |              | ✅ `varargin2struct.m` | ⭕️ tested |
+| > Polyline handling| |                      | ✅ `jsonopt.m` | ⭕️ tested |
+| ⭕️ `slicesurf.m` | ⭕️ tested |              | ⭕️ `mergestruct.m` | ⭕️ tested |
+| ⭕️ `slicesurf3.m` | ⭕️ tested |             | ⭕️ `orthdisk.m` | ⭕️ tested |
+| ⭕️ `polylinelen.m` | ⭕️ tested |            | ⭕️ `nestbracket2dim.m` | ⭕️ tested |
+| ⭕️ `polylinesimplify.m` | ⭕️ tested |       | ⭕️ `memmapstream.m` | ⭕️ tested |
+| ⭕️ `polylineinterp.m` | ⭕️ tested |         | ⭕️ `aos2soa.m` | ⭕️ tested |
+| ⭕️ `closestnode.m` | ⭕️ tested |            | ⭕️ `soa2aos.m` | ⭕️ tested |
+| > Mesh resampling and optimization| |
+| ✅ `meshresample.m` | ✅ tested |
+| ✅ `remeshsurf.m` | ⭕️ tested |
+| ✅ `smoothsurf.m` | ✅ tested |
+| ✅ `sortmesh.m` | ⭕️ tested |
+| ✅ `mergemesh.m` | ⭕️ tested |
+| ✅ `meshrefine.m` | ⭕️ tested |
+| ✅ `mergesurf.m` | ⭕️ tested |
+| ✅ `surfboolean.m` | ✅ tested |
+| ✅ `fillsurf.m` | ⭕️ tested |
+| ✅ `highordertet.m` | ⭕️ tested |
+| ✅ `elemfacecenter.m` | ⭕️ tested |
+| ✅ `barydualmesh.m` | ⭕️ tested |
+| ✅ `meshinterp.m` | ⭕️ tested |
+| ✅ `meshremap.m` | ⭕️ tested |
+| ✅ `extrudesurf.m` | ⭕️ tested |
+
+
+
+## Acknowledgement
+
+The `pyiso2mesh` module was converted from the MATLAB/Octave version of
+of Iso2Mesh (https://github.com/fangq/iso2mesh) written by the same author.
+
+We utilized large-language-model (LLM) and AI chatbot in the initial MATLAB-to-Python
+conversion, with specific instructions to **faithfully replicate** the algorithms
+developed in the MATLAB code to avoid introducing external copyrighted materials
+into this toolbox. With the assumption that the AI chatbot functions primarily
+as an automated syntax translator without altering the originality of the code,
+the upstream author of the original MATLAB-based Iso2Mesh retains the full copyright
+of this derived Python module.
+
+The initial translation was further manually tested, adjusted and restructured
+to produce matching outputs as the original MATLAB toolbox. Dr. Edward Xu
+<xu.ed at northeastern.edu> had contributed to the initial conversion and
+testing of a subset of functions in the `geometry.py` and `trait.py` units.
+
+The development of this software is supported by the US National Institute of Health (NIH)
+under research awards [U24-NS124027](https://reporter.nih.gov/project-details/10308329) and 
+[R01-CA204443](https://reporter.nih.gov/project-details/10982160), with the author,
+Dr. Qianqian Fang, serving as the principle investigator on both awards.

@@ -38,7 +38,7 @@ def plotsurf(node, face, *args, **kwargs):
 
     sc = np.random.rand(10, 3)
 
-    ax = _createaxis(*args, **kwargs)
+    ax = plt.gca()
 
     h = {"fig": [], "ax": [], "obj": []}
     h["fig"].append(plt.gcf())
@@ -180,7 +180,7 @@ def plottetra(node, elem, *args, **kwargs):
 
     np.random.seed(randseed)
 
-    ax = _createaxis(*args, **kwargs)
+    ax = plt.gca()
 
     h = {"fig": [], "ax": [], "obj": []}
     h["fig"].append(plt.gcf())
@@ -264,7 +264,7 @@ def plotedges(node, edges, *args, **kwargs):
     edlen = edges.shape[0]
     rng_state = np.random.get_state()
 
-    ax = _createaxis(*args, **kwargs)
+    ax = plt.gca()
 
     hh = {"fig": [], "ax": [], "obj": []}
     hh["fig"].append(plt.gcf())
@@ -307,14 +307,6 @@ def plotedges(node, edges, *args, **kwargs):
         edges = edges.astype(int) - 1  # 1-based to 0-based
 
         if node.shape[1] >= 3:
-            ax = plt.gca()
-
-            if ax.name != "3d":
-                plt.figure()  # Create a new figure
-                ax = plt.gcf().add_subplot(
-                    projection="3d"
-                )  # Add 3D axes to the current figure
-
             segments = [[node[start], node[end]] for start, end in edges]
             h = Line3DCollection(segments, **kwargs)
             ax.add_collection3d(h)
@@ -404,9 +396,6 @@ def plotmesh(node, *args, **kwargs):
         (h,) = ax.plot(x[idx], y[idx], z[idx], *opt, **kwargs)
         handles["obj"].append(h)
         _autoscale_3d(ax, node)
-        if not "hold" in extraarg or not extraarg["hold"] or extraarg["hold"] == "off":
-            plt.show(block=False)
-        return handles
 
     # Plot surface mesh
     if face is not None:
@@ -440,6 +429,7 @@ def plotmesh(node, *args, **kwargs):
         handles = plottetra(node, elem[idx, :], opt, *args, **kwargs)
 
     if not "hold" in extraarg or not extraarg["hold"] or extraarg["hold"] == "off":
+        plt.draw()
         plt.show(block=False)
 
     return handles
@@ -456,23 +446,29 @@ def _autoscale_3d(ax, points):
 
 def _createaxis(*args, **kwargs):
     subplotid = kwargs.get("subplot", 111)
-    docreate = False if len(args) == 0 else args[0]
+    docreate = True
+    fig = None
 
     if "parent" in kwargs:
-        ax = kwargs["parent"]
-        if isinstance(ax, dict):
-            ax = ax["ax"][-1]
-        elif isinstance(ax, list):
-            ax = ax[-1]
+        hh = kwargs["parent"]
+        if isinstance(hh, dict):
+            fig = hh["fig"][0]
+            ax = hh["ax"][-1]
+        elif isinstance(hh, list):
+            ax = hh[-1]
+        if "subplot" in kwargs and fig:
+            ax = fig.add_subplot(subplotid, projection="3d")
     elif not docreate and len(plt.get_fignums()) > 0 and len(plt.gcf().axes) > 0:
-        ax = plt.gcf().axes[-1]
+        if not fig:
+            fig = plt.gcf()
+        ax = fig.axes[-1]
     else:
-        if docreate:
-            plt.figure()
-        ax = plt.gcf().add_subplot(subplotid, projection="3d")
+        if docreate and not fig:
+            fig = plt.figure()
+        ax = fig.add_subplot(subplotid, projection="3d")
 
     if ax.name != "3d":
-        plt.figure()  # Create a new figure
-        ax = plt.gcf().add_subplot(subplotid, projection="3d")
+        fig = plt.figure()  # Create a new figure
+        ax = fig.add_subplot(subplotid, projection="3d")
 
     return ax
