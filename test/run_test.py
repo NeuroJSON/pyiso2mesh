@@ -160,6 +160,44 @@ class Test_geometry(unittest.TestCase):
         self.assertEqual(round(sum(elemvolume(no, fc)), 4), 1045.2322)
         self.assertEqual(round(sum(elemvolume(no, el[:, :4])), 4), 1402.8993)
 
+    def test_meshacylinders_plc(self):
+        (
+            no,
+            fc,
+        ) = meshcylinders([10, 20, 30], [0, 1, 1], [2, 4], 3, 0, 0, 8)
+        expected_fc = [
+            [[[18, 19, 14, 12]], [1]],
+            [[[12, 14, 7, 6]], [1]],
+            [[[6, 7, 2, 1]], [1]],
+            [[[1, 2, 5, 4]], [1]],
+            [[[4, 5, 11, 10]], [1]],
+            [[[10, 11, 17, 16]], [1]],
+            [[[16, 17, 23, 22]], [1]],
+            [[[22, 23, 19, 18]], [1]],
+            [[[18, 12, 6, 1, 4, 10, 16, 22]], [2]],
+            [[[19, 14, 7, 2, 5, 11, 17, 23]], [3]],
+            [[[19, 21, 15, 14]], [1]],
+            [[[14, 15, 9, 7]], [1]],
+            [[[7, 9, 3, 2]], [1]],
+            [[[2, 3, 8, 5]], [1]],
+            [[[5, 8, 13, 11]], [1]],
+            [[[11, 13, 20, 17]], [1]],
+            [[[17, 20, 24, 23]], [1]],
+            [[[23, 24, 21, 19]], [1]],
+            [[[21, 15, 9, 3, 8, 13, 20, 24]], [3]],
+        ]
+        self.assertEqual(fc, expected_fc)
+        self.assertEqual(np.sum(no), 1568)
+
+    def test_meshacylinders(self):
+        no, fc, el = meshcylinders([10, 20, 30], [0, 1, 1], [2, 4], 3, 1, 10, 8)
+        self.assertAlmostEqual(
+            sum(elemvolume(no, fc[fc[:, -1] == 1, :3])), 155.86447684358734, 3
+        )
+        self.assertAlmostEqual(
+            sum(elemvolume(no, el[el[:, -1] == 2, :4])), 144.0000000027395, 3
+        )
+
 
 class Test_trait(unittest.TestCase):
     def __init__(self, *args, **kwargs):

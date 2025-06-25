@@ -12,6 +12,7 @@ __all__ = [
     "meshabox",
     "meshacylinder",
     "meshcylinders",
+    "meshcylinders",
     "meshanellip",
     "meshunitsphere",
     "meshasphere",
@@ -29,7 +30,7 @@ from itertools import permutations, combinations
 from iso2mesh.core import surf2mesh, vol2restrictedtri
 from iso2mesh.trait import meshreorient, volface, surfedge
 from iso2mesh.utils import *
-from iso2mesh.modify import removeisolatednode
+from iso2mesh.modify import removeisolatednode, meshcheckrepair
 
 # _________________________________________________________________________________________________________
 
@@ -309,6 +310,26 @@ def meshgrid5(*args):
 
 
 def meshgrid6(*args):
+    """
+    Generate a tetrahedral mesh from an N-D rectangular lattice by splitting
+    each hypercube into 6 tetrahedra.
+
+    Parameters:
+        v1, v2, v3, ... : array-like
+            Numeric vectors defining the lattice in each dimension.
+            Each vector must be of length >= 1.
+
+    Returns:
+        node : ndarray
+            Coordinates of the nodes in the factorial lattice created from (v1, v2, v3, ...).
+            Each row corresponds to a node.
+        elem : ndarray
+            Integer array defining the simplices (tetrahedra) as indices into rows of `node`.
+
+    Notes:
+        This function is part of the iso2mesh toolbox (http://iso2mesh.sf.net)
+        Originally authored by John D'Errico, with modifications by Qianqian Fang.
+    """
     # dimension of the lattice
     n = len(args)
 
@@ -456,72 +477,193 @@ def latticegrid(*args):
 # _________________________________________________________________________________________________________
 
 
-def extrudecurve(c0, c1, curve, ndiv):
-    if len(c0) != len(c1) or len(c0) != 3:
-        raise ValueError("c0 and c1 must be 3D points of the same dimension!")
+def extrudecurve(
+    xy, yz, Nx=30, Nz=30, Nextrap=0, spacing=1, anchor=None, dotopbottom=0
+):
+    """
+    Create a triangular surface mesh by swinging a 2D spline along another 2D spline curve.
 
-    if ndiv < 1:
-        raise ValueError("ndiv must be at least 1!")
+    Parameters:
+        xy : ndarray
+            A 2D spline path, along which the surface is extruded, defined on the x-y plane.
+        yz : ndarray
+            A 2D spline which will move along the path to form a surface, defined on the y-z plane.
+        Nx : int, optional
+            The count of sample points along the extrusion path (xy), default is 30.
+        Nz : int, optional
+            The count of sample points along the curve to be extruded (yz), default is 30.
+        Nextrap : int, optional
+            Number of points to extrapolate outside of the xy/yz curves, default is 0.
+        spacing : float, optional
+            Define a spacing scaling factor for spline interpolations, default is 1.
+        anchor : list or ndarray, optional
+            The 3D point in the extruded curve plane (yz) that is aligned at the nodes long the extrusion path.
+            If not provided, it is set as the point on the interpolated yz with the largest y-value.
+        dotopbottom : int, optional
+            If set to 1, tessellated top and bottom faces will be added, default is 0.
 
-    curve = np.array(curve)
-    if curve.shape[1] != 3:
-        raise ValueError("curve must be a Nx3 array!")
+    Returns:
+        node : ndarray
+            3D node coordinates for the generated surface mesh.
+        face : ndarray
+            Triangular face patches of the generated surface mesh, each row represents a triangle.
+        yz0 : ndarray
+            Sliced yz curve at the start.
+        yz1 : ndarray
+            Sliced yz curve at the end.
 
-    ncurve = curve.shape[0]
-    nodes = np.zeros((ndiv * ncurve, 3))
-    for i in range(ndiv):
-        alpha = i / (ndiv - 1)  # linear interpolation factor
-        point = (1 - alpha) * c0 + alpha * c1
-        nodes[i * ncurve : (i + 1) * ncurve, :] = curve + point
+    -- this function is part of iso2mesh toolbox (http://iso2mesh.sf.net)
+    """
+    from scipy.interpolate import splev, splrep
 
-    elem = np.zeros((ncurve * (ndiv - 1) * 2, 4), dtype=int)
-    for i in range(ndiv - 1):
-        for j in range(ncurve):
-            if j < ncurve - 1:
-                elem[i * ncurve * 2 + j * 2, :] = [
-                    i * ncurve + j,
-                    (i + 1) * ncurve + j,
-                    (i + 1) * ncurve + (j + 1),
-                    i * ncurve + (j + 1),
-                ]
-                elem[i * ncurve * 2 + j * 2 + 1, :] = [
-                    (i + 1) * ncurve + j,
-                    (i + 1) * ncurve + (j + 1),
-                    i * ncurve + (j + 1),
-                    i * ncurve + j,
-                ]
+    # Compute interpolation points along the xy curve
+    xrange = np.max(xy[:, 0]) - np.min(xy[:, 0])
+    dx = xrange / Nx
+    xi = np.arange(
+        np.min(xy[:, 0]) - Nextrap * dx,
+        np.max(xy[:, 0]) + Nextrap * dx + spacing * dx / 2,
+        spacing * dx,
+    )
+    pxy = splrep(xy[:, 0], xy[:, 1])
 
-    return nodes, elem
+    # Evaluate the interpolated y values and gradients
+    yi = splev(xi, pxy)
+    dy = np.gradient(yi)
+    dxi = np.gradient(xi)
+
+    nn = np.sqrt(dxi**2 + dy**2)
+    normaldir = np.vstack((dxi / nn, dy / nn)).T
+
+    # Compute interpolation points along the yz curve
+    zrange = np.max(yz[:, 1]) - np.min(yz[:, 1])
+    dz = zrange / Nz
+    zi = np.arange(
+        np.min(yz[:, 1]) - Nextrap * dz,
+        np.max(yz[:, 1]) + Nextrap * dz + spacing * dz / 2,
+        spacing * dz,
+    )
+    pyz = splrep(yz[:, 1], yz[:, 0])
+
+    yyi = splev(zi, pyz)
+
+    # Determine anchor point if not provided
+    if anchor is None:
+        loc = np.argmax(yyi)
+        anchor = [0, yyi[loc], zi[loc]]
+
+    # Initialize node and face arrays
+    node = np.zeros((len(zi) * len(xi), 3))
+    face = np.zeros((2 * (len(zi) - 1) * (len(xi) - 1), 3), dtype=int)
+
+    # Generate the base yz profile points
+    xyz = np.column_stack((np.zeros_like(yyi), yyi, zi))
+    for i in range(len(xi)):
+        # Compute local rotation matrix
+        rot2d = np.array(
+            [[normaldir[i, 0], -normaldir[i, 1]], [normaldir[i, 1], normaldir[i, 0]]]
+        )
+        offset = [xi[i], yi[i], anchor[2]]
+        newyz = xyz.copy()
+        newyz[:, :2] = (rot2d @ (newyz[:, :2] - anchor[:2]).T).T + offset[:2]
+        node[i * len(zi) : (i + 1) * len(zi), :] = newyz
+
+        # Create faces between segments
+        if i > 0:
+            a = np.arange(len(zi) - 1)
+            b = a + 1
+            f1 = np.stack(
+                (a + (i - 1) * len(zi), a + i * len(zi), b + (i - 1) * len(zi)), axis=-1
+            )
+            f2 = np.stack(
+                (b + (i - 1) * len(zi), a + i * len(zi), b + i * len(zi)), axis=-1
+            )
+            face[(i - 1) * 2 * (len(zi) - 1) : (i) * 2 * (len(zi) - 1)] = np.vstack(
+                (f1, f2)
+            )
+
+        # Save yz slices for later output
+        if i == Nextrap:
+            yz0 = newyz[Nextrap : len(zi) - Nextrap, :]
+        if i == len(xi) - Nextrap - 1:
+            yz1 = newyz[Nextrap : len(zi) - Nextrap, :]
+
+    # Add two flat polygons on the top and bottom of the contours
+    # to ensure the enclosed surface is not truncated by meshfix
+    if dotopbottom == 1:
+        from scipy.spatial import Delaunay
+
+        C = np.vstack((np.arange(0, len(xi) - 1), np.arange(1, len(xi)))).T
+        C = np.vstack((C, [[len(xi) - 1, 0]]))
+        dt = Delaunay(np.column_stack((xi, yi)))
+        io = dt.find_simplex(np.column_stack((xi, yi))) >= 0
+        endface = dt.simplices[io]
+        endface = (endface - 1) * len(zi) + 1
+        face = np.vstack((face, endface, endface + len(zi) - 1))
+
+    # Check and repair mesh geometry
+    node, face = meshcheckrepair(node, face, "deep")
+
+    return node, face, yz0, yz1
 
 
 # _________________________________________________________________________________________________________
 
 
-def meshcylinders(c0, c1, r, tsize=0, maxvol=0, ndiv=20):
-    if np.any(np.array(r) <= 0):
-        raise ValueError("Radius must be greater than zero.")
+def meshcylinders(c0, v, seglen, r, tsize=None, maxvol=None, ndiv=20):
+    """
+    create the surface and (optionally) tetrahedral mesh of multiple segments of 3D cylinders
 
-    if np.array(c0).shape != (3,) or np.array(c1).shape != (3,):
-        raise ValueError("c0 and c1 must be 3D points.")
+    author: Qianqian Fang, <q.fang at neu.edu>
 
-    if len(r) == 1:
-        r = [r[0], r[0]]
+    Parameters:
+        c0: cylinder list axis's starting point
+        v: directional vector of the cylinder
+        seglen: a scalar or a vector denoting the length of each
+             cylinder segment along the direction of v
+        args: tsize, maxvol, ndiv - see meshacylinder for details
 
-    r = np.array(r).flatten()
+    Returns:
+        node, face, elem - see meshacylinder for details
 
-    if len(r) == 2:
-        r = np.array([r[0], r[0], r[1]])
+    -- this function is part of iso2mesh toolbox (http://iso2mesh.sf.net)
+    """
+    seglen = np.cumsum(seglen)
+    c0 = np.array(c0)
+    v = np.array(v)
+    ncyl, fcyl = meshacylinder(c0, c0 + v * seglen[0], r, 0, 0, ndiv)
 
-    len_axis = np.linalg.norm(np.array(c1) - np.array(c0))
+    if len(seglen) == 1:
+        node = ncyl
+        face = fcyl
+        return node, face
 
-    if tsize == 0:
-        tsize = min(r) * 0.1
+    for i in range(1, len(seglen)):
+        ncyl1, fcyl1 = meshacylinder(
+            c0 + v * seglen[i - 1], c0 + v * seglen[i], r, 0, 0, ndiv
+        )
+        fcyl1 = [[(np.array(f[0]) + ncyl.shape[0]).tolist(), f[1]] for f in fcyl1]
+        fcyl1 = fcyl1[:-2] + [fcyl1[-1]]
+        fcyl.extend(fcyl1)
+        ncyl = np.vstack((ncyl, ncyl1))
 
-    if maxvol == 0:
-        maxvol = tsize**3 * 0.2
+    ncyl, I, J = np.unique(
+        np.round(ncyl, 10), axis=0, return_index=True, return_inverse=True
+    )
 
-    node, face, elem = meshacylinder(c0, c1, r, tsize, maxvol, ndiv)
+    fcyl = [[(J[np.array(f[0]) - 1] + 1).tolist(), f[1]] for f in fcyl]
 
+    if tsize == 0 and maxvol == 0:
+        return ncyl, fcyl
+
+    if not tsize:
+        tsize = seglen[-1] * 0.1
+    if not maxvol:
+        maxvol = tsize * tsize * tsize
+
+    centroid = np.cumsum(np.concatenate(([0], seglen[:-1]))) + seglen[-1] * 0.5
+    seeds = c0 + v * centroid[:, None]
+
+    node, elem, face = surf2mesh(ncyl, fcyl, None, None, 1, maxvol, seeds, None, 0)
     return node, face, elem
 
 
