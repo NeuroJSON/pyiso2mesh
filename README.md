@@ -4,7 +4,7 @@
 
 * **Copyright**: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>
 * **License**: GNU Public License V3 or later
-* **Version**: 0.3.5
+* **Version**: 0.3.6
 * **URL**: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * **Homepage**: [https://iso2mesh.sf.net](https://iso2mesh.sf.net)
 * **Github**: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
@@ -183,7 +183,7 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 
 | Ported | Tested |     | Ported | Tested |
 | ------ | ------ | --- | ------ | ------ |
-| > Streamlined mesh generation - shortcuts| |  | > File I/O | |
+| > All-in-one pipeline shortcuts             | |  | > File I/O | |
 | ✅ `v2m.m` | ✅ tested |                    | ✅ `saveasc.m` | ⭕️ tested |
 | ✅ `v2s.m` | ✅ tested |                    | ✅ `savedxf.m` | ⭕️ tested |
 | ✅ `s2m.m` | ✅ tested |                    | ✅ `savestl.m` | ⭕️ tested |
@@ -203,7 +203,7 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `vol2restrictedtri.m` | ✅ tested |      | ⭕️ `readsmf.m` | ⭕️ tested |
 | ✅ `surf2volz.m` | ⭕️ tested |              | ✅ `readtetgen.m` | ✅ tested |
 | ✅ `mesh2mask.m` | ⭕️ tested |              | ✅ `deletemeshfile.m` | ✅ tested |
-| > Iso2mesh primitive meshing functions| |   | ✅ `mcpath.m` | ✅ tested |
+| > Iso2mesh primitive meshing|           |   | ✅ `mcpath.m` | ✅ tested |
 | ✅ `meshabox.m` | ✅ tested |               | ✅ `mwpath.m` | ✅ tested |
 | ✅ `meshasphere.m` | ✅ tested |            | ✅ `savemedit.m` | ✅ tested |
 | ✅ `meshanellip.m` | ✅ tested |            | ⭕️ `savejson.m` | ⭕️ tested |
@@ -259,7 +259,7 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `getintersecttri.m` | ⭕️ tested |        | ✅ `getexeext.m` | ✅ tested |
 | ✅ `delendelem.m` | ⭕️ tested |             | ✅ `fallbackexeext.m` | ✅ tested |
 | ✅ `surfreorient.m` | ✅ tested |           | ⭕️ `iso2meshver.m` | ⭕️ tested |
-| > Mesh registration - Metch Toolbox| |      | ⭕️ `raysurf.m` | ⭕️ tested |
+| > Mesh registration |                       | ⭕️ `raysurf.m` | ⭕️ tested |
 | ✅ `proj2mesh.m` | ⭕️ tested |              | ⭕️ `getoptkey.m` | ⭕️ tested |
 | ✅ `dist2surf.m` | ⭕️ tested |              | ✅ `rotatevec3d.m` | ⭕️ tested |
 | ✅ `regpt2surf.m` | ⭕️ tested |             | ✅ `rotmat2vec.m` | ⭕️ tested |

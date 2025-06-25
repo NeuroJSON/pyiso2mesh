@@ -1,12 +1,15 @@
 
 PY=python3
 
-all: pretty test
+all: pretty test build
 pretty:
 	$(PY) -m black test/*.py iso2mesh/*.py setup.py
 
 test:
 	$(PY) -m unittest test.run_test
+
+build:
+	$(PY) -m build
 
 report:
 	@echo '====== all imported functions ======'

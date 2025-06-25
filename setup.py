@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
     name="iso2mesh",
     packages=["iso2mesh"],
-    version="0.3.5",
+    version="0.3.6",
     license="GPLv3+",
     description="One-liner 3D Surface and Tetrahedral Mesh Generation Toolbox",
     long_description=readme,
