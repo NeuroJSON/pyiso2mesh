@@ -40,7 +40,7 @@ import platform
 import subprocess
 from iso2mesh.utils import *
 from iso2mesh.io import saveoff, readoff
-from iso2mesh.trait import meshconn, mesheuler, finddisconnsurf
+from iso2mesh.trait import meshconn, mesheuler, finddisconnsurf, meshedge
 
 ##====================================================================================
 ## implementations
@@ -218,19 +218,8 @@ def qmeshcut(elem, node, value, cutat):
         asign = np.where(dist > 0, 1, -1)
 
     esize = elem.shape[1]
-    if esize == 4:
-        edges = np.vstack(
-            [
-                elem[:, [0, 1]],
-                elem[:, [0, 2]],
-                elem[:, [0, 3]],
-                elem[:, [1, 2]],
-                elem[:, [1, 3]],
-                elem[:, [2, 3]],
-            ]
-        )
-    elif esize == 3:
-        edges = np.vstack([elem[:, [0, 1]], elem[:, [0, 2]], elem[:, [1, 2]]])
+    if esize == 4 or esize == 3:
+        edges = meshedge(elem)
     elif esize == 10:
         edges = np.vstack(
             [
@@ -269,8 +258,8 @@ def qmeshcut(elem, node, value, cutat):
             not isinstance(cutat, (int, float)) and len(cutat) in [4, 9]
         ):
             cutvalue = (
-                value[edges[cutedges, 0] - 1] * cutweight[:, [1]]
-                + value[edges[cutedges, 1] - 1] * cutweight[:, [0]]
+                value[edges[cutedges, 0] - 1] * cutweight[:, [1]].squeeze()
+                + value[edges[cutedges, 1] - 1] * cutweight[:, [0]].squeeze()
             )
         elif np.isscalar(cutat):
             cutvalue = np.full((cutpos.shape[0], 1), cutat)
