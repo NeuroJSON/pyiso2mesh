@@ -181,7 +181,7 @@ plotmesh(no, fc, 'y > 30', parent = ax)
 The progress of converting MATLAB-based Iso2Mesh functions to Python is
 tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 
-| Ported | Tested |     | Ported | Tested |
+| Ported | Unit-tested |     | Ported | Unit-tested |
 | ------ | ------ | --- | ------ | ------ |
 | > All-in-one pipeline shortcuts             | |  | > File I/O | |
 | ✅ `v2m.m` | ✅ tested |                    | ✅ `saveasc.m` | ⭕️ tested |
@@ -259,7 +259,7 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `getintersecttri.m` | ⭕️ tested |        | ✅ `getexeext.m` | ✅ tested |
 | ✅ `delendelem.m` | ⭕️ tested |             | ✅ `fallbackexeext.m` | ✅ tested |
 | ✅ `surfreorient.m` | ✅ tested |           | ⭕️ `iso2meshver.m` | ⭕️ tested |
-| > Mesh registration |                       | ⭕️ `raysurf.m` | ⭕️ tested |
+| > Mesh registration | |                     | ⭕️ `raysurf.m` | ⭕️ tested |
 | ✅ `proj2mesh.m` | ⭕️ tested |              | ⭕️ `getoptkey.m` | ⭕️ tested |
 | ✅ `dist2surf.m` | ⭕️ tested |              | ✅ `rotatevec3d.m` | ⭕️ tested |
 | ✅ `regpt2surf.m` | ⭕️ tested |             | ✅ `rotmat2vec.m` | ⭕️ tested |
