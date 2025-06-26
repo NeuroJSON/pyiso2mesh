@@ -25,7 +25,15 @@ import numpy as np
 import struct
 from datetime import datetime
 import re
-from iso2mesh.trait import meshreorient, surfedge, extractloops
+from iso2mesh.trait import (
+    meshreorient,
+    surfedge,
+    extractloops,
+    volface,
+    surfplane,
+    bbxflatsegment,
+    internalpoint,
+)
 
 ##====================================================================================
 ## implementations

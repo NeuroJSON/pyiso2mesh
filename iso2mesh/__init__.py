@@ -103,6 +103,7 @@ from .core import (
     outersurf,
     surfvolume,
     insurface,
+    remeshsurf,
 )
 
 from .modify import (
@@ -128,7 +129,15 @@ from .modify import (
     surfboolean,
     meshresample,
     domeshsimplify,
-    remeshsurf,
+)
+
+from .line import (
+    linextriangle,
+    getplanefrom3pt,
+    polylinelen,
+    closestnode,
+    polylineinterp,
+    polylinesimplify,
 )
 
 from .raster import (
@@ -136,6 +145,15 @@ from .raster import (
     mesh2vol,
     mesh2mask,
     barycentricgrid,
+)
+
+from .register import (
+    affinemap,
+    meshinterp,
+    meshremap,
+    proj2mesh,
+    dist2surf,
+    regpt2surf,
 )
 
 __version__ = "0.3.6"
@@ -253,5 +271,17 @@ __all__ = [
     "vol2restrictedtri",
     "vol2surf",
     "volface",
+    "linextriangle",
+    "getplanefrom3pt",
+    "polylinelen",
+    "closestnode",
+    "polylineinterp",
+    "polylinesimplify",
+    "affinemap",
+    "meshinterp",
+    "meshremap",
+    "proj2mesh",
+    "dist2surf",
+    "regpt2surf",
 ]
 __license__ = """GNU General Public License v3 and later"""

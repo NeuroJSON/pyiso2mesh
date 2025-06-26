@@ -22,6 +22,7 @@ __all__ = [
     "outersurf",
     "surfvolume",
     "insurface",
+    "remeshsurf",
 ]
 
 ##====================================================================================
@@ -31,7 +32,7 @@ __all__ = [
 import numpy as np
 import os
 import re
-import platform
+import sys
 import subprocess
 from iso2mesh.trait import (
     surfinterior,
@@ -40,6 +41,8 @@ from iso2mesh.trait import (
     elemvolume,
     meshreorient,
     finddisconnsurf,
+    maxsurf,
+    volface,
 )
 from iso2mesh.utils import *
 from iso2mesh.io import saveoff, readoff, saveinr, readtetgen, savesurfpoly, readmedit
@@ -49,6 +52,7 @@ from iso2mesh.modify import (
     meshresample,
     removeisolatedsurf,
     removeisolatednode,
+    qmeshcut,
 )
 
 ##====================================================================================
@@ -572,7 +576,9 @@ def surf2volz(node, face, xi, yi, zi):
 
     for i in iz:
         plane = np.array([[0, 100, zi[i]], [100, 0, zi[i]], [0, 0, zi[i]]])
-        bcutpos, bcutvalue, bcutedges = qmeshcut(face[:, :3], node, node[:, 0], plane)
+        bcutpos, bcutvalue, bcutedges, _, _ = qmeshcut(
+            face[:, :3], node, node[:, 0], plane
+        )
 
         if bcutpos.size == 0:
             continue
@@ -622,6 +628,7 @@ def surf2vol(node, face, xi, yi, zi, **kwargs):
     img: a volumetric binary image at the position of ndgrid(xi, yi, zi)
     v2smap (optional): a 4x4 matrix denoting the Affine transformation to map voxel coordinates back to the mesh space.
     """
+    from scipy.ndimage import binary_fill_holes
 
     opt = kwargs
     label = opt.get("label", 0)
@@ -651,7 +658,7 @@ def surf2vol(node, face, xi, yi, zi, **kwargs):
         im |= np.moveaxis(surf2volz(node[:, [1, 2, 0]], fc[:, :3], yi, zi, xi), 0, 1)
 
         if opt.get("fill", 0) or label:
-            im = imfill(im, "holes")
+            im = binary_fill_holes(im)
             if label:
                 im = im.astype(elabel.dtype) * lbl
 
@@ -851,7 +858,7 @@ def cgalv2m(vol, opt, maxvol):
     return node, elem, face
 
 
-def cgals2m(v, f, opt, maxvol, *args):
+def cgals2m(v, f, opt, maxvol, **kwargs):
     """
     Convert a triangular surface to a tetrahedral mesh using CGAL mesher.
 
@@ -888,7 +895,6 @@ def cgals2m(v, f, opt, maxvol, *args):
     ssize = 6
     approx = 0.5
     reratio = 3
-    flags = args_to_dict(*args)
 
     if not isinstance(opt, dict):
         ssize = opt
@@ -899,7 +905,7 @@ def cgals2m(v, f, opt, maxvol, *args):
         approx = opt.get("distbound", approx)
         reratio = opt.get("reratio", reratio)
 
-    if flags.get("DoRepair", 0) == 1:
+    if kwargs.get("dorepair", 0) == 1:
         v, f = meshcheckrepair(v, f)
 
     saveoff(v, f, mwpath("pre_cgalpoly.off"))
@@ -1149,3 +1155,68 @@ def insurface(node, face, points):
     tf = tf.astype(int)
 
     return tf
+
+
+def remeshsurf(node, face, opt):
+    """
+    remeshsurf(node, face, opt)
+
+    Remesh a triangular surface, output is guaranteed to be free of self-intersecting elements.
+    This function can both downsample or upsample a mesh.
+
+    Parameters:
+        node: list of nodes on the input surface mesh, 3 columns for x, y, z
+        face: list of triangular elements on the surface, [n1, n2, n3, region_id]
+        opt: function parameters
+            opt.gridsize: resolution for the voxelization of the mesh
+            opt.closesize: if there are openings, set the closing diameter
+            opt.elemsize: the size of the element of the output surface
+            If opt is a scalar, it defines the elemsize and gridsize = opt / 4
+
+    Returns:
+        newno: list of nodes on the resulting surface mesh, 3 columns for x, y, z
+        newfc: list of triangular elements on the surface, [n1, n2, n3, region_id]
+    """
+    from scipy.ndimage import binary_fill_holes
+
+    # Step 1: convert the old surface to a volumetric image
+    p0 = np.min(node, axis=0)
+    p1 = np.max(node, axis=0)
+
+    if isinstance(opt, dict):
+        dx = opt.get("gridsize", None)
+    else:
+        dx = opt / 4
+
+    x_range = np.arange(p0[0] - dx, p1[0] + dx, dx)
+    y_range = np.arange(p0[1] - dx, p1[1] + dx)
+    z_range = np.arange(p0[2] - dx, p1[2] + dx)
+
+    img = surf2vol(node, face, x_range, y_range, z_range)
+
+    # Compute surface edges
+    eg = surfedge(face)
+
+    closesize = 0
+    if eg.size > 0 and isinstance(opt, dict):
+        closesize = opt.get("closesize", 0)
+
+    # Step 2: fill holes in the volumetric binary image
+    img = binary_fill_holes(img)
+
+    # Step 3: convert the filled volume to a new surface
+    if isinstance(opt, dict):
+        if "elemsize" in opt:
+            opt["radbound"] = opt["elemsize"] / dx
+            newno, newfc, _, _ = v2s(img, 0.5, opt, "cgalsurf")
+    else:
+        opt = {"radbound": opt / dx}
+        newno, newfc, _, _ = v2s(img, 0.5, opt, "cgalsurf")
+
+    # Adjust new nodes to match original coordinates
+    newno[:, 0:3] *= dx
+    newno[:, 0] += p0[0]
+    newno[:, 1] += p0[1]
+    newno[:, 2] += p0[2]
+
+    return newno, newfc

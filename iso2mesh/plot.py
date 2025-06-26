@@ -256,17 +256,16 @@ def plotedges(node, edges, *args, **kwargs):
     hh : list
         Handles to plotted elements.
     """
+    hh = {"fig": [], "ax": [], "obj": []}
     edges = np.asarray(edges, order="F")  # Flatten in F order if needed
 
     if edges.size == 0:
         return hh
 
-    edlen = edges.shape[0]
     rng_state = np.random.get_state()
 
     ax = plt.gca()
 
-    hh = {"fig": [], "ax": [], "obj": []}
     hh["fig"].append(plt.gcf())
     hh["ax"].append(ax)
 

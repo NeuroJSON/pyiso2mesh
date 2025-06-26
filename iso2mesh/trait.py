@@ -48,7 +48,6 @@ __all__ = [
 
 import numpy as np
 from itertools import combinations
-from iso2mesh.utils import mcpath
 
 ##====================================================================================
 ## implementations
@@ -1024,7 +1023,8 @@ def surfinterior(node, face):
     This function is part of the iso2mesh toolbox (http://iso2mesh.sf.net)
     """
 
-    pt = []
+    pt, p0, v0, t, idx = [], [], [], None, []
+
     len_faces = face.shape[0]
 
     for i in range(len_faces):
@@ -1767,3 +1767,68 @@ def highordertet(node, elem, order=2, opt=None):
     newnode = node[edges.T - 1, :3]  # adjust for 1-based index
     newnode = np.mean(newnode, axis=0)
     return newnode, newelem + 1
+
+
+def internalpoint(v, aloop):
+    """
+    Empirical function to find an internal point of a planar polygon.
+
+    Parameters:
+        v : ndarray
+            Nx3 array of x, y, z coordinates of each node of the mesh.
+        aloop : array-like
+            A vector of node indices (1-based, as in MATLAB), possibly separated by NaN.
+
+    Returns:
+        p : ndarray
+            A single [x, y, z] internal point of the polygon loop.
+
+    Raises:
+        ValueError: If an internal point cannot be found.
+
+    -- this function is part of iso2mesh toolbox (http://iso2mesh.sf.net)
+    """
+    from matplotlib.path import Path
+
+    # Adjust aloop to 0-based index
+    aloop = np.asarray(aloop, dtype=float)
+    aloop = aloop[~np.isnan(aloop)].astype(int) - 1
+
+    p = []
+    nd = v[aloop, :]
+
+    # Find if loop is flat along any axis
+    boxfacet = np.where(np.sum(np.abs(np.diff(nd, axis=0)), axis=0) < 1e-2)[0]
+    if len(boxfacet) > 0:
+        bf = boxfacet[0]
+        idx = [i for i in [0, 1, 2] if i != bf]
+
+        p0 = (nd[0, :] + nd[1, :]) / 2
+        pvec = complex(p0[idx[0]], p0[idx[1]])
+        vec = nd[1, :] - nd[0, :]
+        vec_mag = np.sqrt(np.sum(vec**2))
+        vec = (
+            complex(vec[idx[0]], vec[idx[1]])
+            * np.exp(1j * np.pi / 2)
+            * (1e-5)
+            / vec_mag
+        )
+        testpt = np.array(
+            [
+                [np.real(pvec + vec), np.imag(pvec + vec)],
+                [np.real(pvec - vec), np.imag(pvec - vec)],
+            ]
+        )
+
+        path = Path(nd[:, idx])
+        inside = path.contains_points(testpt)
+        p2d = testpt[inside]
+        if p2d.size > 0:
+            p = np.zeros(3)
+            p[[idx[0], idx[1]]] = p2d[0]
+            p[bf] = nd[0, bf]
+
+    if len(p) == 0 or len(p) != 3:
+        raise ValueError("Fail to find an internal point of curve")
+
+    return p

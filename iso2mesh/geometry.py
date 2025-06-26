@@ -28,7 +28,7 @@ import numpy as np
 import sys
 from itertools import permutations, combinations
 from iso2mesh.core import surf2mesh, vol2restrictedtri
-from iso2mesh.trait import meshreorient, volface, surfedge
+from iso2mesh.trait import meshreorient, volface, surfedge, nodesurfnorm
 from iso2mesh.utils import *
 from iso2mesh.modify import removeisolatednode, meshcheckrepair
 

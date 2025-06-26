@@ -40,7 +40,15 @@ import platform
 import subprocess
 from iso2mesh.utils import *
 from iso2mesh.io import saveoff, readoff
-from iso2mesh.trait import meshconn, mesheuler, finddisconnsurf, meshedge
+from iso2mesh.trait import (
+    meshconn,
+    mesheuler,
+    finddisconnsurf,
+    meshedge,
+    surfedge,
+    extractloops,
+)
+from iso2mesh.line import getplanefrom3pt
 
 ##====================================================================================
 ## implementations
@@ -1174,65 +1182,57 @@ def domeshsimplify(v, f, keepratio):
     return node, elem
 
 
-def remeshsurf(node, face, opt):
+def slicesurf(node, face, *args):
     """
-    remeshsurf(node, face, opt)
-
-    Remesh a triangular surface, output is guaranteed to be free of self-intersecting elements.
-    This function can both downsample or upsample a mesh.
+    Slice a closed surface by a plane and extract the intersection curve as a
+    polyline loop.
 
     Parameters:
-        node: list of nodes on the input surface mesh, 3 columns for x, y, z
-        face: list of triangular elements on the surface, [n1, n2, n3, region_id]
-        opt: function parameters
-            opt.gridsize: resolution for the voxelization of the mesh
-            opt.closesize: if there are openings, set the closing diameter
-            opt.elemsize: the size of the element of the output surface
-            If opt is a scalar, it defines the elemsize and gridsize = opt / 4
+        node : ndarray
+            An N x 3 array defining the 3-D positions of the mesh.
+        face : ndarray
+            An N x 3 integer array specifying the surface triangle indices (1-based in MATLAB, so subtract 1 if needed).
 
     Returns:
-        newno: list of nodes on the resulting surface mesh, 3 columns for x, y, z
-        newfc: list of triangular elements on the surface, [n1, n2, n3, region_id]
+        bcutpos : ndarray
+            The coordinates of the intersection points forming the loop.
+        bcutloop : ndarray
+            The sequential order of the nodes to form a polyline loop.
+            The last node is assumed to be connected to the first node.
+            NaN indicates the end of a loop; the intersection may contain multiple loops.
+            If only bcutpos is returned, the output will be re-ordered in sequential loop order.
+        bcutvalue : optional
+            Interpolated values at the cut points (if returned from qmeshcut).
+
+    -- this function is part of brain2mesh toolbox (http://mcx.space/brain2mesh)
+       License: GPL v3 or later, see LICENSE.txt for details
     """
 
-    # Step 1: convert the old surface to a volumetric image
-    p0 = np.min(node, axis=0)
-    p1 = np.max(node, axis=0)
+    # Slice the mesh using qmeshcut
+    bcutpos, bcutvalue, bcutedges = qmeshcut(
+        face[:, :3] - 1, node, node[:, 0], *args
+    )  # Subtract 1 for 0-based indexing
 
-    if isinstance(opt, dict):
-        dx = opt.get("gridsize", None)
-    else:
-        dx = opt / 4
+    # Remove duplicate nodes
+    bcutpos, bcutedges = removedupnodes(bcutpos, bcutedges)
 
-    x_range = np.arange(p0[0] - dx, p1[0] + dx, dx)
-    y_range = np.arange(p0[1] - dx, p1[1] + dx)
-    z_range = np.arange(p0[2] - dx, p1[2] + dx)
+    # Extract closed loops
+    bcutloop = extractloops(bcutedges)
 
-    img = surf2vol(node, face, x_range, y_range, z_range)
+    # If only one output is requested, flatten loops into a sequential point list
+    if (
+        bcutloop is not None
+        and isinstance(bcutloop, np.ndarray)
+        and bcutpos.shape[0] > 0
+    ):
+        import inspect
 
-    # Compute surface edges
-    eg = surfedge(face)
+        caller_frame = inspect.currentframe().f_back
+        if (
+            len(caller_frame.f_locals.get("bcutloop", [])) == 0
+            and len(caller_frame.f_locals.get("bcutvalue", [])) == 0
+        ):
+            bcutloop = bcutloop[~np.isnan(bcutloop)].astype(int)
+            bcutpos = bcutpos[bcutloop]
 
-    closesize = 0
-    if eg.size > 0 and isinstance(opt, dict):
-        closesize = opt.get("closesize", 0)
-
-    # Step 2: fill holes in the volumetric binary image
-    img = fillholes3d(img, closesize)
-
-    # Step 3: convert the filled volume to a new surface
-    if isinstance(opt, dict):
-        if "elemsize" in opt:
-            opt["radbound"] = opt["elemsize"] / dx
-            newno, newfc, _, _ = v2s(img, 0.5, opt, "cgalsurf")
-    else:
-        opt = {"radbound": opt / dx}
-        newno, newfc, _, _ = v2s(img, 0.5, opt, "cgalsurf")
-
-    # Adjust new nodes to match original coordinates
-    newno[:, 0:3] *= dx
-    newno[:, 0] += p0[0]
-    newno[:, 1] += p0[1]
-    newno[:, 2] += p0[2]
-
-    return newno, newfc
+    return bcutpos, bcutloop, bcutvalue

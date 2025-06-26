@@ -18,6 +18,8 @@ __all__ = [
 ##====================================================================================
 
 import numpy as np
+from iso2mesh.trait import nodesurfnorm
+from iso2mesh.line import linextriangle
 
 ##====================================================================================
 ## implementations
@@ -159,138 +161,226 @@ def meshremap(fromval, elemid, elembary, toelem, nodeto):
     return newval
 
 
-def proj2mesh(v, f, data):
+def proj2mesh(v, f, pt, nv=None, cn=None, radmax=None):
     """
-    Projects the scalar data onto the triangular mesh.
+    Project a point cloud onto the surface mesh (triangular surface only).
 
-    Args:
-    v: Vertices of the mesh (nn x 3).
-    f: Faces of the mesh (ne x 3).
-    data: Scalar values associated with vertices (nn x 1).
+    Parameters:
+        v : ndarray
+            Node coordinates of the surface mesh (nn x 3)
+        f : ndarray
+            Element list of the surface mesh (triangular or cubic, use only 3 columns for triangle)
+        pt : ndarray
+            Points to be projected, with 3 columns for x, y, and z respectively
+        nv : ndarray, optional
+            Nodal normals (size: v.shape[0] x 3), calculated by nodesurfnorm
+        cn : ndarray, optional
+            Integer vector of closest surface node indices for each point in pt (from dist2surf)
+        radmax : float, optional
+            If specified, limits search for elements to those within a bounding box centered at the point
 
     Returns:
-    proj_data: Projected data values on the mesh faces.
+        newpt : ndarray
+            Projected points from pt
+        elemid : ndarray
+            Indices of the surface triangle that contains each projected point
+        weight : ndarray
+            Barycentric coordinates (weights) for each projected point
+
+    -- this function is part of iso2mesh toolbox (http://iso2mesh.sf.net)
     """
-    # Initialize projected data
-    proj_data = np.zeros(f.shape[0])
+    cent = np.mean(v, axis=0)
+    enum = len(f)
+    ec = np.reshape(v[f[:, :3] - 1].transpose(1, 2, 0), (3, 3, enum))
+    centroid = np.mean(ec, axis=1)
+    newpt = np.zeros_like(pt)
+    elemid = np.zeros(pt.shape[0], dtype=int)
+    weight = np.zeros((pt.shape[0], 3))
 
-    for i in range(f.shape[0]):
-        # Get vertex indices for the face
-        indices = f[i, :]
+    idoldmesh = np.any(np.all(pt[:, None, :] == v[None, :, :], axis=2), axis=1)
+    idnode = np.where(idoldmesh)[0]
+    if idnode.size > 0:
+        for idx in idnode:
+            matches = np.where(
+                np.all(
+                    f[:, None, :] == np.where((v == pt[idx]).all(axis=1))[0][0] + 1,
+                    axis=2,
+                )
+            )
+            if matches[0].size > 0:
+                newpt[idx, :] = pt[idx, :]
+                elemid[idx] = matches[0][0] + 1
+                weight[idx, matches[1][0]] = 1
 
-        # Compute the average of the scalar values at the vertices
-        proj_data[i] = np.mean(data[indices])
-
-    return proj_data
-
-
-def dist2surf(p, v, f):
-    """
-    Computes the signed distance from points to a triangular surface.
-
-    Args:
-    p: Points (nx3 array).
-    v: Vertices of the surface (mx3 array).
-    f: Faces of the surface (px3 array, indices into vertices).
-
-    Returns:
-    dist: Signed distances from points to the surface.
-    nearest: Nearest point indices on the surface.
-    """
-    dist = np.zeros(p.shape[0])
-    nearest = np.zeros(p.shape[0], dtype=int)
-
-    for i in range(p.shape[0]):
-        point = p[i]
-        closest_dist = np.inf
-
-        for j in range(f.shape[0]):
-            # Get vertices of the face
-            tri = v[f[j]]
-            d, _ = point_to_triangle_distance(point, tri)
-            if d < closest_dist:
-                closest_dist = d
-                nearest[i] = j
-
-        dist[i] = closest_dist
-
-    return dist, nearest
-
-
-def point_to_triangle_distance(point, tri):
-    """
-    Compute the distance from a point to a triangle.
-
-    Args:
-    point: The point (1x3 array).
-    tri: The triangle (3x3 array of vertices).
-
-    Returns:
-    distance: Distance from the point to the triangle.
-    nearest_point: The nearest point on the triangle.
-    """
-    # Vector calculations to find the nearest point on the triangle
-    v0 = tri[1] - tri[0]
-    v1 = tri[2] - tri[0]
-    v2 = point - tri[0]
-
-    # Compute dot products
-    dot00 = np.dot(v0, v0)
-    dot01 = np.dot(v0, v1)
-    dot02 = np.dot(v0, v2)
-    dot11 = np.dot(v1, v1)
-    dot12 = np.dot(v1, v2)
-
-    # Barycentric coordinates
-    invDenom = 1 / (dot00 * dot11 - dot01 * dot01)
-    u = (dot11 * dot02 - dot01 * dot12) * invDenom
-    v = (dot00 * dot12 - dot01 * dot02) * invDenom
-
-    # Check if point is inside the triangle
-    if (u >= 0) and (v >= 0) and (u + v <= 1):
-        # Point is inside the triangle
-        nearest_point = tri[0] + u * v0 + v * v1
+    if nv is not None and cn is not None:
+        direction = nv[cn - 1, :]
+        if radmax is not None:
+            radlimit = radmax
+        else:
+            radlimit = -1
     else:
-        # Point is outside the triangle, compute the distance to edges or vertices
-        # (Placeholder for edge/vertex distance computation)
-        nearest_point = None  # Replace with actual nearest point calculation
-        distance = np.inf  # Placeholder
+        direction = pt - cent
+        radlimit = -1
 
-    distance = (
-        np.linalg.norm(point - nearest_point) if nearest_point is not None else np.inf
-    )
+    for t in range(pt.shape[0]):
+        if idoldmesh[t]:
+            continue
 
-    return distance, nearest_point
+        maxdist = np.linalg.norm(pt[t, :] - cent)
+        if radlimit > 0:
+            maxdist = radlimit
+
+        mask = np.all(np.abs(centroid.T - pt[t]) < maxdist, axis=1)
+        idx = np.where(mask)[0]
+        dist = centroid[:, idx] - pt[t, :, None]
+        c0 = np.sum(dist**2, axis=0)
+
+        sorted_idx = np.argsort(c0)
+
+        for i in range(len(idx)):
+            inside, p, w = linextriangle(
+                pt[t, :],
+                pt[t, :] + direction[t, :],
+                v[f[idx[sorted_idx[i]], :3] - 1, :],
+            )
+            if inside:
+                newpt[t, :] = p
+                weight[t, :] = w
+                elemid[t] = idx[sorted_idx[i]] + 1
+                break
+
+    return newpt, elemid, weight
 
 
-def regpt2surf(pt, v, f):
+def dist2surf(node, nv, p, cn=None):
     """
-    Projects a set of points onto a triangular surface.
+    Calculate the distances from a point cloud to a surface, and return
+    the indices of the closest surface node.
 
-    Args:
-    pt: Points to be projected (n x 3 array).
-    v: Vertices of the surface (m x 3 array).
-    f: Faces of the surface (p x 3 array, indices into vertices).
+    Parameters:
+        node : ndarray
+            Node coordinates of the surface mesh (nn x 3).
+        nv : ndarray
+            Nodal normals (vector) calculated from nodesurfnorm(), shape (nn x 3).
+        p : ndarray
+            Points to be calculated, shape (N x 3).
+        cn : ndarray, optional
+            If provided, an integer vector of indices of the closest surface nodes.
 
     Returns:
-    proj_pt: Projected points on the surface.
-    nearest: Indices of the nearest face for each point.
+        d2surf : ndarray
+            Distances from each point in p to the surface.
+        cn : ndarray
+            Indices of the closest surface nodes.
+
+    -- this function is part of "metch" toolbox, see COPYING for license
     """
-    proj_pt = np.zeros_like(pt)
-    nearest = np.zeros(pt.shape[0], dtype=int)
 
-    for i in range(pt.shape[0]):
-        point = pt[i]
-        closest_dist = np.inf
+    if cn is None:
+        nn = node.shape[0]
+        pnum = p.shape[0]
+        mindist = np.zeros(pnum)
+        cn = np.zeros(pnum, dtype=int)
+        for i in range(pnum):
+            d0 = node - np.tile(p[i, :], (nn, 1))
+            d0 = np.sum(d0 * d0, axis=1)
+            cn[i] = np.argmin(d0)
+            mindist[i] = d0[cn[i]]
+    d2surf = np.abs(np.sum(nv[cn, :] * (p - node[cn, :]), axis=1))
 
-        for j in range(f.shape[0]):
-            # Get the vertices of the triangle
-            tri = v[f[j]]
-            d, nearest_point = point_to_triangle_distance(point, tri)
+    return d2surf, cn
 
-            if d < closest_dist:
-                closest_dist = d
-                proj_pt[i] = nearest_point
-                nearest[i] = j
 
-    return proj_pt, nearest
+def regpt2surf(node, elem, p, pmask, A0, b0, cmask, maxiter):
+    """
+    Perform point cloud registration to a triangular surface
+    (surface can be either triangular or cubic), using Gauss-Newton method.
+
+    Parameters:
+        node : ndarray
+            Node coordinates of the surface mesh (nn x 3).
+        elem : ndarray
+            Element list of the surface mesh (triangular: 3 columns, cubic: 4 columns).
+        p : ndarray
+            Points to be registered (N x 3).
+        pmask : ndarray
+            Mask vector of same length as p. If pmask[i] == -1, the point is free;
+            if 0, it is fixed; if n > 0, its distance to node[n-1] is minimized.
+        A0 : ndarray
+            Initial guess for affine A matrix (3x3).
+        b0 : ndarray
+            Initial guess for affine b vector (3,).
+        cmask : ndarray
+            Binary vector of length 12, indicates which of [A.flatten(); b] to optimize.
+        maxiter : int
+            Maximum number of optimization iterations.
+
+    Returns:
+        A : ndarray
+            Updated affine transformation matrix (3x3).
+        b : ndarray
+            Updated translation vector (3,).
+        newpos : ndarray
+            Transformed positions of input points.
+    """
+
+    A = A0.copy()
+    b = b0.reshape(-1)
+
+    # Wrap A and b into single vector C
+    C = np.concatenate([A.flatten(), b])
+    delta = 1e-4
+
+    newpos = (C[:9].reshape(3, 3) @ p.T + C[9:].reshape(3, 1)).T
+    nv = nodesurfnorm(node, elem)
+
+    clen = len(C)
+    cuplist = np.where(cmask == 1)[0]
+    pfree = np.where(pmask < 0)[0]
+    pfix = np.where(pmask > 0)[0]
+
+    for iter in range(maxiter):
+        dist0 = np.zeros(len(pfree) + len(pfix))
+
+        if len(pfree) > 0:
+            dist0[pfree], cn0 = dist2surf(node, nv, newpos[pfree])
+        else:
+            cn0 = []
+
+        if len(pfix) > 0:
+            fixdist = node[pmask[pfix] - 1] - newpos[pfix]
+            dist0[pfix] = np.sqrt(np.sum(fixdist**2, axis=1))
+
+        print(f"iter={iter+1} error={np.sum(np.abs(dist0))}")
+
+        J = np.zeros((len(dist0), clen))
+        for i in range(clen):
+            if cmask[i] == 0:
+                continue
+            dC = C.copy()
+            dC[i] = C[i] * (1 + delta) if C[i] != 0 else C[i] + delta
+            newp = (dC[:9].reshape(3, 3) @ p.T + dC[9:].reshape(3, 1)).T
+
+            dist = np.zeros(len(dist0))
+            if len(pfree) > 0:
+                if len(cn0) == len(pfree):
+                    dist[pfree], _ = dist2surf(node, nv, newp[pfree], cn0)
+                else:
+                    dist[pfree], _ = dist2surf(node, nv, newp[pfree])
+            if len(pfix) > 0:
+                fixdist = node[pmask[pfix] - 1] - newp[pfix]
+                dist[pfix] = np.sqrt(np.sum(fixdist**2, axis=1))
+
+            J[:, i] = (dist - dist0) / (dC[i] - C[i])
+
+        wj = np.sqrt(np.sum(J**2, axis=0))
+        J[:, cuplist] = J[:, cuplist] / wj[cuplist]
+
+        dC = np.linalg.lstsq(J[:, cuplist], dist0, rcond=None)[0] / wj[cuplist]
+        C[cuplist] -= 0.5 * dC
+
+        newpos = (C[:9].reshape(3, 3) @ p.T + C[9:].reshape(3, 1)).T
+
+    A = C[:9].reshape(3, 3)
+    b = C[9:]
+    return A, b, newpos
