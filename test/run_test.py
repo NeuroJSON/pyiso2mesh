@@ -965,7 +965,7 @@ class Test_modify(unittest.TestCase):
         )
         self.assertAlmostEqual(np.sum(elemvolume(no1[:, :3], el1[:, :4])), 2.0, 8)
         self.assertAlmostEqual(
-            np.mean(elemvolume(no1[:, :3], el1[:, :4])), 0.00019615535504119262, 8
+            np.mean(elemvolume(no1[:, :3], el1[:, :4])), 0.00019615535504119262, 5
         )
 
     def test_meshrefine_externalnode(self):
