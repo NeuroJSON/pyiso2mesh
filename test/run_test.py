@@ -974,7 +974,7 @@ class Test_modify(unittest.TestCase):
         no1, el1, fc1 = meshrefine(node, elem, newnode=extnodes, extcmdopt="-Y")
         self.assertEqual(no1.shape[0] - node.shape[0], 4)
         self.assertAlmostEqual(
-            np.sum(elemvolume(no1[:, :3], el1[:, :4])) * 0.0001, 56628.62907381002, 3
+            np.sum(elemvolume(no1[:, :3], el1[:, :4])) * 0.0001, 5.662862907381002, 3
         )
 
 
