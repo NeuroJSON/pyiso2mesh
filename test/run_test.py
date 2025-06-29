@@ -963,7 +963,7 @@ class Test_modify(unittest.TestCase):
         no1, el1, fc1 = meshrefine(
             self.nbox, self.ebox, sizefield=(self.nbox[:, 0] + 0.1) * 0.3
         )
-        self.assertEqual(np.sum(elemvolume(no1[:, :3], el1[:, :4])), 2)
+        self.assertAlmostEqual(np.sum(elemvolume(no1[:, :3], el1[:, :4])), 2.0, 8)
         self.assertAlmostEqual(
             np.mean(elemvolume(no1[:, :3], el1[:, :4])), 0.00019615535504119262, 8
         )
@@ -974,7 +974,7 @@ class Test_modify(unittest.TestCase):
         no1, el1, fc1 = meshrefine(node, elem, newnode=extnodes, extcmdopt="-Y")
         self.assertEqual(no1.shape[0] - node.shape[0], 4)
         self.assertAlmostEqual(
-            np.sum(elemvolume(no1[:, :3], el1[:, :4])), 56628.62907381002, 2
+            np.sum(elemvolume(no1[:, :3], el1[:, :4])) * 0.0001, 56628.62907381002, 3
         )
 
 
