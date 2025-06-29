@@ -1388,7 +1388,7 @@ def meshrefine(node, elem, *args, **kwargs):
         moreopt += opt["moreopt"]
 
     if elem.shape[1] == 3 and not setquality:
-        status = os.system(
+        status, cmdout = subprocess.getstatusoutput(
             f'"{mcpath("gtsrefine", exesuff)}" {moreopt} < "{mwpath("pre_refine.gts")}" > "{mwpath("post_refine.gts")}"'
         )
         if status:
@@ -1396,14 +1396,14 @@ def meshrefine(node, elem, *args, **kwargs):
         newnode, newelem = readgts(mwpath("post_refine.gts"))
         newface = newelem
     elif elem.shape[1] == 3:
-        status = os.system(
+        status, cmdout = subprocess.getstatusoutput(
             f'"{mcpath("tetgen1.5", exesuff)}" {moreopt} -p -A "{mwpath("pre_refine.poly")}"'
         )
         if status:
             raise RuntimeError("tetgen command failed")
         newnode, newelem, newface = readtetgen(mwpath("pre_refine.1"))
     elif moreopt:
-        status = os.system(
+        status, cmdout = subprocess.getstatusoutput(
             f'"{mcpath("tetgen", exesuff)}" {moreopt} -r "{mwpath("pre_refine.1")}"'
         )
         if status:
