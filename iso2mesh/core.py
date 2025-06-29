@@ -23,6 +23,7 @@ __all__ = [
     "surfvolume",
     "insurface",
     "remeshsurf",
+    "meshrefine",
 ]
 
 ##====================================================================================
@@ -43,9 +44,23 @@ from iso2mesh.trait import (
     finddisconnsurf,
     maxsurf,
     volface,
+    surfseeds,
+    maxsurf,
+    ismember_rows,
 )
 from iso2mesh.utils import *
-from iso2mesh.io import saveoff, readoff, saveinr, readtetgen, savesurfpoly, readmedit
+from iso2mesh.io import (
+    saveoff,
+    readoff,
+    saveinr,
+    readtetgen,
+    savesurfpoly,
+    readmedit,
+    savetetgennode,
+    savetetgenele,
+    readgts,
+    savegts,
+)
 from iso2mesh.modify import (
     meshcheckrepair,
     sortmesh,
@@ -53,6 +68,7 @@ from iso2mesh.modify import (
     removeisolatedsurf,
     removeisolatednode,
     qmeshcut,
+    removedupelem,
 )
 
 ##====================================================================================
@@ -1220,3 +1236,298 @@ def remeshsurf(node, face, opt):
     newno[:, 2] += p0[2]
 
     return newno, newfc
+
+
+def meshrefine(node, elem, *args):
+    """
+    meshrefine - refine a tetrahedral mesh by adding new nodes or constraints
+
+    Usage:
+        newnode, newelem, newface = meshrefine(node, elem, face=None, opt=None)
+
+    Description:
+        This function refines a tetrahedral mesh by inserting new nodes or applying
+        sizing constraints.
+
+    Inputs:
+        node: Nx3 or Nx4 array of mesh nodes. If Nx4, the 4th column is used as a
+              size field.
+        elem: Mx4 or Mx5 array of tetrahedral elements (1-based indexing).
+        face (optional): Px3 array of triangle faces (1-based indexing).
+        opt: options for mesh refinement. Can be one of:
+             - Nx3 array of new nodes to be inserted (must be inside or on the mesh)
+             - Vector of desired edge-lengths (length = len(node)) or max volumes (len = len(elem))
+             - Dictionary with fields:
+                - newnode: same as above Nx3 array
+                - reratio: radius-edge ratio (default 1.414)
+                - maxvol: max tetrahedron volume
+                - sizefield: node-based or element-based sizing
+                - extcmdopt: tetgen options for inserting external nodes
+                - extlabel: label for new external elements (default: 0)
+                - extcorelabel: label for core of external mesh (default: -1)
+
+    Outputs:
+        newnode: refined node list
+        newelem: refined element list
+        newface: surface faces (Px3), last column denotes boundary ID
+
+    Examples:
+        # Inserting internal nodes
+        innernodes = np.array([[1,1,1], [2,2,2], [3,3,3]])
+        newnode, newelem, _ = meshrefine(node, elem, innernodes)
+
+        # Inserting external nodes
+        extnodes = np.array([[-5,-5,25], [-5,5,25], [5,5,25], [5,-5,25]])
+        opt = {'newnode': extnodes, 'extcmdopt': '-Y'}
+        newnode, newelem, _ = meshrefine(node, elem, opt)
+
+    Author:
+        Qianqian Fang <q.fang@neu.edu>
+
+    License:
+        Part of Iso2Mesh Toolbox (http://iso2mesh.sf.net)
+    """
+    newpt = None
+    sizefield = None
+    face = None
+    opt = {}
+
+    if node.shape[1] == 4:
+        sizefield = node[:, 3]
+        node = node[:, :3]
+
+    if len(args) == 1:
+        if isinstance(args[0], dict):
+            opt = args[0]
+        elif len(args[0]) == node.shape[0] or len(args[0]) == elem.shape[0]:
+            sizefield = np.array(args[0])
+        else:
+            newpt = np.array(args[0])
+    elif len(args) >= 2:
+        face = np.array(args[0])
+        if isinstance(args[1], dict):
+            opt = args[1]
+        elif len(args[1]) == node.shape[0] or len(args[1]) == elem.shape[0]:
+            sizefield = np.array(args[1])
+        else:
+            newpt = np.array(args[1])
+    else:
+        raise ValueError("meshrefine requires at least 3 inputs")
+
+    if isinstance(opt, dict) and "newnode" in opt:
+        newpt = np.array(opt["newnode"])
+    if isinstance(opt, dict) and "sizefield" in opt:
+        sizefield = np.array(opt["sizefield"])
+
+    exesuff = fallbackexeext(getexeext(), "tetgen")
+
+    deletemeshfile(mwpath("pre_refine.*"))
+    deletemeshfile(mwpath("post_refine.*"))
+
+    moreopt = ""
+    setquality = False
+
+    if isinstance(opt, dict) and "reratio" in opt:
+        moreopt += f" -q {opt['reratio']:.10f} "
+        setquality = True
+    if isinstance(opt, dict) and "maxvol" in opt:
+        moreopt += f" -a{opt['maxvol']:.10f} "
+
+    externalpt = np.empty((0, 3))
+    if isinstance(opt, dict) and "extcmdopt" in opt and newpt is not None:
+        from scipy.spatial import Delaunay
+
+        try:
+            tri = Delaunay(node[:, :3])
+            isinside = tri.find_simplex(newpt[:, :3]) >= 0
+        except Exception:
+            isinside = np.zeros(newpt.shape[0], dtype=bool)
+        externalpt = newpt[~isinside]
+        newpt = newpt[isinside]
+
+    if newpt is not None and len(newpt) > 0 and newpt.shape[0] < 4:
+        newpt = np.vstack([newpt, np.tile(newpt[0], (4 - newpt.shape[0], 1))])
+
+    if newpt is not None and len(newpt) > 0:
+        savetetgennode(newpt, mwpath("pre_refine.1.a.node"))
+        moreopt = " -i "
+
+    if sizefield is not None:
+        if len(sizefield) == node.shape[0]:
+            with open(mwpath("pre_refine.1.mtr"), "w") as f:
+                f.write(f"{len(sizefield)} 1\n")
+                np.savetxt(f, sizefield, fmt="%.16g")
+            moreopt += " -qma "
+        else:
+            with open(mwpath("pre_refine.1.vol"), "w") as f:
+                f.write(f"{len(sizefield)}\n")
+                rownum = np.arange(1, sizefield.size + 1).reshape(-1, 1)
+                np.savetxt(
+                    f, np.hstack((rownum, sizefield.reshape(-1, 1)), fmt="%d %.16g")
+                )
+            moreopt += " -qma "
+
+    if elem.shape[1] == 3 and not setquality:
+        if newpt is not None:
+            raise ValueError("Inserting new point cannot be used for surfaces")
+        nedge = savegts(node, elem, mwpath("pre_refine.gts"))
+        exesuff = fallbackexeext(getexeext(), "gtsrefine")
+    elif elem.shape[1] == 3:
+        savesurfpoly(node, elem, None, None, None, None, mwpath("pre_refine.poly"))
+    else:
+        savetetgennode(node, mwpath("pre_refine.1.node"))
+        savetetgenele(elem, mwpath("pre_refine.1.ele"))
+
+    print("refining the input mesh ...")
+
+    if elem.shape[1] == 3 and not setquality:
+        if isinstance(opt, dict) and "scale" in opt:
+            moreopt += f" -n {int(round(nedge * opt['scale']))} "
+        else:
+            raise ValueError("You must give opt.scale value for refining a surface")
+
+    if isinstance(opt, dict) and "moreopt" in opt:
+        moreopt += opt["moreopt"]
+
+    if elem.shape[1] == 3 and not setquality:
+        status = os.system(
+            f'"{mcpath("gtsrefine", exesuff)}" {moreopt} < "{mwpath("pre_refine.gts")}" > "{mwpath("post_refine.gts")}"'
+        )
+        if status:
+            raise RuntimeError("gtsrefine command failed")
+        newnode, newelem = readgts(mwpath("post_refine.gts"))
+        newface = newelem
+    elif elem.shape[1] == 3:
+        status = os.system(
+            f'"{mcpath("tetgen1.5", exesuff)}" {moreopt} -p -A "{mwpath("pre_refine.poly")}"'
+        )
+        if status:
+            raise RuntimeError("tetgen command failed")
+        newnode, newelem, newface = readtetgen(mwpath("pre_refine.1"))
+    elif moreopt:
+        status = os.system(
+            f'"{mcpath("tetgen", exesuff)}" {moreopt} -r "{mwpath("pre_refine.1")}"'
+        )
+        if status:
+            raise RuntimeError("tetgen command failed")
+        newnode, newelem, newface = readtetgen(mwpath("pre_refine.2"))
+    else:
+        newnode = node
+        newelem = elem
+        newface = face
+
+    if (
+        externalpt.size > 0
+    ):  # user request to insert nodes that are outside of the original mesh
+        from scipy.spatial import ConvexHull, Delaunay
+
+        # create a mesh including the external points
+        externalpt = np.unique(externalpt, axis=0)
+        allnode = np.vstack([newnode, externalpt])
+
+        # define the convex hull as the external surface
+        outface = ConvexHull(allnode, qhull_options="QJ").simplices + 1
+        outface = np.sort(outface, axis=1)
+
+        face = volface(newelem[:, :4])[0]  # adjust for 1-based indexing
+        inface = np.sort(face[:, :3], axis=1)
+
+        # define the surface that bounds the newly extended convex hull space
+        bothsides = removedupelem(np.vstack([outface, inface]))
+
+        # define a seed point to avoid meshing the interior space
+        holelist = surfseeds(newnode, face[:, :3])
+
+        # mesh the extended space
+        ISO2MESH_TETGENOPT = jsonopt("extcmdopt", "-Y", opt)
+        try:
+            if bothsides.shape[0] >= inface.shape[0]:
+                no, el, _ = surf2mesh(
+                    allnode,
+                    bothsides,
+                    None,
+                    None,
+                    1,
+                    10,
+                    None,
+                    holelist,
+                    0,
+                    "tetgen",
+                    ISO2MESH_TETGENOPT,
+                )
+            else:
+                no, el, _ = surf2mesh(
+                    allnode,
+                    bothsides,
+                    None,
+                    None,
+                    1,
+                    10,
+                    None,
+                    None,
+                    0,
+                    "tetgen",
+                    ISO2MESH_TETGENOPT,
+                )
+        except:
+            bothsides = maxsurf(finddisconnsurf(bothsides), allnode)[0]
+            if bothsides.shape[0] >= inface.shape[0]:
+                no, el, _ = surf2mesh(
+                    allnode,
+                    bothsides,
+                    None,
+                    None,
+                    1,
+                    10,
+                    None,
+                    holelist,
+                    0,
+                    "tetgen",
+                    ISO2MESH_TETGENOPT,
+                )
+            else:
+                no, el, _ = surf2mesh(
+                    allnode,
+                    bothsides,
+                    None,
+                    None,
+                    1,
+                    10,
+                    None,
+                    None,
+                    0,
+                    "tetgen",
+                    ISO2MESH_TETGENOPT,
+                )
+
+        # map the new node coordinates back to the original node list
+        rounded_no = np.round(no, 10)
+        rounded_allnode = np.round(allnode, 10)
+        _, map = ismember_rows(rounded_no, rounded_allnode)
+        snid = np.arange(len(newnode) + 1, len(allnode) + 1)  # 0-based indexing
+
+        # add unmapped nodes
+        if np.any(map == 0):
+            missing = no[map == 0]
+            oldsize = allnode.shape[0]
+            allnode = np.vstack([allnode, missing])
+            map[map == 0] = np.arange(oldsize, allnode.shape[0]) + 1
+
+        # merge the external space with the original mesh
+        el2 = map[el[:, :4] - 1] + 1
+
+        # label all new elements with -1
+        if newelem.shape[1] == 5:
+            extlabel = jsonopt("extlabel", 0, opt)
+            extcorelabel = jsonopt("extcorelabel", -1, opt)
+            fifth_col = np.full((el2.shape[0], 1), extlabel)
+            el2 = np.hstack([el2, fifth_col])
+            iselm = np.isin(el2[:, :4], snid).astype(int)
+            el2[np.sum(iselm, axis=1) >= 3, 4] = extcorelabel
+
+        # merge nodes/elements and replace the original ones
+        newnode = allnode
+        newelem = np.vstack([newelem, el2])
+
+    print("mesh refinement is complete")
+    return newnode, newelem, newface

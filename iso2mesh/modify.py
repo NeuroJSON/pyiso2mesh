@@ -21,12 +21,10 @@ __all__ = [
     "cart2sph",
     "sortrows",
     "mergemesh",
-    "meshrefine",
     "mergesurf",
     "surfboolean",
     "meshresample",
     "domeshsimplify",
-    "remeshsurf",
 ]
 
 ##====================================================================================
@@ -864,70 +862,6 @@ def mergemesh(node, elem, *args):
             raise ValueError("Input element arrays have inconsistent columns")
 
     return newnode, newelem
-
-
-def meshrefine(node, elem, *args):
-    """
-    Refine a tetrahedral mesh by adding new nodes or constraints.
-
-    Args:
-        node: Existing tetrahedral mesh node list.
-        elem: Existing tetrahedral element list.
-        args: Optional parameters for mesh refinement. This can include a face array or an options struct.
-
-    Returns:
-        newnode: Node coordinates of the refined tetrahedral mesh.
-        newelem: Element list of the refined tetrahedral mesh.
-        newface: Surface element list of the tetrahedral mesh.
-    """
-    # Default values
-    sizefield = None
-    newpt = None
-
-    # If the node array has a 4th column, treat it as sizefield and reduce node array to 3 columns
-    if node.shape[1] == 4:
-        sizefield = node[:, 3]
-        node = node[:, :3]
-
-    # Parse optional arguments
-    face = None
-    opt = {}
-
-    if len(args) == 1:
-        if isinstance(args[0], dict):
-            opt = args[0]
-        elif len(args[0]) == len(node) or len(args[0]) == len(elem):
-            sizefield = args[0]
-        else:
-            newpt = args[0]
-    elif len(args) >= 2:
-        face = args[0]
-        if isinstance(args[1], dict):
-            opt = args[1]
-        elif len(args[1]) == len(node) or len(args[1]) == len(elem):
-            sizefield = args[1]
-        else:
-            newpt = args[1]
-    else:
-        raise ValueError("meshrefine requires at least 3 inputs")
-
-    # Check if options struct contains new nodes or sizefield
-    if isinstance(opt, dict):
-        if "newnode" in opt:
-            newpt = opt["newnode"]
-        if "sizefield" in opt:
-            sizefield = opt["sizefield"]
-
-    # Call mesh refinement functions (external tools are required here for actual mesh refinement)
-    # Placeholders for calls to external mesh generation/refinement tools such as TetGen
-
-    newnode, newelem, newface = (
-        node,
-        elem,
-        face,
-    )  # Placeholder, actual implementation needs external tools
-
-    return newnode, newelem, newface
 
 
 def mergesurf(node, elem, *args):

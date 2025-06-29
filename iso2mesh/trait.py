@@ -40,6 +40,7 @@ __all__ = [
     "elemfacecenter",
     "barydualmesh",
     "highordertet",
+    "ismember_rows",
 ]
 
 ##====================================================================================
@@ -1129,7 +1130,7 @@ def surfseeds(node, face):
 
     # For each disconnected component, calculate the interior point
     for i in range(len_fc):
-        seeds[i, :] = surfinterior(node, fc[i])
+        seeds[i, :] = surfinterior(node, fc[i])[0]
 
     return seeds
 
@@ -1481,21 +1482,26 @@ def innersurf(node, face, outface=None):
     return inface
 
 
-def ismember_rows(A, B):
-    """
-    Check if rows of A are present in B.
+def ismember_rows(array1, array2):
+    # Ensure arrays are at least 2D and have same shape
+    array1 = np.asarray(array1)
+    array2 = np.asarray(array2)
 
-    Parameters:
-    A: Input array A
-    B: Input array B
+    # Create structured view for row-wise comparison
+    dtype = np.dtype((np.void, array1.dtype.itemsize * array1.shape[1]))
+    a1_view = np.ascontiguousarray(array1).view(dtype)
+    a2_view = np.ascontiguousarray(array2).view(dtype)
 
-    Returns:
-    A boolean array where True indicates the presence of a row of A in B
-    """
-    dtype = np.dtype((np.void, A.dtype.itemsize * A.shape[1]))
-    A_view = np.ascontiguousarray(A).view(dtype)
-    B_view = np.ascontiguousarray(B).view(dtype)
-    return np.in1d(A_view, B_view)
+    isinside = np.isin(a1_view, a2_view)
+
+    # Mapping: initialize with 0 (not found), +1 for 1-based MATLAB-like output
+    map = np.zeros(array1.shape[0], dtype=int)
+    for i in range(array1.shape[0]):
+        matches = np.where((array2 == array1[i]).all(axis=1))[0]
+        if matches.size > 0:
+            map[i] = matches[0] + 1  # MATLAB-style index (1-based)
+
+    return isinside, map
 
 
 def advancefront(edges, loop, elen=3):

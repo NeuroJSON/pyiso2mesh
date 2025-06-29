@@ -58,6 +58,7 @@ from .trait import (
     barydualmesh,
     meshcentroid,
     highordertet,
+    ismember_rows,
 )
 
 from .utils import (
@@ -104,6 +105,7 @@ from .core import (
     surfvolume,
     insurface,
     remeshsurf,
+    meshrefine,
 )
 
 from .modify import (
@@ -124,7 +126,6 @@ from .modify import (
     cart2sph,
     sortrows,
     mergemesh,
-    meshrefine,
     mergesurf,
     surfboolean,
     meshresample,
@@ -283,5 +284,6 @@ __all__ = [
     "proj2mesh",
     "dist2surf",
     "regpt2surf",
+    "ismember_rows",
 ]
 __license__ = """GNU General Public License v3 and later"""

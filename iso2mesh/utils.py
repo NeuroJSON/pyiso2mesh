@@ -26,6 +26,7 @@ import os
 import shutil
 import platform
 import re
+import glob
 
 ISO2MESH_BIN_VER = "1.9.8"
 
@@ -238,8 +239,8 @@ def deletemeshfile(fname):
     """
 
     try:
-        if os.path.exists(fname):
-            os.remove(fname)
+        for f in glob.glob(fname):
+            os.remove(f)
     except Exception as e:
         raise PermissionError(
             "You do not have permission to delete temporary files. If you are working in a multi-user "

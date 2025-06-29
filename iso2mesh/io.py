@@ -15,6 +15,11 @@ __all__ = [
     "readtetgen",
     "savesurfpoly",
     "readoff",
+    "savetetgennode",
+    "savetetgenele",
+    "readtetgen",
+    "savegts",
+    "readgts",
 ]
 
 ##====================================================================================
@@ -33,6 +38,7 @@ from iso2mesh.trait import (
     surfplane,
     bbxflatsegment,
     internalpoint,
+    uniqedges,
 )
 
 ##====================================================================================
@@ -430,6 +436,10 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
         if not isinstance(v, list) and len(v.shape) > 1 and v.shape[1] == 4
         else v
     )
+    if p0 is None or len(p0) > 0 and v.size > 0:
+        p0 = np.min(v, axis=0)
+    if p1 is None or len(p0) > 0 and v.size > 0:
+        p1 = np.max(v, axis=0)
 
     # Handle edges
     edges = surfedge(f)[0] if not isinstance(f, list) else []
@@ -524,11 +534,10 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
             ).astype("int")
             if elem.size > 0:
                 if faceid is not None and len(faceid) == elem.shape[0]:
-                    for i in range(len(faceid)):
-                        fp.write("1 0 {} \n{} {} {} {}\n".format(faceid[i], *elem[i]))
+                    elemdata = np.hstack((faceid.reshape(-1, 1), elem[:, :4]))
+                    np.savetxt(fp, elemdata, fmt="1 0 %d\n%d %d %d %d")
                 else:
-                    for i in range(elem.shape[0]):
-                        fp.write("1 0\n{} {} {} {}\n".format(*elem[i]))
+                    np.savetxt(fp, elem[:, :4], fmt="1 0\n%d %d %d %d")
 
             if loopvert:
                 for i in range(len(loopvert)):  # walk through the edge loops
@@ -796,3 +805,209 @@ def nonemptyline(fid):
             return str_
 
     return str_
+
+
+def savetetgennode(node, fname):
+    """
+    savetetgennode(node, fname)
+
+    Save a mesh node list to TetGen .node format
+
+    Parameters:
+        node : ndarray
+            Node coordinates, shape (N, 3) or (N, >3).
+            Columns beyond the 3rd are treated as markers or attributes.
+        fname : str
+            Output filename for the .node file
+
+    This function writes TetGen-compatible node files from the given mesh data.
+
+    Author:
+        Qianqian Fang <q.fang at neu.edu>
+    """
+
+    nnode, ncol = node.shape
+    hasprop = max(ncol - 4, 0)  # Number of attributes
+    hasmarker = int(ncol >= 4)
+
+    # First line header: <# of points> <dimension> <# of attributes> <# of boundary markers>
+    header = f"{nnode} 3 {hasprop} {hasmarker}\n"
+
+    # Index vector (0-based)
+    idx = np.arange(nnode).reshape(-1, 1)
+
+    # Split columns
+    coords = node[:, :3]
+    attributes = node[:, 3 : 3 + hasprop] if hasprop > 0 else np.empty((nnode, 0))
+    markers = (
+        node[:, 3 + hasprop : 3 + hasprop + 1] if hasmarker else np.empty((nnode, 0))
+    )
+
+    # Concatenate all columns
+    full_data = np.hstack([idx, coords, attributes, markers])
+
+    # Define format string
+    fmt = ["%d", "%e", "%e", "%e"] + ["%e"] * hasprop + (["%d"] if hasmarker else [])
+    fmt_str = " ".join(fmt)
+
+    # Write to file
+    try:
+        with open(fname, "w") as f:
+            f.write(header)
+            np.savetxt(f, full_data, fmt=fmt_str)
+    except IOError:
+        raise IOError(f"Cannot write to file {fname}")
+
+
+def savetetgenele(elem, fname):
+    """
+    savetetgenele(elem, fname)
+
+    Save a mesh tetrahedral element list to TetGen .ele format
+
+    Parameters:
+        elem : ndarray
+            Element connectivity array, shape (N, 4) or (N, >4).
+            Columns beyond the 4th are treated as attributes or markers.
+        fname : str
+            Output filename for the .ele file
+
+    This function writes TetGen-compatible element (.ele) files from mesh data.
+
+    Author:
+        Qianqian Fang <q.fang at neu.edu>
+    """
+
+    nelem, ncol = elem.shape
+    hasprop = max(ncol - 5, 0)  # number of attributes
+    hasmarker = int(ncol >= 5)
+
+    # First line header: <# of tetrahedra> <nodes per element> <# of attributes>
+    header = f"{nelem} 4 {hasprop + hasmarker}\n"
+
+    # TetGen uses 0-based indexing; adjust indices
+    elem = elem.copy()
+    elem[:, :4] -= 1
+
+    # Create index column
+    idx = np.arange(nelem).reshape(-1, 1)
+
+    # Extract node indices, attributes, and marker if present
+    nodes = elem[:, :4]
+    attributes = elem[:, 4 : 4 + hasprop] if hasprop > 0 else np.empty((nelem, 0))
+    markers = elem[:, 4 + hasprop : 5 + hasprop] if hasmarker else np.empty((nelem, 0))
+
+    # Combine all columns
+    full_data = np.hstack([idx, nodes, attributes, markers])
+
+    # Define format string
+    fmt = (
+        ["%d", "%d", "%d", "%d", "%d"]
+        + ["%e"] * hasprop
+        + (["%d"] if hasmarker else [])
+    )
+    fmt_str = " ".join(fmt)
+
+    # Write to file
+    try:
+        with open(fname, "w") as f:
+            f.write(header)
+            np.savetxt(f, full_data, fmt=fmt_str)
+    except IOError:
+        raise IOError(f"Cannot write to file {fname}")
+
+
+def savegts(v, f, fname, edges=None):
+    """
+    savegts(v, f, fname, edges=None)
+
+    Save a surface mesh to GNU Triangulated Surface Format (GTS)
+
+    Parameters:
+        v : ndarray
+            Surface node list, shape (N, 3)
+        f : ndarray
+            Surface face list, shape (M, 3)
+        fname : str
+            Output file name
+        edges : ndarray (optional)
+            Precomputed edge list. If None, will be computed automatically.
+
+    Returns:
+        nedge : int
+            Number of unique edges in the mesh
+
+    Author:
+        Qianqian Fang, <q.fang at neu.edu>
+    """
+    v = v[:, :3]
+    f = f[:, :3]
+
+    if edges is None:
+        edges, _, edgemap = uniqedges(f)
+    else:
+        # Assume edgemap is correct if edges are provided
+        raise NotImplementedError(
+            "Precomputed edges not supported in this simplified version"
+        )
+
+    nedge = edges.shape[0]
+
+    with open(fname, "w") as fid:
+        fid.write(f"{v.shape[0]} {nedge} {f.shape[0]}\n")
+        np.savetxt(fid, v, fmt="%.16f %.16f %.16f")
+        np.savetxt(fid, edges, fmt="%d %d")
+        np.savetxt(fid, edgemap, fmt="%d %d %d")
+
+    return nedge
+
+
+def readgts(fname):
+    """
+    readgts(fname)
+
+    Read a GNU Triangulated Surface (.gts) file
+
+    Parameters:
+        fname : str
+            Name of the GTS file
+
+    Returns:
+        node : ndarray
+            Node coordinates (N, 3)
+        elem : ndarray
+            Face list (M, 3)
+        edges : ndarray
+            Edge list (E, 2)
+        edgemap : ndarray
+            Mapping of faces to edges (M, 3)
+
+    Author:
+        Qianqian Fang, <q.fang at neu.edu>
+    """
+    with open(fname, "r") as fid:
+        header = fid.readline().strip().split()
+        nv, ne, nf = map(int, header)
+
+        node = np.loadtxt(fid, max_rows=nv).reshape((nv, 3))
+        edges = np.loadtxt(fid, max_rows=ne, dtype=int).reshape((ne, 2))
+        edgemap = np.loadtxt(fid, max_rows=nf, dtype=int).reshape((nf, 3))
+
+    # Reconstruct element connectivity from edge map
+    elem = np.zeros((nf, 3), dtype=int)
+    edgetable = edges.T
+    try:
+        for i in range(nf):
+            edge_indices = edgemap[i] - 1  # convert to 0-based indexing
+            verts = np.concatenate(
+                [
+                    edgetable[:, edge_indices[0]],
+                    edgetable[:, edge_indices[1]],
+                    edgetable[:, edge_indices[2]],
+                ]
+            )
+            elem[i, :3] = np.unique(verts)[:3]
+    except Exception as e:
+        raise ValueError(f"Invalid GTS face at index {i}") from e
+
+    return node, elem, edges, edgemap
