@@ -941,6 +941,42 @@ class Test_modify(unittest.TestCase):
         bcutloop.pop()
         self.assertEqual(bcutloop, expected_fc)
 
+    def test_meshrefine_addnode(self):
+        no1, el1, fc1 = meshrefine(self.nbox, self.ebox, [[0.2, 1, 1], [0.2, 1, 2]])
+        self.assertEqual(no1.shape[0] - self.nbox.shape[0], 2)
+        self.assertEqual(el1.shape[0] - self.ebox.shape[0], 7)
+        self.assertEqual(no1[-2:, :].tolist(), [[0.2, 1, 1], [0.2, 1, 2]])
+        no1, el1, fc1 = meshrefine(
+            self.nbox, self.ebox, newnode=[[0.2, 1, 1], [0.2, 1, 2]]
+        )
+        self.assertEqual(no1[-2:, :].tolist(), [[0.2, 1, 1], [0.2, 1, 2]])
+
+    def test_meshrefine_maxvol(self):
+        no1, el1, fc1 = meshrefine(self.nbox, self.ebox, maxvol=0.02)
+        self.assertEqual(np.sum(elemvolume(no1[:, :3], el1[:, :4])), 2)
+        self.assertEqual(np.sum(elemvolume(no1[:, :3], fc1[:, :3])), 10)
+        self.assertTrue(np.max(elemvolume(no1[:, :3], el1[:, :4])) < 0.02)
+        no1, el1, fc1 = meshrefine(self.nbox, self.ebox, maxvol=0.01)
+        self.assertTrue(np.max(elemvolume(no1[:, :3], el1[:, :4])) < 0.01)
+
+    def test_meshrefine_sizefield(self):
+        no1, el1, fc1 = meshrefine(
+            self.nbox, self.ebox, sizefield=(self.nbox[:, 0] + 0.1) * 0.3
+        )
+        self.assertEqual(np.sum(elemvolume(no1[:, :3], el1[:, :4])), 2)
+        self.assertAlmostEqual(
+            np.mean(elemvolume(no1[:, :3], el1[:, :4])), 0.00019615535504119262, 8
+        )
+
+    def test_meshrefine_externalnode(self):
+        node, face, elem = meshasphere([0, 0, 0], 24, 5, 100)
+        extnodes = [[-5, -5, 25], [-5, 5, 25], [5, 5, 25], [5, -5, 25]]
+        no1, el1, fc1 = meshrefine(node, elem, newnode=extnodes, extcmdopt="-Y")
+        self.assertEqual(no1.shape[0] - node.shape[0], 4)
+        self.assertAlmostEqual(
+            np.sum(elemvolume(no1[:, :3], el1[:, :4])), 56628.62907381002, 2
+        )
+
 
 class Test_surfboolean(unittest.TestCase):
     def __init__(self, *args, **kwargs):

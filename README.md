@@ -4,7 +4,7 @@
 
 * **Copyright**: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>
 * **License**: GNU Public License V3 or later
-* **Version**: 0.3.6
+* **Version**: 0.3.7
 * **URL**: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * **Homepage**: [https://iso2mesh.sf.net](https://iso2mesh.sf.net)
 * **Github**: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
@@ -277,7 +277,7 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `smoothsurf.m` | ✅ tested |
 | ✅ `sortmesh.m` | ⭕️ tested |
 | ✅ `mergemesh.m` | ⭕️ tested |
-| ✅ `meshrefine.m` | ⭕️ tested |
+| ✅ `meshrefine.m` | ✅ tested |
 | ✅ `mergesurf.m` | ⭕️ tested |
 | ✅ `surfboolean.m` | ✅ tested |
 | ✅ `fillsurf.m` | ⭕️ tested |

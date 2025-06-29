@@ -113,7 +113,7 @@ def plotsurf(node, face, *args, **kwargs):
     if "colormap" in locals() and len(colormap) > 0 and not "facecolors" in kwargs:
         kwargs["facecolors"] = colormap
 
-    if "cmap" in kwargs and not "facecolors" in kwargs:
+    if "cmap" in kwargs and not "facecolors" in kwargs and face:
         node_values = node[:, 3] if node.shape[1] > 3 else node[:, 2]
         face_values = np.array([np.mean(node_values[f]) for f in face[:, :3] - 1])
         norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
@@ -337,6 +337,7 @@ def plotmesh(node, *args, **kwargs):
     opt = []
     face = None
     elem = None
+    node = np.array(node)
 
     # Parse inputs: detect selector strings, face/elem arrays, opts
     for i, a in enumerate(args):
@@ -436,11 +437,15 @@ def plotmesh(node, *args, **kwargs):
 
 def _autoscale_3d(ax, points):
     x, y, z = points[:, 0], points[:, 1], points[:, 2]
-    ax.set_xlim([x.min(), x.max()])
-    ax.set_ylim([y.min(), y.max()])
-    ax.set_zlim([z.min(), z.max()])
-    boxas = [x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]
-    ax.set_box_aspect(boxas)
+    boxas = np.array([x.max() - x.min(), y.max() - y.min(), z.max() - z.min()])
+    if boxas[0] > 0:
+        ax.set_xlim([x.min(), x.max()])
+    if boxas[1] > 0:
+        ax.set_ylim([y.min(), y.max()])
+    if boxas[2] > 0:
+        ax.set_zlim([z.min(), z.max()])
+    if np.all(boxas > 0):
+        ax.set_box_aspect(boxas)
 
 
 def _createaxis(*args, **kwargs):

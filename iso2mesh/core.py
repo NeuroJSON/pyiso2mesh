@@ -1238,7 +1238,7 @@ def remeshsurf(node, face, opt):
     return newno, newfc
 
 
-def meshrefine(node, elem, *args):
+def meshrefine(node, elem, *args, **kwargs):
     """
     meshrefine - refine a tetrahedral mesh by adding new nodes or constraints
 
@@ -1311,13 +1311,11 @@ def meshrefine(node, elem, *args):
             sizefield = np.array(args[1])
         else:
             newpt = np.array(args[1])
-    else:
-        raise ValueError("meshrefine requires at least 3 inputs")
 
-    if isinstance(opt, dict) and "newnode" in opt:
-        newpt = np.array(opt["newnode"])
-    if isinstance(opt, dict) and "sizefield" in opt:
-        sizefield = np.array(opt["sizefield"])
+    if newpt is None and "newnode" in kwargs:
+        newpt = np.array(kwargs["newnode"])
+    if sizefield is None and "sizefield" in kwargs:
+        sizefield = np.array(kwargs["sizefield"])
 
     exesuff = fallbackexeext(getexeext(), "tetgen")
 
@@ -1327,14 +1325,14 @@ def meshrefine(node, elem, *args):
     moreopt = ""
     setquality = False
 
-    if isinstance(opt, dict) and "reratio" in opt:
-        moreopt += f" -q {opt['reratio']:.10f} "
+    if "reratio" in kwargs:
+        moreopt += f" -q {kwargs['reratio']:.10f} "
         setquality = True
-    if isinstance(opt, dict) and "maxvol" in opt:
-        moreopt += f" -a{opt['maxvol']:.10f} "
+    if "maxvol" in kwargs:
+        moreopt += f" -a{kwargs['maxvol']:.10f} "
 
     externalpt = np.empty((0, 3))
-    if isinstance(opt, dict) and "extcmdopt" in opt and newpt is not None:
+    if "extcmdopt" in kwargs and newpt is not None:
         from scipy.spatial import Delaunay
 
         try:
@@ -1439,7 +1437,7 @@ def meshrefine(node, elem, *args):
         holelist = surfseeds(newnode, face[:, :3])
 
         # mesh the extended space
-        ISO2MESH_TETGENOPT = jsonopt("extcmdopt", "-Y", opt)
+        ISO2MESH_TETGENOPT = kwargs.get("extcmdopt", "-Y")
         try:
             if bothsides.shape[0] >= inface.shape[0]:
                 no, el, _ = surf2mesh(
@@ -1514,7 +1512,7 @@ def meshrefine(node, elem, *args):
             map[map == 0] = np.arange(oldsize, allnode.shape[0]) + 1
 
         # merge the external space with the original mesh
-        el2 = map[el[:, :4] - 1] + 1
+        el2 = map[el[:, :4] - 1]
 
         # label all new elements with -1
         if newelem.shape[1] == 5:
