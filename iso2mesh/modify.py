@@ -208,11 +208,12 @@ def qmeshcut(elem, node, value, cutat):
         else:
             dist = eval(cutat[0]) - cutat[1]
         asign = np.where(dist <= 0, -1, 1)
-    elif not isinstance(cutat, (int, float)) and (len(cutat) == 9 or len(cutat) == 4):
-        if len(cutat) == 9:
-            a, b, c, d = getplanefrom3pt(np.array(cutat).reshape(3, 3))
+    elif not isinstance(cutat, (int, float)) and isinstance(cutat, (list, np.ndarray)):
+        cutat = np.array(cutat)
+        if cutat.size == 9:
+            a, b, c, d = getplanefrom3pt(cutat.reshape(3, 3))
         else:
-            a, b, c, d = cutat
+            a, b, c, d = cutat.tolist()
         dist = np.dot(node, np.array([a, b, c])) + d
         asign = np.where(dist >= 0, 1, -1)
     else:
@@ -261,7 +262,7 @@ def qmeshcut(elem, node, value, cutat):
 
     if value.shape[0] == node.shape[0]:
         if isinstance(cutat, (str, list)) or (
-            not isinstance(cutat, (int, float)) and len(cutat) in [4, 9]
+            not isinstance(cutat, (int, float)) and np.array(cutat).size in [4, 9]
         ):
             cutvalue = (
                 value[edges[cutedges, 0] - 1] * cutweight[:, [1]].squeeze()

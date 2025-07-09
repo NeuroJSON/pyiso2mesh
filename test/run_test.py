@@ -1217,6 +1217,20 @@ class Test_core(unittest.TestCase):
             sum(elemvolume(no[:, :3], fc[:, :3])), 412.8904758569056, 4
         )
 
+    def test_remeshsurf(self):
+        no, fc, _, _ = v2s(self.dist, 100, 2)
+        no1, fc1 = remeshsurf(no, fc, 1)
+        self.assertAlmostEqual(
+            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 2.034550093898604, 4
+        )
+
+    # def test_surf2vol(self):
+    #     no, fc, _, _ = v2s(self.dist < 100, 0.5, 2)
+    #     vol = surf2vol(
+    #         no, fc, np.arange(19, 42, 1), np.arange(19, 42, 1), np.arange(19, 42, 1)
+    #     )
+    #     self.assertAlmostEqual(np.sum(vol.astype(np.float32)), 2.034550093898604, 4)
+
 
 @unittest.skipIf(
     (int(mpl_ver[0]), int(mpl_ver[1])) < (3, 6), "Requires Matplotlib 3.6 or higher"

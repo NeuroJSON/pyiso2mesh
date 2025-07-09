@@ -602,8 +602,8 @@ def surf2volz(node, face, xi, yi, zi):
         enum = bcutedges.shape[0]
 
         for j in range(enum):
-            e0 = bcutpos[bcutedges[j, 0], :2]
-            e1 = bcutpos[bcutedges[j, 1], :2]
+            e0 = bcutpos[bcutedges[j, 0] - 1, :2]
+            e1 = bcutpos[bcutedges[j, 1] - 1, :2]
             length = np.ceil(np.sum(np.abs(e1 - e0)) / (np.abs(dx) + np.abs(dy))) + 1
             dd = (e1 - e0) / length
 
@@ -648,7 +648,7 @@ def surf2vol(node, face, xi, yi, zi, **kwargs):
 
     opt = kwargs
     label = opt.get("label", 0)
-    elabel = 1
+    elabel = np.array([1], dtype=np.int32)
 
     if face.shape[1] >= 4:
         elabel = np.unique(face[:, -1])
@@ -671,7 +671,9 @@ def surf2vol(node, face, xi, yi, zi, **kwargs):
 
         im = surf2volz(node[:, :3], fc[:, :3], xi, yi, zi)
         im |= np.moveaxis(surf2volz(node[:, [2, 0, 1]], fc[:, :3], zi, xi, yi), 0, 2)
-        im |= np.moveaxis(surf2volz(node[:, [1, 2, 0]], fc[:, :3], yi, zi, xi), 0, 1)
+        im |= np.moveaxis(
+            surf2volz(node[:, [1, 2, 0]], fc[:, :3], yi, zi, xi), [0, 1], [-2, -1]
+        )
 
         if opt.get("fill", 0) or label:
             im = binary_fill_holes(im)
@@ -680,15 +682,15 @@ def surf2vol(node, face, xi, yi, zi, **kwargs):
 
         img = np.maximum(im.astype(img.dtype), img)
 
-    v2smap = None
     if "v2smap" in kwargs:
         dlen = np.abs([xi[1] - xi[0], yi[1] - yi[0], zi[1] - zi[0]])
         offset = np.min(node, axis=0)
         v2smap = np.eye(4)
         v2smap[:3, :3] = np.diag(np.abs(dlen))
         v2smap[:3, 3] = offset
+        return img.astype(np.uint8), v2smap
 
-    return img, v2smap
+    return img.astype(np.uint8)
 
 
 def binsurface(img, nface=3):
@@ -1205,13 +1207,13 @@ def remeshsurf(node, face, opt):
         dx = opt / 4
 
     x_range = np.arange(p0[0] - dx, p1[0] + dx, dx)
-    y_range = np.arange(p0[1] - dx, p1[1] + dx)
-    z_range = np.arange(p0[2] - dx, p1[2] + dx)
+    y_range = np.arange(p0[1] - dx, p1[1] + dx, dx)
+    z_range = np.arange(p0[2] - dx, p1[2] + dx, dx)
 
     img = surf2vol(node, face, x_range, y_range, z_range)
 
     # Compute surface edges
-    eg = surfedge(face)
+    eg = surfedge(face)[0]
 
     closesize = 0
     if eg.size > 0 and isinstance(opt, dict):
