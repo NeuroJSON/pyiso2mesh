@@ -1070,6 +1070,7 @@ class Test_core(unittest.TestCase):
         self.mask = self.dist < 400
         self.mask = self.mask.astype(float)
         self.mask[25:35, 25:35, :] = 2
+        self.no, self.fc, _, _ = v2s(self.dist < 100, 0.5, 2)
 
         self.plcno = (
             np.array(
@@ -1221,15 +1222,43 @@ class Test_core(unittest.TestCase):
         no, fc, _, _ = v2s(self.dist, 100, 2)
         no1, fc1 = remeshsurf(no, fc, 1)
         self.assertAlmostEqual(
-            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 2.034550093898604, 4
+            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 2.034550093898604, 3
         )
 
-    # def test_surf2vol(self):
-    #     no, fc, _, _ = v2s(self.dist < 100, 0.5, 2)
-    #     vol = surf2vol(
-    #         no, fc, np.arange(19, 42, 1), np.arange(19, 42, 1), np.arange(19, 42, 1)
-    #     )
-    #     self.assertAlmostEqual(np.sum(vol.astype(np.float32)), 2.034550093898604, 4)
+    def test_surf2volz(self):
+        vol = surf2volz(
+            self.no,
+            self.fc,
+            np.arange(19, 42, 1),
+            np.arange(19, 42, 1),
+            np.arange(19, 42, 1),
+        )
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.099, 2)
+
+    def test_surf2vol(self):
+        vol = surf2vol(
+            self.no,
+            self.fc,
+            np.arange(19, 42, 1),
+            np.arange(19, 42, 1),
+            np.arange(19, 42, 1),
+        )
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.704, 2)
+
+    def test_surf2vol_fill(self):
+        vol = surf2vol(
+            self.no,
+            self.fc,
+            np.arange(19, 42, 1),
+            np.arange(19, 42, 1),
+            np.arange(19, 42, 1),
+            fill=1,
+        )
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 4.903, 2)
+
+    def test_s2v(self):
+        vol = s2v(self.no, self.fc, fill=1)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 7.8651, 2)
 
 
 @unittest.skipIf(

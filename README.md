@@ -4,7 +4,7 @@
 
 * **Copyright**: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>
 * **License**: GNU Public License V3 or later
-* **Version**: 0.3.7
+* **Version**: 0.3.8
 * **URL**: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * **Homepage**: [https://iso2mesh.sf.net](https://iso2mesh.sf.net)
 * **Github**: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
@@ -187,21 +187,21 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `v2m.m` | ✅ tested |                    | ✅ `saveasc.m` | ⭕️ tested |
 | ✅ `v2s.m` | ✅ tested |                    | ✅ `savedxf.m` | ⭕️ tested |
 | ✅ `s2m.m` | ✅ tested |                    | ✅ `savestl.m` | ⭕️ tested |
-| ✅ `s2v.m` | ⭕️ tested |                    | ✅ `savebinstl.m` | ⭕️ tested |
+| ✅ `s2v.m` | ✅ tested |                    | ✅ `savebinstl.m` | ⭕️ tested |
 | ✅ `m2v.m` | ⭕️ tested |                    | ✅ `saveinr.m` | ⭕️ tested |
 | ✅ `sms.m` | ✅ tested |                    | ✅ `saveoff.m` | ✅ tested |
 | > Streamlined mesh generation| |            | ⭕️ `savesmf.m` | ⭕️ tested |
 | ✅ `vol2mesh.m` | ✅ tested |               | ✅ `savesurfpoly.m` | ✅ tested |
 | ✅ `vol2surf.m` | ✅ tested |               | ⭕️ `savegts.m` | ⭕️ tested |
 | ✅ `surf2mesh.m` | ✅ tested |              | ⭕️ `readgts.m` | ⭕️ tested |
-| ✅ `surf2vol.m` | ⭕️ tested |               | ⭕️ `savemsh.m` | ⭕️ tested |
+| ✅ `surf2vol.m` | ✅ tested |               | ⭕️ `savemsh.m` | ⭕️ tested |
 | ✅ `mesh2vol.m` | ⭕️ tested |               | ⭕️ `savevrml.m` | ⭕️ tested |
 | > Iso2mesh main function backend| |         | ✅ `readasc.m` | ⭕️ tested |
 | ✅ `binsurface.m` | ✅ tested |             | ⭕️ `readinr.m` | ⭕️ tested |
 | ✅ `cgalv2m.m` | ✅ tested |                | ✅ `readmedit.m` | ⭕️ tested |
 | ✅ `cgals2m.m` | ⭕️ tested |                | ✅ `readoff.m` | ✅ tested |
 | ✅ `vol2restrictedtri.m` | ✅ tested |      | ⭕️ `readsmf.m` | ⭕️ tested |
-| ✅ `surf2volz.m` | ⭕️ tested |              | ✅ `readtetgen.m` | ✅ tested |
+| ✅ `surf2volz.m` | ✅ tested |              | ✅ `readtetgen.m` | ✅ tested |
 | ✅ `mesh2mask.m` | ⭕️ tested |              | ✅ `deletemeshfile.m` | ✅ tested |
 | > Iso2mesh primitive meshing|           |   | ✅ `mcpath.m` | ✅ tested |
 | ✅ `meshabox.m` | ✅ tested |               | ✅ `mwpath.m` | ✅ tested |
@@ -273,7 +273,7 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ⭕️ `closestnode.m` | ⭕️ tested |            | ⭕️ `soa2aos.m` | ⭕️ tested |
 | > Mesh resampling and optimization| |
 | ✅ `meshresample.m` | ✅ tested |
-| ✅ `remeshsurf.m` | ⭕️ tested |
+| ✅ `remeshsurf.m` | ✅ tested |
 | ✅ `smoothsurf.m` | ✅ tested |
 | ✅ `sortmesh.m` | ⭕️ tested |
 | ✅ `mergemesh.m` | ⭕️ tested |

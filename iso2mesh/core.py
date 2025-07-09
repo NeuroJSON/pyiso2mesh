@@ -200,7 +200,7 @@ def s2m(
     return node, elem, face
 
 
-def s2v(node, face, div=50, *args):
+def s2v(node, face, div=50, **kwargs):
     """
     Convert a surface mesh to a volumetric binary image.
 
@@ -208,7 +208,7 @@ def s2v(node, face, div=50, *args):
     node   : array-like, the vertices of the triangular surface (Nx3 for x, y, z)
     face   : array-like, the triangle node indices (Mx3, each row is a triangle)
     div    : int, division number along the shortest edge of the mesh (resolution)
-    *args  : additional arguments for the surf2vol function
+    kwargs  : additional arguments for the surf2vol function
 
     Returns:
     img    : volumetric binary image
@@ -232,9 +232,9 @@ def s2v(node, face, div=50, *args):
     yi = np.arange(p0[1] - dx, p1[1] + dx, dx)
     zi = np.arange(p0[2] - dx, p1[2] + dx, dx)
 
-    img, v2smap = surf2vol(node, face, xi, yi, zi, *args)
+    img = surf2vol(node, face, xi, yi, zi, **kwargs)
 
-    return img, v2smap
+    return img
 
 
 def vol2mesh(img, ix, iy, iz, opt, maxvol, dofix, method="cgalsurf", isovalues=None):
@@ -586,7 +586,10 @@ def surf2volz(node, face, xi, yi, zi):
     maxz = np.max(node[:, 2])
 
     # Determine the z index range
-    iz = np.histogram([minz, maxz], bins=zi)[0]
+    iz, _ = np.histogram(
+        [minz, maxz],
+        bins=np.append(zi - np.diff(zi)[0] / 2, zi[-1] + np.diff(zi)[-1] / 2),
+    )
     hz = np.nonzero(iz)[0]
     iz = np.arange(hz[0], min(len(zi), hz[-1] + 1))
 
