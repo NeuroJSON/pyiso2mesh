@@ -1055,6 +1055,14 @@ class Test_surfboolean(unittest.TestCase):
             surfboolean(self.no1, self.el1, "self", self.no2, self.el2)[0], 1
         )
 
+    def test_mergemesh(self):
+        no1, fc1 = mergemesh(self.no1, self.el1, self.no2, self.el2)
+        self.assertEqual(no1.shape[0], self.no1.shape[0] + self.no2.shape[0])
+        self.assertEqual(no1.shape[0], np.max(fc1))
+        no1, fc1 = mergemesh(self.no1, self.el1, self.no2, self.el2, self.no1, self.el1)
+        self.assertEqual(no1.shape[0], 2 * self.no1.shape[0] + self.no2.shape[0])
+        self.assertEqual(no1.shape[0], np.max(fc1))
+
 
 class Test_core(unittest.TestCase):
     def __init__(self, *args, **kwargs):
