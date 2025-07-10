@@ -199,7 +199,7 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | > Iso2mesh main function backend| |         | ✅ `readasc.m` | ⭕️ tested |
 | ✅ `binsurface.m` | ✅ tested |             | ⭕️ `readinr.m` | ⭕️ tested |
 | ✅ `cgalv2m.m` | ✅ tested |                | ✅ `readmedit.m` | ⭕️ tested |
-| ✅ `cgals2m.m` | ⭕️ tested |                | ✅ `readoff.m` | ✅ tested |
+| ✅ `cgals2m.m` | ✅ tested |                | ✅ `readoff.m` | ✅ tested |
 | ✅ `vol2restrictedtri.m` | ✅ tested |      | ⭕️ `readsmf.m` | ⭕️ tested |
 | ✅ `surf2volz.m` | ✅ tested |              | ✅ `readtetgen.m` | ✅ tested |
 | ✅ `mesh2mask.m` | ⭕️ tested |              | ✅ `deletemeshfile.m` | ✅ tested |

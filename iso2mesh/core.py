@@ -897,7 +897,7 @@ def cgals2m(v, f, opt, maxvol, **kwargs):
         If it's a scalar, it only specifies radbound.
     maxvol : float
         Target maximum tetrahedral element volume.
-    *args : Additional arguments
+    kwargs : Additional arguments
 
     Returns:
     node : ndarray
@@ -920,7 +920,7 @@ def cgals2m(v, f, opt, maxvol, **kwargs):
     if not isinstance(opt, dict):
         ssize = opt
 
-    if isinstance(opt, dict) and len(opt) == 1:
+    if isinstance(opt, dict):
         ssize = opt.get("radbound", ssize)
         ang = opt.get("angbound", ang)
         approx = opt.get("distbound", approx)

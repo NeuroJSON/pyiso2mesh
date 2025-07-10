@@ -1180,6 +1180,15 @@ class Test_core(unittest.TestCase):
         self.assertEqual(removedupelem(fc[:, :3]).shape[0], 0)
         self.assertAlmostEqual(sum(elemvolume(no[:, :3], el[:, :4])), 0.7455, 3)
 
+    def test_cgals2m(self):
+        node, elem, face = cgals2m(self.no[:, :3], self.fc[:, :3], 3, 50)
+        self.assertAlmostEqual(
+            sum(elemvolume(node[:, :3], face[:, :3])) * 0.001, 2.393432610273361, 3
+        )
+        self.assertAlmostEqual(
+            sum(elemvolume(node[:, :3], elem[:, :4])) * 0.001, 3.817319008857012, 3
+        )
+
     def test_v2s_label(self):
         no, fc, _, _ = v2s(self.mask, 0.5, 0.5)
         self.assertAlmostEqual(
@@ -1265,8 +1274,8 @@ class Test_core(unittest.TestCase):
         self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 3.5536, 2)
 
     def test_s2v(self):
-        vol = s2v(self.no, self.fc, 80, fill=1)
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 31.4066, 2)
+        vol = s2v(self.no, self.fc, 100, fill=1)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 60.827, 2)
 
 
 @unittest.skipIf(
