@@ -1187,9 +1187,9 @@ class Test_core(unittest.TestCase):
         )
 
     def test_v2s_grayscale(self):
-        no, fc, _, _ = v2s(self.dist, [200, 400], 1)
+        no, fc, _, _ = v2s(self.dist, [200, 400], 2)
         self.assertAlmostEqual(
-            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 4.816236473144449, 3
+            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 4.781791110333593, 3
         )
 
     def test_finddisconnsurf(self):
@@ -1227,10 +1227,10 @@ class Test_core(unittest.TestCase):
         )
 
     def test_remeshsurf(self):
-        no, fc, _, _ = v2s(self.dist, 100, 2)
+        no, fc, _, _ = v2s(self.dist < 100, 0.5, 1)
         no1, fc1 = remeshsurf(no, fc, 1)
         self.assertAlmostEqual(
-            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 2.034550093898604, 3
+            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 0.1290690532542782, 3
         )
 
     def test_surf2volz(self):
@@ -1257,12 +1257,12 @@ class Test_core(unittest.TestCase):
         vol = surf2vol(
             self.no,
             self.fc,
-            np.arange(19, 42, 1),
-            np.arange(19, 42, 1),
-            np.arange(19, 42, 1),
+            np.arange(19, 42, 0.5),
+            np.arange(19, 42, 0.5),
+            np.arange(19, 42, 0.5),
             fill=1,
         )
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 4.903, 2)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 3.5536, 2)
 
     def test_s2v(self):
         vol = s2v(self.no, self.fc, fill=1)
