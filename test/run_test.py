@@ -1181,12 +1181,12 @@ class Test_core(unittest.TestCase):
         self.assertAlmostEqual(sum(elemvolume(no[:, :3], el[:, :4])), 0.7455, 3)
 
     def test_cgals2m(self):
-        node, elem, face = cgals2m(self.no[:, :3], self.fc[:, :3], 3, 50)
+        node, elem, face = cgals2m(self.no[:, :3], self.fc[:, :3], 1, 50)
         self.assertAlmostEqual(
-            sum(elemvolume(node[:, :3], face[:, :3])) * 0.001, 2.393432610273361, 2
+            sum(elemvolume(node[:, :3], face[:, :3])) * 0.001, 2.464594888865948, 3
         )
         self.assertAlmostEqual(
-            sum(elemvolume(node[:, :3], elem[:, :4])) * 0.001, 3.817319008857012, 2
+            sum(elemvolume(node[:, :3], elem[:, :4])) * 0.001, 3.9983115207040685, 2
         )
 
     def test_v2s_label(self):
