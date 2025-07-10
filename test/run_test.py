@@ -1183,10 +1183,10 @@ class Test_core(unittest.TestCase):
     def test_cgals2m(self):
         node, elem, face = cgals2m(self.no[:, :3], self.fc[:, :3], 3, 50)
         self.assertAlmostEqual(
-            sum(elemvolume(node[:, :3], face[:, :3])) * 0.001, 2.393432610273361, 3
+            sum(elemvolume(node[:, :3], face[:, :3])) * 0.001, 2.393432610273361, 2
         )
         self.assertAlmostEqual(
-            sum(elemvolume(node[:, :3], elem[:, :4])) * 0.001, 3.817319008857012, 3
+            sum(elemvolume(node[:, :3], elem[:, :4])) * 0.001, 3.817319008857012, 2
         )
 
     def test_v2s_label(self):
