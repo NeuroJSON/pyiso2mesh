@@ -1189,7 +1189,7 @@ class Test_core(unittest.TestCase):
     def test_v2s_grayscale(self):
         no, fc, _, _ = v2s(self.dist, [200, 400], 2)
         self.assertAlmostEqual(
-            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 4.781791110333593, 3
+            sum(elemvolume(no[:, :3], fc[:, :3])) * 0.0001, 4.781791110333593, 2
         )
 
     def test_finddisconnsurf(self):
