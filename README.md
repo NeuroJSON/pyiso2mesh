@@ -15,6 +15,20 @@
 
 ![Python Module](https://github.com/NeuroJSON/pyiso2mesh/actions/workflows/build_all.yml/badge.svg)
 
+## Table of Contents
+- [Introduction](#introduction)
+- [How to Install](#how-to-install)
+- [Runtime Dependencies](#runtime-dependencies)
+- [Build Instructions](#build-instructions)
+  - [Build Dependencies](#build-dependencies)
+  - [Build Steps](#build-steps)
+  - [Run built-in unit-tests](#run-built-in-unit-tests)
+- [How to Use](#how-to-use)
+- [Iso2Mesh function port status](#iso2mesh-function-port-status)
+- [Acknowledgement](#acknowledgement)
+
+## Introduction
+
 Iso2Mesh is a versatile 3D mesh generation toolbox,
 originally developed for MATLAB and GNU Octave in 2007.
 It is designed for the easy creation of high-quality surface and
