@@ -46,7 +46,7 @@ from iso2mesh.trait import (
     surfedge,
     extractloops,
 )
-from iso2mesh.line import getplanefrom3pt
+from iso2mesh.line import getplanefrom3pt, polylinesimplify, polylinelen, polylineinterp
 
 ##====================================================================================
 ## implementations
@@ -1127,6 +1127,8 @@ def slicesurf(node, face, *args):
             An N x 3 array defining the 3-D positions of the mesh.
         face : ndarray
             An N x 3 integer array specifying the surface triangle indices (1-based in MATLAB, so subtract 1 if needed).
+        *args : list
+            Additional slicing parameters (e.g., slicing plane equation passed to qmeshcut)
 
     Returns:
         bcutpos : ndarray
@@ -1171,3 +1173,68 @@ def slicesurf(node, face, *args):
             bcutpos = bcutpos[bcutloop]
 
     return bcutpos, bcutloop, bcutvalue
+
+
+def slicesurf3(node, elem, p1, p2, p3, step=None, minangle=None):
+    """
+    slicesurf3(node, elem, p1, p2, p3, step=None, minangle=None)
+
+    Slice a closed surface by a plane and extract landmark nodes along the intersection
+    from p1 to p3, splitting at p2 into left and right segments.
+
+    Parameters:
+        node : ndarray (N, 3)
+            3D coordinates of the mesh nodes
+        elem : ndarray (M, 3)
+            Triangle surface indices (1-based)
+        p1, p2, p3 : ndarray (3,)
+            3D coordinates of key points on the curve
+        step : float, optional
+            Percentage (0-100) spacing for landmark nodes
+        minangle : float, optional
+            Minimum angle to trigger curve simplification
+
+    Returns:
+        leftpt : ndarray
+            Landmarks on the left half (from p2 to p1)
+        leftcurve : ndarray
+            All points on the left half curve
+        rightpt : ndarray, optional
+            Landmarks on the right half (from p2 to p3)
+        rightcurve : ndarray, optional
+            All points on the right half curve
+    """
+
+    # Slice full curve through p1-p2-p3
+    fullcurve, _, _ = slicesurf(node, elem, np.vstack((p1, p2, p3)))
+
+    # Optional simplification
+    if minangle is not None and minangle > 0:
+        fullcurve, _ = polylinesimplify(fullcurve, minangle)
+
+    # Reorder fullcurve from p1 -> p2 -> p3
+    fulllen, fullcurve, _ = polylinelen(fullcurve, p1, p3, p2)
+
+    # Extract left side: from p2 to p1
+    leftlen, leftcurve, _ = polylinelen(fullcurve, p2, p1)
+    if step is not None:
+        positions = (
+            np.arange(step, 100 - step * 0.5 + 1e-5, step) * 0.01 * np.sum(leftlen)
+        )
+        _, _, leftpt = polylineinterp(leftlen, positions, leftcurve)
+    else:
+        leftpt = leftcurve
+
+    # Only compute right if needed
+    if step is not None or True:  # mimic (nargout > 2)
+        rightlen, rightcurve = polylinelen(fullcurve, p2, p3)
+        if step is not None:
+            positions = (
+                np.arange(step, 100 - step * 0.5 + 1e-5, step) * 0.01 * np.sum(rightlen)
+            )
+            _, _, rightpt = polylineinterp(rightlen, positions, rightcurve)
+        else:
+            rightpt = rightcurve
+        return leftpt, leftcurve, rightpt, rightcurve
+
+    return leftpt, leftcurve

@@ -279,12 +279,12 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `regpt2surf.m` | ⭕️ tested |             | ✅ `rotmat2vec.m` | ⭕️ tested |
 | ✅ `affinemap.m` | ⭕️ tested |              | ✅ `varargin2struct.m` | ⭕️ tested |
 | > Polyline handling| |                      | ✅ `jsonopt.m` | ⭕️ tested |
-| ⭕️ `slicesurf.m` | ⭕️ tested |              | ⭕️ `mergestruct.m` | ⭕️ tested |
-| ⭕️ `slicesurf3.m` | ⭕️ tested |             | ⭕️ `orthdisk.m` | ⭕️ tested |
-| ⭕️ `polylinelen.m` | ⭕️ tested |            | ⭕️ `nestbracket2dim.m` | ⭕️ tested |
-| ⭕️ `polylinesimplify.m` | ⭕️ tested |       | ⭕️ `memmapstream.m` | ⭕️ tested |
-| ⭕️ `polylineinterp.m` | ⭕️ tested |         | ⭕️ `aos2soa.m` | ⭕️ tested |
-| ⭕️ `closestnode.m` | ⭕️ tested |            | ⭕️ `soa2aos.m` | ⭕️ tested |
+| ✅️ `slicesurf.m` | ⭕️ tested |              | ⭕️ `mergestruct.m` | ⭕️ tested |
+| ✅️ `slicesurf3.m` | ⭕️ tested |             | ⭕️ `orthdisk.m` | ⭕️ tested |
+| ✅️ `polylinelen.m` | ⭕️ tested |            | ⭕️ `nestbracket2dim.m` | ⭕️ tested |
+| ✅️ `polylinesimplify.m` | ⭕️ tested |       | ⭕️ `memmapstream.m` | ⭕️ tested |
+| ✅️ `polylineinterp.m` | ⭕️ tested |         | ⭕️ `aos2soa.m` | ⭕️ tested |
+| ✅️ `closestnode.m` | ⭕️ tested |            | ⭕️ `soa2aos.m` | ⭕️ tested |
 | > Mesh resampling and optimization| |
 | ✅ `meshresample.m` | ✅ tested |
 | ✅ `remeshsurf.m` | ✅ tested |
