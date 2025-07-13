@@ -12,6 +12,7 @@ __all__ = ["m2v", "mesh2vol", "mesh2mask", "barycentricgrid"]
 
 import numpy as np
 import matplotlib.pyplot as plt
+from iso2mesh.modify import qmeshcut
 
 ##====================================================================================
 ## implementations
@@ -33,70 +34,100 @@ def m2v(*args):
 
 def mesh2vol(node, elem, xi, yi=None, zi=None):
     """
-    Fast rasterization of a 3D mesh to a volume with tetrahedron index labels.
+    mesh2vol(node, elem, xi, yi=None, zi=None)
+
+    Fast rasterization of a 3D tetrahedral mesh into a volumetric label image.
 
     Parameters:
-    node: Node coordinates (Nx3 array)
-    elem: Tetrahedron element list (Nx4 array)
-    xi: Grid or number of divisions along x-axis
-    yi: (Optional) Grid along y-axis
-    zi: (Optional) Grid along z-axis
+        node : ndarray
+            Node coordinates (N x 3) or (N x 4, with values in 4th column)
+        elem : ndarray
+            Tetrahedral elements (M x 4 or M x >4)
+        xi, yi, zi : array-like or scalar
+            Grid definitions. Supports:
+              - scalar: voxel resolution
+              - [Nx, Ny, Nz]: volume size
+              - xi, yi, zi: actual grid vectors
 
     Returns:
-    mask: 3D volume where voxel values correspond to the tetrahedron index
-    weight: (Optional) Barycentric weights for each voxel
+        mask : 3D ndarray
+            Voxelized volume with element labels
+        weight : 4 x Nx x Ny x Nz array (if requested or values present)
+
+    Author:
+        Qianqian Fang <q.fang at neu.edu>
     """
 
-    # Check if xi is scalar or list of grid divisions
-    if isinstance(xi, (int, float)) and yi is None and zi is None:
-        mn = np.min(node, axis=0)
-        mx = np.max(node, axis=0)
-        df = (mx[:3] - mn[:3]) / xi
-    elif len(xi) == 3 and yi is None and zi is None:
-        mn = np.min(node, axis=0)
-        mx = np.max(node, axis=0)
-        df = (mx[:3] - mn[:3]) / xi
-    elif yi is not None and zi is not None:
-        mx = [np.max(xi), np.max(yi), np.max(zi)]
-        mn = [np.min(xi), np.min(yi), np.min(zi)]
-        df = [np.min(np.diff(xi)), np.min(np.diff(yi)), np.min(np.diff(zi))]
+    node = np.array(node, dtype=np.float64)
+    elem = np.array(elem, dtype=np.int32)
+
+    nodeval = None
+    if node.shape[1] == 4:
+        nodeval = node[:, 3].copy()
+        node = node[:, :3]
+
+    if yi is None and zi is None:
+        if isinstance(xi, (int, float)):
+            mn = np.min(node, axis=0)
+            mx = np.max(node, axis=0)
+            df = (mx - mn) / xi
+        elif isinstance(xi, (list, tuple, np.ndarray)) and len(xi) == 3:
+            mn = np.min(node, axis=0)
+            mx = np.max(node, axis=0)
+            df = (mx - mn) / np.array(xi)
+        else:
+            raise ValueError(
+                "xi must be scalar or 3-element vector if yi and zi are not provided"
+            )
+        xi = np.arange(mn[0], mx[0] + df[0], df[0])
+        yi = np.arange(mn[1], mx[1] + df[1], df[1])
+        zi = np.arange(mn[2], mx[2] + df[2], df[2])
     else:
-        raise ValueError("At least xi input is required")
+        xi = np.array(xi)
+        yi = np.array(yi)
+        zi = np.array(zi)
+        df = [np.min(np.diff(xi)), np.min(np.diff(yi)), np.min(np.diff(zi))]
 
-    xi = np.arange(mn[0], mx[0], df[0])
-    yi = np.arange(mn[1], mx[1], df[1])
-    zi = np.arange(mn[2], mx[2], df[2])
+    if node.shape[1] != 3 or elem.shape[1] < 4:
+        raise ValueError("node must have 3 columns; elem must have 4 or more columns")
 
-    if node.shape[1] != 3 or elem.shape[1] <= 3:
-        raise ValueError("node must have 3 columns; elem must have 4 columns")
+    nx, ny, nz = len(xi), len(yi), len(zi)
+    mask = np.zeros((nx, ny, nz))
+    weight = np.zeros((4, nx, ny, nz)) if nodeval is not None else None
 
-    mask = np.zeros((len(xi) - 1, len(yi) - 1, len(zi) - 1), dtype=int)
-    weight = None
-
-    if len(elem.shape) > 1:
-        weight = np.zeros((4, len(xi) - 1, len(yi) - 1, len(zi) - 1))
-
-    fig = plt.figure()
-    for i in range(len(zi)):
-        cutpos, cutvalue, facedata, elemid = qmeshcut(elem, node, zi[i])
-        if cutpos is None:
+    for i, zval in enumerate(zi[:-1]):
+        if nodeval is not None:
+            cutpos, cutvalue, facedata, elemid, _ = qmeshcut(
+                elem, node, nodeval, f"z={zval}"
+            )
+        else:
+            cutpos, cutvalue, facedata, elemid, _ = qmeshcut(
+                elem, node, node[:, 0], f"z={zval}"
+            )
+        if cutpos is None or len(cutpos) == 0:
             continue
 
-        maskz, weightz = mesh2mask(cutpos, facedata, xi, yi, fig)
-        idx = np.where(~np.isnan(maskz))
-        mask[:, :, i] = maskz
-
         if weight is not None:
-            eid = facedata[maskz[idx]]
-            maskz[idx] = (
+            maskz, weightz = mesh2mask(cutpos, facedata, xi, yi)
+            weight[:, :, :, i] = weightz
+        else:
+            maskz = mesh2mask(cutpos, facedata, xi, yi)[0]
+
+        idx = ~np.isnan(maskz)
+        if nodeval is not None:
+            eid = facedata[maskz[idx].astype(int) - 1]  # 1-based to 0-based
+            maskz_flat = (
                 cutvalue[eid[:, 0]] * weightz[0, idx]
                 + cutvalue[eid[:, 1]] * weightz[1, idx]
                 + cutvalue[eid[:, 2]] * weightz[2, idx]
                 + cutvalue[eid[:, 3]] * weightz[3, idx]
             )
-            weight[:, :, :, i] = weightz
+            maskz[idx] = maskz_flat
+        else:
+            maskz[idx] = elemid[(maskz[idx] - 1).astype(int)]  # adjust 1-based index
 
-    plt.close(fig)
+        mask[:, :, i] = maskz
+
     return mask, weight
 
 
@@ -115,6 +146,9 @@ def mesh2mask(node, face, xi, yi=None, hf=None):
     mask: 2D image where pixel values correspond to the triangle index
     weight: (Optional) Barycentric weights for each triangle
     """
+    from matplotlib.collections import PatchCollection
+    from matplotlib.patches import Polygon
+    import matplotlib.cm as cm
 
     # Determine grid size from inputs
     if isinstance(xi, (int, float)) and yi is None:
@@ -138,78 +172,112 @@ def mesh2mask(node, face, xi, yi=None, hf=None):
             "node must have 2 or 3 columns; face must have at least 3 columns"
         )
 
-    # If no figure handle is provided, create one
-    if hf is None:
-        fig = plt.figure()
-    else:
-        plt.clf()
+    fig = (
+        plt.figure(
+            figsize=(xi.size * 0.01, yi.size * 0.01), dpi=100, layout="compressed"
+        )
+        if hf is None
+        else hf
+    )
+    ax = fig.add_subplot(111)
+    ax.set_position([0, 0, 1, 1])
+    ax.set_xlim(mn[0], mx[0])
+    ax.set_ylim(mn[1], mx[1])
+    ax.set_axis_off()
 
-    # Rasterize the mesh to an image
-    plt.gca().patch.set_visible(False)
-    plt.gca().set_position([0, 0, 1, 1])
+    colors = cm.gray(np.linspace(0, 1, len(face)))
 
-    cmap = plt.get_cmap("jet", len(face))
-    plt.pcolormesh(node[:, 0], node[:, 1], np.arange(len(face)), cmap=cmap)
+    patches = []
+    for i, f in enumerate(face[:, :3]):
+        polygon = Polygon(
+            node[f - 1, :2],
+            closed=True,
+            edgecolor="none",
+            linewidth=0,
+            linestyle="none",
+        )
+        patches.append(polygon)
 
-    # Set axis limits
-    plt.xlim([mn[0], mx[0]])
-    plt.ylim([mn[1], mx[1]])
-    plt.clim([1, len(face)])
-    output_size = np.round((mx[:2] - mn[:2]) / df).astype(int)
+    collection = PatchCollection(
+        patches, facecolors=colors, linewidths=0.01, edgecolors="none", edgecolor="face"
+    )
+    ax.add_collection(collection)
 
-    # Rendering or saving to image
-    mask = np.zeros(output_size, dtype=np.int32)
+    plt.draw()
+    fig.canvas.draw()
+    img = np.array(fig.canvas.renderer.buffer_rgba())
+    mask_raw = img[:, :, 0]
+    mask = np.zeros(mask_raw.shape, dtype=np.int32)
+    color_vals = (colors[:, :3] * 255).astype(np.uint8)
+
+    for idx, cval in enumerate(color_vals):
+        match = np.all(img[:, :, :3] == cval, axis=-1)
+        mask[match] = idx + 1
+
+    mask = mask[: len(yi), : len(xi)].T
+    weight = barycentricgrid(node, face, xi, yi, mask)
+
     if hf is None:
         plt.close(fig)
-
-    # Optional weight calculation (if requested)
-    weight = None
-    if yi is not None:
-        weight = barycentricgrid(node, face, xi, yi, mask)
-
     return mask, weight
 
 
 def barycentricgrid(node, face, xi, yi, mask):
     """
-    Compute barycentric weights for a grid.
+    Compute barycentric weights for a 2D triangle mesh over a pixel grid.
 
     Parameters:
-    node: Node coordinates
-    face: Triangle surface
-    xi: x-axis grid
-    yi: y-axis grid
-    mask: Rasterized triangle mask
+        node : ndarray (N, 2 or 3)
+            Node coordinates.
+        face : ndarray (M, 3)
+            Triangle face indices (1-based).
+        xi, yi : 1D arrays
+            Grid coordinate vectors.
+        mask : 2D ndarray
+            Label image where each pixel contains the triangle index (1-based), NaN if outside.
 
     Returns:
-    weight: Barycentric weights for each triangle
+        weight : ndarray (3, H, W)
+            Barycentric coordinate weights for each pixel inside a triangle.
     """
-    xx, yy = np.meshgrid(xi, yi)
-    idx = ~np.isnan(mask)
-    eid = mask[idx]
+    xx, yy = np.meshgrid(xi, yi, indexing="ij")  # shape: (H, W)
+    mask = mask.astype(float)
+    valid_idx = ~np.isnan(mask)
 
-    t1 = node[face[:, 0], :]
-    t2 = node[face[:, 1], :]
-    t3 = node[face[:, 2], :]
+    # 1-based to 0-based index
+    eid = mask[valid_idx].astype(int) - 1
 
-    # Calculate barycentric coordinates
+    # triangle vertices (all triangles)
+    t1 = node[face[:, 0] - 1]
+    t2 = node[face[:, 1] - 1]
+    t3 = node[face[:, 2] - 1]
+
+    # denominator (twice the area of each triangle)
     tt = (t2[:, 1] - t3[:, 1]) * (t1[:, 0] - t3[:, 0]) + (t3[:, 0] - t2[:, 0]) * (
         t1[:, 1] - t3[:, 1]
     )
-    w = np.zeros((len(idx), 3))
-    w[:, 0] = (t2[eid, 1] - t3[eid, 1]) * (xx[idx] - t3[eid, 0]) + (
-        t3[eid, 0] - t2[eid, 0]
-    ) * (yy[idx] - t3[eid, 1])
-    w[:, 1] = (t3[eid, 1] - t1[eid, 1]) * (xx[idx] - t3[eid, 0]) + (
-        t1[eid, 0] - t3[eid, 0]
-    ) * (yy[idx] - t3[eid, 1])
-    w[:, 0] /= tt[eid]
-    w[:, 1] /= tt[eid]
-    w[:, 2] = 1 - w[:, 0] - w[:, 1]
 
-    weight = np.zeros((3, mask.shape[0], mask.shape[1]))
-    weight[0, idx] = w[:, 0]
-    weight[1, idx] = w[:, 1]
-    weight[2, idx] = w[:, 2]
+    # numerator for w1 and w2 (barycentric weights)
+    w1 = (t2[eid, 1] - t3[eid, 1]) * (xx[valid_idx] - t3[eid, 0]) + (
+        t3[eid, 0] - t2[eid, 0]
+    ) * (yy[valid_idx] - t3[eid, 1])
+    w2 = (t3[eid, 1] - t1[eid, 1]) * (xx[valid_idx] - t3[eid, 0]) + (
+        t1[eid, 0] - t3[eid, 0]
+    ) * (yy[valid_idx] - t3[eid, 1])
+
+    w1 = w1 / tt[eid]
+    w2 = w2 / tt[eid]
+    w3 = 1 - w1 - w2
+
+    # Assemble the weight volume
+    weight = np.zeros((3, *mask.shape), dtype=np.float32)
+    ww = np.zeros_like(mask, dtype=np.float32)
+
+    ww[valid_idx] = w1
+    weight[0, :, :] = ww
+    ww[valid_idx] = w2
+    weight[1, :, :] = ww
+    ww[valid_idx] = w3
+    weight[2, :, :] = ww
 
     return weight
