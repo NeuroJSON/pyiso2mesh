@@ -19,7 +19,7 @@ from iso2mesh.modify import qmeshcut
 ##====================================================================================
 
 
-def m2v(*args):
+def m2v(*args, **kwargs):
     """
     Shortcut for mesh2vol, rasterizing a tetrahedral mesh to a volume.
 
@@ -29,10 +29,10 @@ def m2v(*args):
     Returns:
     Volumetric representation of the mesh.
     """
-    return mesh2vol(*args)
+    return mesh2vol(*args, **kwargs)
 
 
-def mesh2vol(node, elem, xi, yi=None, zi=None):
+def mesh2vol(node, elem, xi, yi=None, zi=None, **kwargs):
     """
     mesh2vol(node, elem, xi, yi=None, zi=None)
 
@@ -108,10 +108,10 @@ def mesh2vol(node, elem, xi, yi=None, zi=None):
             continue
 
         if weight is not None:
-            maskz, weightz = mesh2mask(cutpos, facedata, xi, yi)
+            maskz, weightz = mesh2mask(cutpos, facedata, xi, yi, **kwargs)
             weight[:, :, :, i] = weightz
         else:
-            maskz = mesh2mask(cutpos, facedata, xi, yi)[0]
+            maskz = mesh2mask(cutpos, facedata, xi, yi, **kwargs)[0]
 
         idx = ~np.isnan(maskz)
         if nodeval is not None:
@@ -131,7 +131,7 @@ def mesh2vol(node, elem, xi, yi=None, zi=None):
     return mask, weight
 
 
-def mesh2mask(node, face, xi, yi=None, hf=None):
+def mesh2mask(node, face, xi, yi=None, hf=None, **kwargs):
     """
     Fast rasterization of a 2D mesh to an image with triangle index labels.
 
@@ -173,9 +173,7 @@ def mesh2mask(node, face, xi, yi=None, hf=None):
         )
 
     fig = (
-        plt.figure(
-            figsize=(xi.size * 0.01, yi.size * 0.01), dpi=100, layout="compressed"
-        )
+        plt.figure(figsize=(xi.size * 0.01, yi.size * 0.01), dpi=100)
         if hf is None
         else hf
     )
@@ -185,30 +183,28 @@ def mesh2mask(node, face, xi, yi=None, hf=None):
     ax.set_ylim(mn[1], mx[1])
     ax.set_axis_off()
 
-    colors = cm.gray(np.linspace(0, 1, len(face)))
+    colors = cm.jet(np.linspace(0, 1, len(face)))
 
     patches = []
     for i, f in enumerate(face[:, :3]):
-        polygon = Polygon(
-            node[f - 1, :2],
-            closed=True,
-            edgecolor="none",
-            linewidth=0,
-            linestyle="none",
-        )
+        polygon = Polygon(node[f - 1, :2], closed=True, zorder=1)
         patches.append(polygon)
 
     collection = PatchCollection(
-        patches, facecolors=colors, linewidths=0.01, edgecolors="none", edgecolor="face"
+        patches,
+        facecolors=colors,
+        linewidths=0,
+        edgecolor="face",
+        antialiased=(not kwargs.get("edge", True)),
     )
     ax.add_collection(collection)
 
     plt.draw()
     fig.canvas.draw()
     img = np.array(fig.canvas.renderer.buffer_rgba())
-    mask_raw = img[:, :, 0]
-    mask = np.zeros(mask_raw.shape, dtype=np.int32)
-    color_vals = (colors[:, :3] * 255).astype(np.uint8)
+
+    mask = np.zeros(img.shape[:2], dtype=np.int32) * np.nan
+    color_vals = np.floor(colors[:, :3] * 255 + 0.5).astype(np.uint8)
 
     for idx, cval in enumerate(color_vals):
         match = np.all(img[:, :, :3] == cval, axis=-1)

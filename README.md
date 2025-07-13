@@ -202,21 +202,21 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `v2s.m` | ✅ tested |                    | ✅ `savedxf.m` | ⭕️ tested |
 | ✅ `s2m.m` | ✅ tested |                    | ✅ `savestl.m` | ⭕️ tested |
 | ✅ `s2v.m` | ✅ tested |                    | ✅ `savebinstl.m` | ⭕️ tested |
-| ✅ `m2v.m` | ⭕️ tested |                    | ✅ `saveinr.m` | ⭕️ tested |
+| ✅ `m2v.m` | ✅️ tested |                    | ✅ `saveinr.m` | ⭕️ tested |
 | ✅ `sms.m` | ✅ tested |                    | ✅ `saveoff.m` | ✅ tested |
 | > Streamlined mesh generation| |            | ⭕️ `savesmf.m` | ⭕️ tested |
 | ✅ `vol2mesh.m` | ✅ tested |               | ✅ `savesurfpoly.m` | ✅ tested |
 | ✅ `vol2surf.m` | ✅ tested |               | ⭕️ `savegts.m` | ⭕️ tested |
 | ✅ `surf2mesh.m` | ✅ tested |              | ⭕️ `readgts.m` | ⭕️ tested |
 | ✅ `surf2vol.m` | ✅ tested |               | ⭕️ `savemsh.m` | ⭕️ tested |
-| ✅ `mesh2vol.m` | ⭕️ tested |               | ⭕️ `savevrml.m` | ⭕️ tested |
+| ✅ `mesh2vol.m` | ✅️ tested |               | ⭕️ `savevrml.m` | ⭕️ tested |
 | > Iso2mesh main function backend| |         | ✅ `readasc.m` | ⭕️ tested |
 | ✅ `binsurface.m` | ✅ tested |             | ⭕️ `readinr.m` | ⭕️ tested |
 | ✅ `cgalv2m.m` | ✅ tested |                | ✅ `readmedit.m` | ⭕️ tested |
 | ✅ `cgals2m.m` | ✅ tested |                | ✅ `readoff.m` | ✅ tested |
 | ✅ `vol2restrictedtri.m` | ✅ tested |      | ⭕️ `readsmf.m` | ⭕️ tested |
 | ✅ `surf2volz.m` | ✅ tested |              | ✅ `readtetgen.m` | ✅ tested |
-| ✅ `mesh2mask.m` | ⭕️ tested |              | ✅ `deletemeshfile.m` | ✅ tested |
+| ✅ `mesh2mask.m` | ✅️ tested |              | ✅ `deletemeshfile.m` | ✅ tested |
 | > Iso2mesh primitive meshing|           |   | ✅ `mcpath.m` | ✅ tested |
 | ✅ `meshabox.m` | ✅ tested |               | ✅ `mwpath.m` | ✅ tested |
 | ✅ `meshasphere.m` | ✅ tested |            | ✅ `savemedit.m` | ✅ tested |

@@ -1278,6 +1278,49 @@ class Test_core(unittest.TestCase):
         vol = s2v(self.no, self.fc, 100, fill=1)
         self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.00001, 6.0827, 2)
 
+    def test_mesh2mask(self):
+        node = np.array([[0, 0], [2, 0], [2, 1], [0, 1], [1, 0.5]])
+        face = np.array([[1, 2, 5], [2, 3, 5], [3, 4, 5], [4, 1, 5]])
+        xi = np.arange(-0.1, 2.2, 0.1)
+        yi = np.arange(-0.1, 1.2, 0.1)
+        mask, _ = mesh2mask(node, face, xi, yi)
+        counts = np.histogram(mask, bins=np.arange(1, 6) - 0.5)[0]
+
+        self.assertEqual(mask.shape, (xi.size, yi.size))
+        self.assertEqual(np.count_nonzero(np.isnan(mask)), (xi.size + yi.size) * 2 - 4)
+        self.assertEqual(counts.tolist(), [45, 55, 60, 71])
+
+        mask, _ = mesh2mask(node, face, xi, yi, edge=False)
+        self.assertEqual(np.count_nonzero(np.isnan(mask)), 179)
+
+    def test_mesh2vol(self):
+        no1, el1 = meshgrid5(np.arange(1, 4), np.arange(1, 3), np.arange(1, 3))
+        mask, _ = mesh2vol(
+            no1,
+            el1,
+            np.arange(1, 3.1, 0.05),
+            np.arange(1, 2.1, 0.05),
+            np.arange(1, 2, 0.05),
+        )
+        counts = np.histogram(mask, bins=np.arange(0, el1.shape[0] + 2) - 0.5)[0]
+
+        self.assertEqual(np.count_nonzero(np.isnan(mask)), 2657)
+        self.assertTrue(np.all(counts > 100))
+
+    def test_m2v(self):
+        no1, el1 = meshgrid5(np.arange(1, 3), np.arange(1, 3), np.arange(1, 3))
+        mask, _ = m2v(
+            no1,
+            el1,
+            np.arange(1, 3.1, 0.05),
+            np.arange(1, 2.1, 0.05),
+            np.arange(1, 2, 0.05),
+        )
+        counts = np.histogram(mask, bins=np.arange(0, el1.shape[0] + 2) - 0.5)[0]
+
+        self.assertEqual(np.count_nonzero(np.isnan(mask)), 9928)
+        self.assertTrue(np.all(counts > 50))
+
 
 @unittest.skipIf(
     (int(mpl_ver[0]), int(mpl_ver[1])) < (3, 6), "Requires Matplotlib 3.6 or higher"

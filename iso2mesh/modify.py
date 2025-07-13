@@ -253,7 +253,7 @@ def qmeshcut(elem, node, value, cutat):
     cutweight = np.abs(cutweight / totalweight[:, np.newaxis])
 
     nodeid = edges[cutedges] - 1
-    nodeid = np.column_stack([nodeid, cutweight[:, 1]])
+    nodeid = np.column_stack([nodeid, cutweight[:, 1]]) + 1
 
     cutpos = (
         node[edges[cutedges, 0] - 1] * cutweight[:, [1]]
@@ -283,7 +283,7 @@ def qmeshcut(elem, node, value, cutat):
         elemid = linecut
         if value.shape[0] == elem.shape[0] and "cutvalue" not in locals():
             cutvalue = value[elemid]
-        return cutpos, cutvalue, facedata, elemid, nodeid
+        return cutpos, cutvalue, facedata, elemid + 1, nodeid
 
     tricut = np.where(etag == 3)[0]
     quadcut = np.where(etag == 4)[0]
@@ -300,7 +300,7 @@ def qmeshcut(elem, node, value, cutat):
 
     facedata = np.vstack([tripatch[:, [0, 1, 2, 2]], quadpatch[:, [0, 1, 3, 2]]])
 
-    return cutpos, cutvalue, facedata, elemid, nodeid
+    return cutpos, cutvalue, facedata, elemid + 1, nodeid
 
 
 def meshcheckrepair(node, elem, opt=None, **kwargs):
