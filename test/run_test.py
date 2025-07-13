@@ -35,13 +35,13 @@ class Test_geometry(unittest.TestCase):
 
     def test_meshunitsphere(self):
         no, fc, el = meshunitsphere(0.05, 100)
-        self.assertAlmostEqual(round(sum(elemvolume(no, fc[:, :3])), 3), 12.553)
-        self.assertAlmostEqual(round(sum(elemvolume(no, el[:, :4])), 3), 4.180)
+        self.assertAlmostEqual(sum(elemvolume(no, fc[:, :3])), 12.553, 3)
+        self.assertAlmostEqual(sum(elemvolume(no, el[:, :4])), 4.180, 3)
 
     def test_meshasphere(self):
         no, fc, el = meshasphere([1, 1, 1], 2, 0.1, 100)
-        self.assertAlmostEqual(round(sum(elemvolume(no, fc[:, :3])), 1), 50.2)
-        self.assertAlmostEqual(round(sum(elemvolume(no, el[:, :4])), 1), 33.4)
+        self.assertAlmostEqual(sum(elemvolume(no, fc[:, :3])), 50.2, 1)
+        self.assertAlmostEqual(sum(elemvolume(no, el[:, :4])), 33.4, 1)
 
     def test_meshgrid5(self):
         no, el = meshgrid5(np.arange(1, 3), np.arange(-1, 1), np.arange(2, 4))
@@ -133,8 +133,8 @@ class Test_geometry(unittest.TestCase):
 
     def test_meshanellip(self):
         no, fc, el = meshanellip([1, 1, 1], [2, 4, 1], 0.05, 100)
-        self.assertEqual(round(sum(elemvolume(no, fc[:, :3])), 2), 63.41)
-        self.assertEqual(round(sum(elemvolume(no, el[:, :4])), 2), 33.44)
+        self.assertAlmostEqual(sum(elemvolume(no, fc[:, :3])), 63.41, 2)
+        self.assertAlmostEqual(sum(elemvolume(no, el[:, :4])), 33.44, 2)
 
     def test_meshacylinder_plc(self):
         (
@@ -157,8 +157,8 @@ class Test_geometry(unittest.TestCase):
 
     def test_meshacylinder(self):
         no, fc, el = meshacylinder([1, 1, 1], [2, 3, 4], [10, 12], 0.1, 10)
-        self.assertEqual(round(sum(elemvolume(no, fc)), 4), 1045.2322)
-        self.assertEqual(round(sum(elemvolume(no, el[:, :4])), 4), 1402.8993)
+        self.assertAlmostEqual(sum(elemvolume(no, fc)), 1045.2322, 4)
+        self.assertAlmostEqual(sum(elemvolume(no, el[:, :4])), 1402.8993, 4)
 
     def test_meshacylinders_plc(self):
         (
@@ -998,7 +998,7 @@ class Test_surfboolean(unittest.TestCase):
         no3, el3 = surfboolean(self.no1, self.el1, "and", self.no2, self.el2)
         no3, el3 = meshcheckrepair(no3, el3, "dup", tolerance=1e-4)
         node, elem, _ = s2m(no3, el3, 1, 100)
-        self.assertEqual(round(sum(elemvolume(node, elem[:, :4])), 5), 0.027)
+        self.assertAlmostEqual(sum(elemvolume(node, elem[:, :4])), 0.027, 5)
 
     def test_surfboolean_or(self):
         no3, el3 = surfboolean(self.no1, self.el1, "or", self.no2, self.el2)
@@ -1010,17 +1010,17 @@ class Test_surfboolean(unittest.TestCase):
         no3, el3 = surfboolean(self.no1, self.el1, "diff", self.no2, self.el2)
         no3, el3 = meshcheckrepair(no3, el3, "dup", tolerance=1e-4)
         node, elem, _ = s2m(no3, el3, 1, 100)
-        self.assertEqual(round(sum(elemvolume(node, elem[:, :4])), 5), 0.973)
+        self.assertAlmostEqual(sum(elemvolume(node, elem[:, :4])), 0.973, 5)
 
     def test_surfboolean_first(self):
         no3, el3 = surfboolean(self.no1, self.el1, "first", self.no2, self.el2)
         no3, el3 = meshcheckrepair(no3, el3, "dup", tolerance=1e-4)
         node, elem, _ = s2m(no3, el3, 1, 100, "tetgen", np.array([1.5, 1.5, 1.5]))
-        self.assertEqual(
-            round(sum(elemvolume(node, elem[elem[:, 4] == 1, :4])), 5), 0.973
+        self.assertAlmostEqual(
+            sum(elemvolume(node, elem[elem[:, 4] == 1, :4])), 0.973, 5
         )
-        self.assertEqual(
-            round(sum(elemvolume(node, elem[elem[:, 4] == 0, :4])), 5), 0.027
+        self.assertAlmostEqual(
+            sum(elemvolume(node, elem[elem[:, 4] == 0, :4])), 0.027, 5
         )
 
     def test_surfboolean_second(self):
@@ -1166,8 +1166,8 @@ class Test_core(unittest.TestCase):
 
     def test_v2m(self):
         no, el, fc = v2m(self.im, 0.5, 0.03, 10)
-        self.assertAlmostEqual(round(sum(elemvolume(no, fc[:, :3])), 2), 5.01)
-        self.assertAlmostEqual(round(sum(elemvolume(no, el[:, :4])), 4), 0.8786)
+        self.assertAlmostEqual(sum(elemvolume(no, fc[:, :3])), 5.01, 2)
+        self.assertAlmostEqual(sum(elemvolume(no, el[:, :4])), 0.8786, 4)
 
     def test_cgalv2m(self):
         no, el, fc = v2m(
