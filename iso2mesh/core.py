@@ -547,9 +547,7 @@ def surf2mesh(
             cmdstr = f'"{mcpath(method, exesuff)}" {cmdopt} ' + mwpath(
                 "post_vmesh.poly"
             )
-            status, cmdout = subprocess.getstatusoutput(
-                f'"{mcpath(method, exesuff)}" {cmdopt} ' + mwpath("post_vmesh.poly")
-            )
+            status, cmdout = subprocess.getstatusoutput(cmdstr)
 
         if status != 0:
             raise RuntimeError(f"Tetgen command failed: {cmdstr}\n{cmdout}")

@@ -59,6 +59,7 @@ from .trait import (
     meshcentroid,
     highordertet,
     ismember_rows,
+    ray2surf,
 )
 
 from .utils import (
@@ -71,6 +72,7 @@ from .utils import (
     rotmat2vec,
     varargin2struct,
     jsonopt,
+    nargout,
 )
 
 from .io import (
@@ -101,11 +103,11 @@ from .core import (
     getintersecttri,
     vol2restrictedtri,
     fillsurf,
-    outersurf,
     surfvolume,
     insurface,
     remeshsurf,
     meshrefine,
+    outersurf,
 )
 
 from .modify import (
@@ -155,6 +157,24 @@ from .register import (
     proj2mesh,
     dist2surf,
     regpt2surf,
+)
+
+from .brain2mesh import (
+    brain2mesh,
+    brain1020,
+    intriangulation,
+    label2tpm,
+    tpm2label,
+)
+
+from .volume import (
+    volgrow,
+    volshrink,
+    volopen,
+    volshrink,
+    fillholes3d,
+    thickenbinvol,
+    thinbinvol,
 )
 
 __version__ = "0.3.8"
@@ -285,5 +305,19 @@ __all__ = [
     "dist2surf",
     "regpt2surf",
     "ismember_rows",
+    "volgrow",
+    "volshrink",
+    "volopen",
+    "volshrink",
+    "fillholes3d",
+    "thickenbinvol",
+    "thinbinvol",
+    "brain2mesh",
+    "brain1020",
+    "intriangulation",
+    "label2tpm",
+    "tpm2label",
+    "ray2surf",
+    "nargout",
 ]
 __license__ = """GNU General Public License v3 and later"""

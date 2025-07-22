@@ -339,50 +339,24 @@ def readtetgen(fstub):
     read node file
     """
     try:
-        with open(f"{fstub}.node", "rb") as fp:
-            dim = [int(x) for x in next(fp).split()]
-            if len(dim) < 4:
-                raise ValueError("wrong node file")
-            node = np.array([])
-            for ii in range(dim[0]):
-                row = [float(x) for x in next(fp).split()]
-                node = np.append(node, row)
-            node = node.reshape(dim[0], 4)
-            idx = node[:, 1]
-            node = node[:, 1:4]
+        node = np.loadtxt(f"{fstub}.node", skiprows=1)
+        node = node[:, 1:4]
     except FileNotFoundError:
         raise FileNotFoundError("node file is missing!")
 
     # read element file
     try:
-        with open(f"{fstub}.ele", "rb") as fp:
-            dim = [int(x) for x in next(fp).split()]
-            if len(dim) < 3:
-                raise ValueError("wrong elem file")
-            elem = np.array([])
-            for ii in range(dim[0]):
-                row = [int(x) for x in next(fp).split()]
-                elem = np.append(elem, row)
-            elem = elem.reshape(dim[0], dim[1] + dim[2] + 1)
-            elem = elem[:, 1:].astype(int)
-            elem[:, :4] += 1
-            # elem[:, :dim[1]] += (1 - idx[0])
+        elem = np.loadtxt(f"{fstub}.ele", skiprows=1, dtype=int)
+        elem = elem[:, 1:]
+        elem[:, :4] += 1
     except FileNotFoundError:
         raise FileNotFoundError("elem file is missing!")
 
     # read surface mesh file
     try:
-        with open(f"{fstub}.face", "rb") as fp:
-            dim = [int(x) for x in next(fp).split()]
-            if len(dim) < 2:
-                raise ValueError("wrong surface file")
-            face = np.array([])
-            for ii in range(dim[0]):
-                row = [int(x) for x in next(fp).split()]
-                face = np.append(face, row)
-            face = face.reshape(dim[0], 5)
-            face = np.hstack((face[:, 1:-1], face[:, -1:])).astype(int)
-            face[:, :3] += 1
+        face = np.loadtxt(f"{fstub}.face", skiprows=1, dtype=int)
+        face = face[:, 1:]
+        face[:, :3] += 1
     except FileNotFoundError:
         raise FileNotFoundError("surface data file is missing!")
 

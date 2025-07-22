@@ -1117,7 +1117,7 @@ def domeshsimplify(v, f, keepratio):
     return node, elem
 
 
-def slicesurf(node, face, *args):
+def slicesurf(node, face, *args, **kwargs):
     """
     Slice a closed surface by a plane and extract the intersection curve as a
     polyline loop.
@@ -1146,8 +1146,8 @@ def slicesurf(node, face, *args):
     """
 
     # Slice the mesh using qmeshcut
-    bcutpos, bcutvalue, bcutedges = qmeshcut(
-        face[:, :3] - 1, node, node[:, 0], *args
+    bcutpos, bcutvalue, bcutedges, _, _ = qmeshcut(
+        face[:, :3], node, node[:, 0], *args
     )  # Subtract 1 for 0-based indexing
 
     # Remove duplicate nodes
@@ -1161,16 +1161,11 @@ def slicesurf(node, face, *args):
         bcutloop is not None
         and isinstance(bcutloop, np.ndarray)
         and bcutpos.shape[0] > 0
+        and not kwargs.get("full", False)
     ):
-        import inspect
-
-        caller_frame = inspect.currentframe().f_back
-        if (
-            len(caller_frame.f_locals.get("bcutloop", [])) == 0
-            and len(caller_frame.f_locals.get("bcutvalue", [])) == 0
-        ):
-            bcutloop = bcutloop[~np.isnan(bcutloop)].astype(int)
-            bcutpos = bcutpos[bcutloop]
+        bcutloop = bcutloop[~np.isnan(bcutloop)].astype(int) - 1
+        bcutpos = bcutpos[bcutloop, :]
+        return bcutpos
 
     return bcutpos, bcutloop, bcutvalue
 
@@ -1206,7 +1201,7 @@ def slicesurf3(node, elem, p1, p2, p3, step=None, minangle=None):
     """
 
     # Slice full curve through p1-p2-p3
-    fullcurve, _, _ = slicesurf(node, elem, np.vstack((p1, p2, p3)))
+    fullcurve = slicesurf(node, elem, np.vstack((p1, p2, p3)))
 
     # Optional simplification
     if minangle is not None and minangle > 0:
@@ -1227,7 +1222,7 @@ def slicesurf3(node, elem, p1, p2, p3, step=None, minangle=None):
 
     # Only compute right if needed
     if step is not None or True:  # mimic (nargout > 2)
-        rightlen, rightcurve = polylinelen(fullcurve, p2, p3)
+        rightlen, rightcurve, _ = polylinelen(fullcurve, p2, p3)
         if step is not None:
             positions = (
                 np.arange(step, 100 - step * 0.5 + 1e-5, step) * 0.01 * np.sum(rightlen)

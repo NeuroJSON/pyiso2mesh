@@ -41,6 +41,7 @@ __all__ = [
     "barydualmesh",
     "highordertet",
     "ismember_rows",
+    "ray2surf",
 ]
 
 ##====================================================================================
@@ -211,7 +212,10 @@ def extractloops(edges):
             # If multiple connections found, select the first
             idx = idx[0]
 
-        if len(idx) == 0:
+        if not isinstance(idx, np.ndarray):
+            idx = np.array(idx)
+
+        if idx.size == 0:
             # If no connection found (open-line segment)
             idx_head = np.concatenate(
                 [
@@ -238,7 +242,7 @@ def extractloops(edges):
             continue
 
         # Trace along a single line thread
-        if len(idx) == 1:
+        if idx.size == 1:
             ed = edges[idx, :].flatten()
             ed = ed[ed != loopend]
             newend = ed[0]
@@ -259,7 +263,7 @@ def extractloops(edges):
             loopend = newend
             edges = np.delete(edges, idx, axis=0)
 
-    return loops
+    return np.array(loops)
 
 
 # _________________________________________________________________________________________________________
@@ -1474,7 +1478,7 @@ def innersurf(node, face, outface=None):
         outface = outersurf(node, face)
 
     # Check membership of sorted faces in sorted outface, row-wise
-    tf = ismember_rows(np.sort(face, axis=1), np.sort(outface, axis=1))
+    tf, _ = ismember_rows(np.sort(face, axis=1), np.sort(outface, axis=1))
 
     # Select faces not part of the exterior (tf == 0)
     inface = face[tf == 0, :]
@@ -1838,3 +1842,107 @@ def internalpoint(v, aloop):
         raise ValueError("Fail to find an internal point of curve")
 
     return p
+
+
+def ray2surf(node, elem, p0, v0, e0):
+    """
+    Determine the entry position and element for a ray to intersect a mesh
+
+    Author: Qianqian Fang (q.fang <at> neu.edu)
+    Python conversion: Preserves exact algorithm from MATLAB version
+
+    Parameters:
+    -----------
+    node : ndarray
+        The mesh coordinate list
+    elem : ndarray
+        The tetrahedral mesh element list, 4 columns
+    p0 : ndarray
+        Origin of the ray
+    v0 : ndarray
+        Direction vector of the ray
+    e0 : str or float
+        Search direction: '>' forward search, '<' backward search, '-' bidirectional
+
+    Returns:
+    --------: np.ndarray
+    p : ndarray
+        The intersection position
+    e0 : int or float
+        If found, the index of the intersecting element ID
+
+    Notes:
+    ------
+    This file is part of Mesh-based Monte Carlo (MMC)
+    License: GPLv3, see http://mcx.sf.net/mmc/ for details
+    """
+
+    p = p0.copy()
+
+    if elem.shape[1] == 3:
+        face = elem.copy()
+    else:
+        face = volface(elem)
+
+    t, u, v, idx = raytrace(p0, v0, node, face)
+
+    if len(idx) == 0:  # isempty(idx) in MATLAB
+        raise RuntimeError("ray does not intersect with the mesh")
+    else:
+        t = t[idx]
+        if e0 == ">":
+            # idx1 = find(t>=0);
+            idx1 = np.where(t >= 1e-10)[0]
+        elif e0 == "<":
+            idx1 = np.where(t <= 0)[0]
+        elif np.isnan(e0) or e0 == "-":
+            idx1 = np.arange(len(t))
+        else:
+            raise ValueError("ray direction specifier is not recognized")
+
+        if len(idx1) == 0:  # isempty(idx1) in MATLAB
+            raise RuntimeError("no intersection is found along the ray direction")
+
+        t0 = np.abs(t[idx1])
+        loc = np.argmin(t0)
+        tmin = t0[loc]
+        faceidx = idx[idx1[loc]]
+
+        # Update source position
+        p = p0 + t[idx1[loc]] * v0
+
+        if elem.shape[1] == 3:
+            e0 = faceidx
+        else:
+            # Convert faceidx to 0-based index when using as array index
+            felem = np.sort(face[faceidx, :])
+            f = elem.copy()
+
+            # Create face combinations - subtract 1 for 0-based indexing when accessing elem
+            f = np.vstack(
+                [
+                    elem[
+                        :, [0, 1, 2]
+                    ],  # elem[:, [1, 2, 3]] - 1 (MATLAB 1-based to Python 0-based)
+                    elem[:, [1, 0, 3]],  # elem[:, [2, 1, 4]] - 1
+                    elem[:, [0, 2, 3]],  # elem[:, [1, 3, 4]] - 1
+                    elem[:, [1, 3, 2]],  # elem[:, [2, 4, 3]] - 1
+                ]
+            )
+
+            # Sort each row for comparison
+            f_sorted = np.sort(f, axis=1)
+
+            # Find matching face using ismember equivalent
+            tf, loc = ismember_rows(felem.reshape(1, -1), f_sorted)
+
+            if tf[0]:
+                loc = loc[0] % elem.shape[0]
+                if loc == 0:
+                    loc = elem.shape[0]
+                e0 = loc
+            else:
+                # If no match found, return original faceidx
+                e0 = faceidx
+
+    return p, e0

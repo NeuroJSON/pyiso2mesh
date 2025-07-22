@@ -935,6 +935,7 @@ class Test_modify(unittest.TestCase):
         cutpos, cutvalue, facedata, _, _ = qmeshcut(fc2[:, :3], no2, no2[:, 0], 0)
         _, ed2 = removedupnodes(cutpos, facedata)
         bcutloop = extractloops(ed2)
+        bcutloop = bcutloop.tolist()
 
         expected_fc = [1, 4, 6, 7, 8, 5, 3, 2, 1]
         self.assertNotEqual(bcutloop[-1], bcutloop[-1])

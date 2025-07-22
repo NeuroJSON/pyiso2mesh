@@ -181,7 +181,7 @@ def polylinelen(node, p0=None, p1=None, pmid=None):
             p0 = 1
 
     if pmid is None:
-        pmid = int(np.floor((p0 + p1) * 0.5))
+        pmid = np.floor((p0 + p1) * 0.5)
 
     if isinstance(p0, (list, np.ndarray)) and np.shape(p0)[-1] == 3:
         p0, _ = closestnode(node, np.asarray(p0))
@@ -281,9 +281,7 @@ def polylineinterp(polylen, length, nodes=None):
 
     idx[idx > len(polylen)] = np.nan
 
-    if compute_nodes:
-        return idx, weight, newnodes
-    return idx, weight
+    return idx, weight, newnodes
 
 
 def polylinesimplify(nodes, minangle=None):

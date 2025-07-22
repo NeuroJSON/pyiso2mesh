@@ -15,6 +15,7 @@ __all__ = [
     "rotmat2vec",
     "varargin2struct",
     "jsonopt",
+    "nargout",
 ]
 ##====================================================================================
 ## dependent libraries
@@ -27,6 +28,7 @@ import shutil
 import platform
 import re
 import glob
+import dis
 
 ISO2MESH_BIN_VER = "1.9.8"
 
@@ -368,3 +370,17 @@ def jsonopt(key, default, *args):
         elif key in opt:
             val = opt[key]
     return val
+
+
+def nargout():
+    frame = sys._getframe(1)  # Get caller's frame
+    code = frame.f_code
+    lasti = frame.f_lasti
+
+    # Look at the next instruction
+    instruction = list(dis.get_instructions(code))[lasti // 2 + 1]
+
+    if instruction.opname == "UNPACK_SEQUENCE":
+        return instruction.arg
+    else:
+        return 1
