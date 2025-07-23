@@ -127,7 +127,9 @@ def volshrink(
     newvol = vol != 0
 
     # Perform iterative binary erosion (morphological thinning)
-    newvol = ndimage.binary_erosion(newvol, structure=mask, iterations=layer)
+    newvol = ndimage.binary_erosion(
+        newvol, structure=mask, iterations=layer, border_value=1
+    )
 
     # Convert back to double precision
     newvol = newvol.astype(np.float64)
