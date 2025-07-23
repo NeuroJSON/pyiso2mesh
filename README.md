@@ -4,7 +4,7 @@
 
 * **Copyright**: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>
 * **License**: GNU Public License V3 or later
-* **Version**: 0.3.8
+* **Version**: 0.4.0
 * **URL**: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * **Homepage**: [https://iso2mesh.sf.net](https://iso2mesh.sf.net)
 * **Github**: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
@@ -25,6 +25,7 @@
   - [Run built-in unit-tests](#run-built-in-unit-tests)
 - [How to Use](#how-to-use)
 - [Iso2Mesh function port status](#iso2mesh-function-port-status)
+- [How to Cite](#how-to-cite)
 - [Acknowledgement](#acknowledgement)
 
 ## Introduction
@@ -197,27 +198,27 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 
 | Ported | Unit-tested |     | Ported | Unit-tested |
 | ------ | ------ | --- | ------ | ------ |
-| > All-in-one pipeline shortcuts             | |  | > File I/O | |
+| > All-in-one pipeline shortcuts       | |  | > File I/O | |
 | ✅ `v2m.m` | ✅ tested |                    | ✅ `saveasc.m` | ⭕️ tested |
 | ✅ `v2s.m` | ✅ tested |                    | ✅ `savedxf.m` | ⭕️ tested |
 | ✅ `s2m.m` | ✅ tested |                    | ✅ `savestl.m` | ⭕️ tested |
 | ✅ `s2v.m` | ✅ tested |                    | ✅ `savebinstl.m` | ⭕️ tested |
-| ✅ `m2v.m` | ✅️ tested |                    | ✅ `saveinr.m` | ⭕️ tested |
+| ✅ `m2v.m` | ✅ tested |                    | ✅ `saveinr.m` | ⭕️ tested |
 | ✅ `sms.m` | ✅ tested |                    | ✅ `saveoff.m` | ✅ tested |
 | > Streamlined mesh generation| |            | ⭕️ `savesmf.m` | ⭕️ tested |
 | ✅ `vol2mesh.m` | ✅ tested |               | ✅ `savesurfpoly.m` | ✅ tested |
 | ✅ `vol2surf.m` | ✅ tested |               | ⭕️ `savegts.m` | ⭕️ tested |
 | ✅ `surf2mesh.m` | ✅ tested |              | ⭕️ `readgts.m` | ⭕️ tested |
 | ✅ `surf2vol.m` | ✅ tested |               | ⭕️ `savemsh.m` | ⭕️ tested |
-| ✅ `mesh2vol.m` | ✅️ tested |               | ⭕️ `savevrml.m` | ⭕️ tested |
+| ✅ `mesh2vol.m` | ✅ tested |               | ⭕️ `savevrml.m` | ⭕️ tested |
 | > Iso2mesh main function backend| |         | ✅ `readasc.m` | ⭕️ tested |
 | ✅ `binsurface.m` | ✅ tested |             | ⭕️ `readinr.m` | ⭕️ tested |
 | ✅ `cgalv2m.m` | ✅ tested |                | ✅ `readmedit.m` | ⭕️ tested |
 | ✅ `cgals2m.m` | ✅ tested |                | ✅ `readoff.m` | ✅ tested |
 | ✅ `vol2restrictedtri.m` | ✅ tested |      | ⭕️ `readsmf.m` | ⭕️ tested |
 | ✅ `surf2volz.m` | ✅ tested |              | ✅ `readtetgen.m` | ✅ tested |
-| ✅ `mesh2mask.m` | ✅️ tested |              | ✅ `deletemeshfile.m` | ✅ tested |
-| > Iso2mesh primitive meshing|           |   | ✅ `mcpath.m` | ✅ tested |
+| ✅ `mesh2mask.m` | ✅ tested |              | ✅ `deletemeshfile.m` | ✅ tested |
+| > Iso2mesh primitive meshing|          |   | ✅ `mcpath.m` | ✅ tested |
 | ✅ `meshabox.m` | ✅ tested |               | ✅ `mwpath.m` | ✅ tested |
 | ✅ `meshasphere.m` | ✅ tested |            | ✅ `savemedit.m` | ✅ tested |
 | ✅ `meshanellip.m` | ✅ tested |            | ⭕️ `savejson.m` | ⭕️ tested |
@@ -244,64 +245,86 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `maxsurf.m` | ⭕️ tested |                | ⭕️ `loadjmesh.m` | ⭕️ tested |
 | ✅ `flatsegment.m` | ⭕️ tested |            | ⭕️ `readobjmesh.m` | ⭕️ tested |
 | ✅ `orderloopedge.m` | ⭕️ tested |          | > Volumetric image pre-processing| |
-| ✅ `mesheuler.m` | ✅ tested |              | ⭕️ `bwislands.m` | ⭕️ tested |
-| ✅ `bbxflatsegment.m` | ⭕️ tested |         | ⭕️ `fillholes3d.m` | ⭕️ tested |
-| ✅ `surfplane.m` | ⭕️ tested |              | ⭕️ `deislands2d.m` | ⭕️ tested |
-| ✅ `surfinterior.m` | ⭕️ tested |           | ⭕️ `deislands3d.m` | ⭕️ tested |
-| ✅ `surfpart.m` | ⭕️ tested |               | ⭕️ `ndgaussian.m` | ⭕️ tested |
-| ✅ `surfseeds.m` | ⭕️ tested |              | ⭕️ `ndimfilter.m` | ⭕️ tested |
-| ✅ `meshquality.m` | ✅ tested |            | ⭕️ `imedge3d.m` | ⭕️ tested |
-| ✅ `meshedge.m` | ✅ tested |               | ⭕️ `internalpoint.m` | ⭕️ tested |
-| ✅ `meshface.m` | ✅ tested |               | ⭕️ `smoothbinvol.m` | ⭕️ tested |
-| ✅ `surfacenorm.m` | ✅ tested |            | ⭕️ `thickenbinvol.m` | ⭕️ tested |
-| ✅ `nodesurfnorm.m` | ✅ tested |           | ⭕️ `thinbinvol.m` | ⭕️ tested |
-| ✅ `uniqedges.m` | ✅ tested |              | ⭕️ `maskdist.m` | ⭕️ tested |
-| ✅ `uniqfaces.m` | ✅ tested |              | > Mesh plotting| |
-| ✅ `advancefront.m` | ⭕️ tested |           | ✅ `plotmesh.m` | ✅ tested |
-| ✅ `innersurf.m` | ⭕️ tested |              | ✅ `plotsurf.m` | ✅ tested |
-| ✅ `outersurf.m` | ⭕️ tested |              | ✅ `plottetra.m` | ✅ tested |
-| ✅ `surfvolume.m` | ✅ tested |             | ✅ `plotedges.m` | ✅ tested |
-| ✅ `insurface.m` | ✅ tested |              | ✅ `qmeshcut.m` | ✅ tested |
-| > Mesh processing and reparing| |           | > Miscellaneous functions| |
-| ✅ `meshcheckrepair.m` | ✅ tested |        | ⭕️ `surfdiffuse.m` | ⭕️ tested |
-| ✅ `meshreorient.m` | ✅ tested |           | ⭕️ `volmap2mesh.m` | ⭕️ tested |
-| ✅ `removedupelem.m` | ✅ tested |          | ⭕️ `isoctavemesh.m` | ⭕️ tested |
-| ✅ `removedupnodes.m` | ✅ tested |         | ⭕️ `getvarfrom.m` | ⭕️ tested |
-| ✅ `removeisolatednode.m` | ✅ tested |     | ✅ `raytrace.m` | ✅ tested |
-| ✅ `removeisolatedsurf.m` | ⭕️ tested |     | ⭕️ `linextriangle.m` | ⭕️ tested |
-| ✅ `surfaceclean.m` | ⭕️ tested |           | ⭕️ `getplanefrom3pt.m` | ⭕️ tested |
-| ✅ `getintersecttri.m` | ⭕️ tested |        | ✅ `getexeext.m` | ✅ tested |
-| ✅ `delendelem.m` | ⭕️ tested |             | ✅ `fallbackexeext.m` | ✅ tested |
-| ✅ `surfreorient.m` | ✅ tested |           | ⭕️ `iso2meshver.m` | ⭕️ tested |
-| > Mesh registration | |                     | ⭕️ `raysurf.m` | ⭕️ tested |
-| ✅ `proj2mesh.m` | ⭕️ tested |              | ⭕️ `getoptkey.m` | ⭕️ tested |
-| ✅ `dist2surf.m` | ⭕️ tested |              | ✅ `rotatevec3d.m` | ⭕️ tested |
-| ✅ `regpt2surf.m` | ⭕️ tested |             | ✅ `rotmat2vec.m` | ⭕️ tested |
-| ✅ `affinemap.m` | ⭕️ tested |              | ✅ `varargin2struct.m` | ⭕️ tested |
-| > Polyline handling| |                      | ✅ `jsonopt.m` | ⭕️ tested |
-| ✅️ `slicesurf.m` | ⭕️ tested |              | ⭕️ `mergestruct.m` | ⭕️ tested |
-| ✅️ `slicesurf3.m` | ⭕️ tested |             | ⭕️ `orthdisk.m` | ⭕️ tested |
-| ✅️ `polylinelen.m` | ⭕️ tested |            | ⭕️ `nestbracket2dim.m` | ⭕️ tested |
-| ✅️ `polylinesimplify.m` | ⭕️ tested |       | ⭕️ `memmapstream.m` | ⭕️ tested |
-| ✅️ `polylineinterp.m` | ⭕️ tested |         | ⭕️ `aos2soa.m` | ⭕️ tested |
-| ✅️ `closestnode.m` | ⭕️ tested |            | ⭕️ `soa2aos.m` | ⭕️ tested |
-| > Mesh resampling and optimization| |
-| ✅ `meshresample.m` | ✅ tested |
-| ✅ `remeshsurf.m` | ✅ tested |
-| ✅ `smoothsurf.m` | ✅ tested |
-| ✅ `sortmesh.m` | ⭕️ tested |
-| ✅ `mergemesh.m` | ✅ tested |
-| ✅ `meshrefine.m` | ✅ tested |
-| ✅ `mergesurf.m` | ⭕️ tested |
-| ✅ `surfboolean.m` | ✅ tested |
-| ✅ `fillsurf.m` | ⭕️ tested |
-| ✅ `highordertet.m` | ✅ tested |
+| ✅ `mesheuler.m` | ✅ tested |              | ✅ `volgrow.m` | ✅ tested |
+| ✅ `bbxflatsegment.m` | ⭕️ tested |         | ✅ `volshrink.m` | ✅ tested |
+| ✅ `surfplane.m` | ⭕️ tested |              | ✅ `volopen.m` | ✅ tested |
+| ✅ `surfinterior.m` | ⭕️ tested |           | ✅ `volclose.m` | ✅ tested |
+| ✅ `surfpart.m` | ⭕️ tested |               | ✅ `fillholes3d.m` | ✅ tested |
+| ✅ `surfseeds.m` | ⭕️ tested |              | ⭕️ `bwislands.m` | ⭕️ tested |
+| ✅ `meshquality.m` | ✅ tested |            | ⭕️ `laplacefill.m` | ⭕️ tested |
+| ✅ `meshedge.m` | ✅ tested |               | ⭕️ `deislands2d.m` | ⭕️ tested |
+| ✅ `meshface.m` | ✅ tested |               | ⭕️ `deislands3d.m` | ⭕️ tested |
+| ✅ `surfacenorm.m` | ✅ tested |            | ⭕️ `ndgaussian.m` | ⭕️ tested |
+| ✅ `nodesurfnorm.m` | ✅ tested |           | ⭕️ `ndimfilter.m` | ⭕️ tested |
+| ✅ `uniqedges.m` | ✅ tested |              | ⭕️ `imedge3d.m` | ⭕️ tested |
+| ✅ `uniqfaces.m` | ✅ tested |              | ⭕️ `internalpoint.m` | ⭕️ tested |
+| ✅ `advancefront.m` | ⭕️ tested |           | ⭕️ `smoothbinvol.m` | ⭕️ tested |
+| ✅ `innersurf.m` | ⭕️ tested |              | ✅ `thickenbinvol.m` | ✅ tested |
+| ✅ `outersurf.m` | ⭕️ tested |              | ✅ `thinbinvol.m` | ✅ tested |
+| ✅ `surfvolume.m` | ✅ tested |             | ⭕️ `maskdist.m` | ⭕️ tested |
+| ✅ `insurface.m` | ✅ tested |              | > Mesh plotting| |
+| > Mesh processing and reparing| |           | ✅ `plotmesh.m` | ✅ tested |
+| ✅ `meshcheckrepair.m` | ✅ tested |        | ✅ `plotsurf.m` | ✅ tested |
+| ✅ `meshreorient.m` | ✅ tested |           | ✅ `plottetra.m` | ✅ tested |
+| ✅ `removedupelem.m` | ✅ tested |          | ✅ `plotedges.m` | ✅ tested |
+| ✅ `removedupnodes.m` | ✅ tested |         | ✅ `qmeshcut.m` | ✅ tested |
+| ✅ `removeisolatednode.m` | ✅ tested |      | > Miscellaneous functions| |
+| ✅ `removeisolatedsurf.m` | ⭕️ tested |     | ⭕️ `surfdiffuse.m` | ⭕️ tested |
+| ✅ `surfaceclean.m` | ⭕️ tested |           | ⭕️ `volmap2mesh.m` | ⭕️ tested |
+| ✅ `getintersecttri.m` | ⭕️ tested |        | ⭕️ `isoctavemesh.m` | ⭕️ tested |
+| ✅ `delendelem.m` | ⭕️ tested |             | ⭕️ `getvarfrom.m` | ⭕️ tested |
+| ✅ `surfreorient.m` | ✅ tested |           | ✅ `raytrace.m` | ✅ tested |
+| > Mesh registration | |                     | ⭕️ `linextriangle.m` | ⭕️ tested |
+| ✅ `proj2mesh.m` | ⭕️ tested |              | ⭕️ `getplanefrom3pt.m` | ⭕️ tested |
+| ✅ `dist2surf.m` | ⭕️ tested |              | ✅ `getexeext.m` | ✅ tested |
+| ✅ `regpt2surf.m` | ⭕️ tested |             | ✅ `fallbackexeext.m` | ✅ tested |
+| ✅ `affinemap.m` | ⭕️ tested |              | ⭕️ `iso2meshver.m` | ⭕️ tested |
+| > Polyline handling| |                      | ⭕️ `raysurf.m` | ⭕️ tested |
+| ✅ `slicesurf.m` | ⭕️ tested |              | ⭕️ `getoptkey.m` | ⭕️ tested |
+| ✅ `slicesurf3.m` | ⭕️ tested |             | ✅ `rotatevec3d.m` | ⭕️ tested |
+| ✅ `polylinelen.m` | ⭕️ tested |            | ✅ `rotmat2vec.m` | ⭕️ tested |
+| ✅ `polylinesimplify.m` | ⭕️ tested |       | ✅ `varargin2struct.m` | ⭕️ tested |
+| ✅ `polylineinterp.m` | ⭕️ tested |         | ✅ `jsonopt.m` | ⭕️ tested |
+| ✅ `closestnode.m` | ⭕️ tested |            | ⭕️ `mergestruct.m` | ⭕️ tested |
+| > Mesh resampling and optimization| |       | ⭕️ `orthdisk.m` | ⭕️ tested |
+| ✅ `meshresample.m` | ✅ tested |           | ⭕️ `nestbracket2dim.m` | ⭕️ tested |
+| ✅ `remeshsurf.m` | ✅ tested |             | ⭕️ `memmapstream.m` | ⭕️ tested |
+| ✅ `smoothsurf.m` | ✅ tested |             | ⭕️ `aos2soa.m` | ⭕️ tested |
+| ✅ `sortmesh.m` | ⭕️ tested |               | ⭕️ `soa2aos.m` | ⭕️ tested |
+| ✅ `mergemesh.m` | ✅ tested |              | > Brain2mesh toolbox | |
+| ✅ `meshrefine.m` | ✅ tested |             | ✅ `brain2mesh.m` | ⭕️ tested |
+| ✅ `mergesurf.m` | ⭕️ tested |              | ✅ `brain1020.m` | ⭕️ tested |
+| ✅ `surfboolean.m` | ✅ tested |            | ✅ `intriangulation.m` | ⭕️ tested |
+| ✅ `fillsurf.m` | ⭕️ tested |               | ✅ `label2tpm.m` | ⭕️ tested |
+| ✅ `highordertet.m` | ✅ tested |           | ✅ `tpm2label.m` | ⭕️ tested |
 | ✅ `elemfacecenter.m` | ✅ tested |
 | ✅ `barydualmesh.m` | ✅ tested |
 | ✅ `meshinterp.m` | ⭕️ tested |
 | ✅ `meshremap.m` | ⭕️ tested |
 | ✅ `extrudesurf.m` | ⭕️ tested |
 
+
+## How to Cite
+
+Users of the pyiso2mesh toolbox should consider citing the below publications related to iso2mesh.
+
+The original conference paper that described the **iso2mesh** toolbox workflow was published in 2009:
+
+- Qianqian Fang and David Boas, "Tetrahedral mesh generation from volumetric binary and gray-scale images," 
+  Proceedings of IEEE International Symposium on Biomedical Imaging 2009, pp. 1142-1145, 2009
+
+A journal paper, published in 2020 describing the **brain2mesh** toolbox contains a much more
+up-to-date description of iso2mesh in the context of complex brain mesh generation
+
+- Anh Phong Tran, Shijie Yan and Qianqian Fang*, (2020) "Improving model-based fNIRS analysis using
+  mesh-based anatomical and light-transport models," Neurophotonics, 7(1), 015008
+
+If one utilized the `brain1020` function in your research, you should cite the below paper where
+the workflow of this function was described
+
+- Ashlyn McCann, Edward Xu, Fan-Yu Yen, Noah Joseph, Qianqian Fang, "Creating anatomically derived, 
+  standardized, customizable, and three-dimensional printable head caps for functional neuroimaging," 
+  Neurophoton. 12(1) 015016 (18 March 2025) https://doi.org/10.1117/1.NPh.12.1.015016, PMID: 39257741; PMCID: PMC11383710.
 
 
 ## Acknowledgement

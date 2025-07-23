@@ -1288,7 +1288,7 @@ def brain1020(
         )
 
     # Parse user options
-    showplot = kwargs.get("display", True)
+    showplot = kwargs.get("display", False)
     baseplane = kwargs.get("baseplane", True)
     tol = kwargs.get("cztol", 1e-6)
     dosimplify = kwargs.get("minangle", 0)
@@ -1387,18 +1387,8 @@ def brain1020(
     # At this point, initpoints contains {nz, iz, lpa, rpa, cz0}
     # Plot the head mesh
     if showplot:
-        fig = plt.figure(figsize=(10, 8))
-        ax = fig.add_subplot(111, projection="3d")
-        # Plot mesh with transparency
-        ax.plot_trisurf(
-            node[:, 0],
-            node[:, 1],
-            node[:, 2],
-            triangles=face - 1,
-            alpha=0.6,
-            color="wheat",
-            linewidth=0,
-        )
+        hh = plotmesh(node, face, alpha=0.6, color="wheat", linewidth=0)
+        ax = hh["ax"][0]
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_zlabel("Z")
@@ -1581,7 +1571,7 @@ def brain1020(
         )
 
     # Step 5: computing all anterior coronal cuts, moving away from the medial cut (cm) toward frontal
-    idxcz = closestnode(landmarks["sm"], landmarks["cz"])
+    idxcz = closestnode(landmarks["sm"], landmarks["cz"])[0]
     skipcount = int(np.floor(10 / perc2))
 
     for i in range(

@@ -171,13 +171,13 @@ from .volume import (
     volgrow,
     volshrink,
     volopen,
-    volshrink,
+    volclose,
     fillholes3d,
     thickenbinvol,
     thinbinvol,
 )
 
-__version__ = "0.3.8"
+__version__ = "0.4.0"
 __all__ = [
     "advancefront",
     "barycentricgrid",
@@ -308,7 +308,7 @@ __all__ = [
     "volgrow",
     "volshrink",
     "volopen",
-    "volshrink",
+    "volclose",
     "fillholes3d",
     "thickenbinvol",
     "thinbinvol",

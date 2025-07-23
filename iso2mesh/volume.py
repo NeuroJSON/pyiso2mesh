@@ -7,7 +7,7 @@ __all__ = [
     "volgrow",
     "volshrink",
     "volopen",
-    "volshrink",
+    "volclose",
     "fillholes3d",
     "thickenbinvol",
     "thinbinvol",
@@ -32,13 +32,10 @@ def validatemask(mask, ndim=3):
     if mask is None or mask.size == 0:
         if ndim == 3:
             # Create 3D cross-shaped mask for 3D volumes
-            mask = np.zeros((3, 3, 3), dtype=np.float32)
-            mask[1, 1, :] = 1  # z-direction line (index 1 is center in 0-based)
-            mask[:, 1, 1] = 1  # y-direction line
-            mask[1, :, 1] = 1  # x-direction line
+            mask = ndimage.generate_binary_structure(3, 1)
         else:
             # Create 2D cross-shaped mask for 2D images
-            mask = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.float32)
+            mask = ndimage.generate_binary_structure(2, 1)
 
     # Rotate mask by 180 degrees (equivalent to rot90(mask, 2) in MATLAB)
     if mask.ndim == 3:
@@ -82,7 +79,7 @@ def volgrow(
     This function is part of iso2mesh toolbox (http://iso2mesh.sf.net)
     """
 
-    mask = validatemask(mask)
+    mask = validatemask(mask, vol.ndim)
 
     # Convert vol to appropriate type for processing
     newvol = vol.astype(np.float32)
@@ -124,7 +121,7 @@ def volshrink(
         The volume image after the thinning operations
     """
 
-    mask = validatemask(mask)
+    mask = validatemask(mask, vol.ndim)
 
     # Convert input to binary
     newvol = vol != 0
@@ -166,7 +163,7 @@ def volclose(
     if vol is None:
         raise ValueError("must provide a volume")
 
-    mask = validatemask(mask)
+    mask = validatemask(mask, vol.ndim)
 
     # Convert input to binary
     newvol = vol != 0
@@ -208,7 +205,7 @@ def volopen(
     if vol is None:
         raise ValueError("must provide a volume")
 
-    mask = validatemask(mask)
+    mask = validatemask(mask, vol.ndim)
 
     # Convert input to binary
     newvol = vol != 0

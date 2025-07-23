@@ -1323,6 +1323,287 @@ class Test_core(unittest.TestCase):
         self.assertTrue(np.all(counts > 50))
 
 
+class Test_volume(unittest.TestCase):
+    """Test binary volume processing functions from"""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        # Create test volume
+        self.vol = np.zeros((3, 4, 3))
+        self.vol[1, 1:3, 1] = 1  # Python uses 0-based indexing
+
+        # Create complex test volume for vol{close|open} and fillholes3d tests
+        self.complex_vol = np.zeros((30, 40, 50))
+        self.complex_vol[9:20, 19:35, 19:40] = 1  # Python uses 0-based indexing
+        self.complex_vol[12:18, 24:30, 24:30] = 0
+        self.complex_vol[13:17, 25:28, 0:30] = 0
+
+    def test_volgrow_1(self):
+        """Test volgrow with 1 iteration."""
+        result = volgrow(self.vol)
+        expected = np.array(
+            [
+                [[0, 0, 0], [0, 1, 0], [0, 1, 0], [0, 0, 0]],
+                [[0, 1, 0], [1, 1, 1], [1, 1, 1], [0, 1, 0]],
+                [[0, 0, 0], [0, 1, 0], [0, 1, 0], [0, 0, 0]],
+            ]
+        )
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volgrow_2(self):
+        """Test volgrow with 2 iterations."""
+        result = volgrow(self.vol, 2)
+        expected = np.array(
+            [
+                [[0, 1, 0], [1, 1, 1], [1, 1, 1], [0, 1, 0]],
+                [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]],
+                [[0, 1, 0], [1, 1, 1], [1, 1, 1], [0, 1, 0]],
+            ]
+        )
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volgrow_nonbinary_2(self):
+        """Test volgrow with non-binary input."""
+        result = volgrow(self.vol * 2.5, 2)
+        expected = np.array(
+            [
+                [[0, 1, 0], [1, 1, 1], [1, 1, 1], [0, 1, 0]],
+                [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]],
+                [[0, 1, 0], [1, 1, 1], [1, 1, 1], [0, 1, 0]],
+            ]
+        )
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volgrow_user_mask(self):
+        """Test volgrow with user-defined mask."""
+        mask = np.zeros((3, 3, 3))
+        mask.flat[[0, 13, 26]] = 1
+
+        result = volgrow(self.vol, 1, mask)
+        expected = np.array(
+            [
+                [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0]],
+                [[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0]],
+                [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+            ]
+        )
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volgrow_2d(self):
+        """Test volgrow in 2D."""
+        vol_2d = self.vol[:, :, 1]  # Extract 2D slice
+        result = volgrow(vol_2d)
+        expected = np.array([[0, 1, 1, 0], [1, 1, 1, 1], [0, 1, 1, 0]])
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volgrow_2d_user_mask(self):
+        """Test volgrow 2D with user mask."""
+        vol_2d = self.vol[:, :, 1]
+        mask = np.array([[1, 1, 0], [1, 1, 1], [0, 0, 1]])
+        result = volgrow(vol_2d, 1, mask)
+        expected = np.array([[1, 1, 0, 0], [1, 1, 1, 1], [0, 1, 1, 1]])
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volgrow_2d_logical_inputs(self):
+        """Test volgrow 2D with logical inputs."""
+        vol_logical = self.vol[:, 1, :].astype(
+            bool
+        )  # Extract slice and convert to bool
+        mask_logical = np.array([[0, 1, 0], [0, 1, 1], [0, 0, 1]], dtype=bool)
+        result = volgrow(vol_logical, 1, mask_logical)
+        expected = np.array([[1, 0, 0], [1, 1, 0], [0, 1, 0]])
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volgrow_2d_complex_mask(self):
+        """Test volgrow 2D with complex mask."""
+        magic_vol = (
+            np.array(
+                [
+                    [92, 99, 1, 8, 15],
+                    [98, 80, 7, 14, 16],
+                    [4, 81, 88, 20, 22],
+                    [85, 87, 19, 21, 3],
+                    [91, 93, 25, 2, 9],
+                ]
+            )
+            > 20
+        )
+        result = volgrow(magic_vol, 2)
+        self.assertEqual(
+            np.sum(result), 25
+        )  # All elements should be 1 after 2 iterations
+
+    def test_volgrow_2d_simple_mask(self):
+        """Test volgrow 2D with simple mask."""
+        vol_simple = np.array([[0, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 0]])
+        result = volgrow(vol_simple, 2)
+        expected = np.array([[0, 1, 1, 1], [1, 1, 1, 1], [0, 1, 1, 1]])
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volgrow_2d_ones_mask(self):
+        """Test volgrow 2D with ones mask."""
+        vol_simple = np.array([[0, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 0]])
+        result = volgrow(vol_simple, 1, np.ones((3, 3)))
+        expected = np.array([[0, 1, 1, 1], [0, 1, 1, 1], [0, 1, 1, 1]])
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volgrow_2d_x_line_mask(self):
+        """Test volgrow 2D with x-line mask."""
+        # Create sparse-like array
+        vol_sparse = np.zeros((10, 8))
+        vol_sparse[[1, 4, 6], [2, 2, 5]] = 1  # Python 0-based indexing
+
+        mask = np.array([[0, 0, 0], [1, 1, 1], [0, 0, 0]])
+        result = volgrow(vol_sparse, 10, mask)
+
+        expected_mask = np.tile(
+            np.array([0, 1, 0, 0, 1, 0, 1, 0, 0, 0]).reshape(-1, 1), (1, 8)
+        )
+        np.testing.assert_array_equal(result, expected_mask)
+
+    def test_volgrow_2d_y_line_mask(self):
+        """Test volgrow 2D with y-line mask."""
+        vol_sparse = np.zeros((10, 8))
+        vol_sparse[[1, 4, 6], [2, 2, 5]] = 1
+
+        mask = np.array([[0, 1, 0], [0, 1, 0], [0, 1, 0]])
+        result = volgrow(vol_sparse, 10, mask)
+
+        expected_mask = np.tile(np.array([0, 0, 1, 0, 0, 1, 0, 0]), (10, 1))
+        np.testing.assert_array_equal(result, expected_mask)
+
+    def test_volshrink_3d_1(self):
+        """Test volshrink 3D with 1 iteration."""
+        vol = np.ones((3, 4, 5), order="F")
+        vol.flat[:6] = 0  # First 6 elements
+        vol.flat[-1] = 0  # Last element
+
+        result = volshrink(vol)
+        # Expected result based on MATLAB test
+        expected = np.array(
+            [
+                [
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                ],
+                [
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 1.0, 1.0, 0.0],
+                    [0.0, 1.0, 1.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                ],
+                [
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                ],
+            ]
+        )
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volshrink_3d_ones(self):
+        """Test volshrink 3D with ones mask."""
+        vol = np.ones((3, 4, 5), order="F")
+        vol[:, :2, 0] = 0
+        vol.flat[-1] = 0
+
+        ones_mask = np.ones((3, 3, 3))
+        vol1 = volshrink(volgrow(volshrink(vol), 1, ones_mask), 1, ones_mask)
+
+        expected = np.array(
+            [
+                [
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                ],
+                [
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 1.0, 0.0],
+                    [0.0, 1.0, 1.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                ],
+                [
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 0.0],
+                ],
+            ]
+        )
+        np.testing.assert_array_equal(vol1, expected)
+
+    def test_volshrink_2d(self):
+        """Test volshrink 2D."""
+        vol_2d = np.array([[0, 1, 1, 1], [0, 1, 1, 1], [0, 1, 1, 0]])
+        result = volshrink(vol_2d)
+        expected = np.array([[0, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 0]])
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volshrink_2d_2x(self):
+        """Test volshrink 2D with 2 iterations."""
+        vol_2d = np.array([[0, 0, 1, 1], [0, 0, 1, 0], [0, 0, 0, 0]])
+        result = volshrink(vol_2d)
+        expected = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+        np.testing.assert_array_equal(result, expected)
+
+    def test_volclose_2x(self):
+        """Test volclose with 2 iterations."""
+        result = volclose(self.complex_vol, 2)
+        self.assertEqual(np.sum(result), 3566)
+
+    def test_volclose_4x(self):
+        """Test volclose with 4 iterations."""
+        result = volclose(self.complex_vol, 4)
+        self.assertEqual(np.sum(result), 3682)
+
+    def test_volopen_volclose_2x(self):
+        """Test volopen followed by volclose."""
+        result = volopen(volclose(self.complex_vol, 2), 2)
+        self.assertEqual(np.sum(result), 2994)
+
+    def test_volclose_volopen_2x(self):
+        """Test volclose followed by volopen."""
+        result = volclose(volopen(self.complex_vol, 2), 2)
+        self.assertEqual(np.sum(result), 2604)
+
+    def test_fillholes3d_volclose(self):
+        """Test fillholes3d with volclose."""
+        result = fillholes3d(volclose(self.complex_vol, 2))
+        self.assertEqual(np.sum(result), 3682)
+
+    def test_fillholes3d_2x(self):
+        """Test fillholes3d with 2 iterations."""
+        result = fillholes3d(self.complex_vol, 2)
+        self.assertEqual(np.sum(result), 3682)
+
+    def test_fillholes3d_1x(self):
+        """Test fillholes3d with 1 iteration."""
+        result = fillholes3d(self.complex_vol, 1)
+        self.assertEqual(np.sum(result), 3478)
+
+    def test_fillholes3d_5x(self):
+        """Test fillholes3d with 5 iterations."""
+        result = fillholes3d(self.complex_vol, 5)
+        self.assertEqual(np.sum(result), 3682)
+
+    def test_fillholes3d_x_axis_mask(self):
+        """Test fillholes3d with x-axis mask."""
+        mask = np.tile(np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]]), (3, 1, 1))
+        result = fillholes3d(self.complex_vol, 4, mask)
+        self.assertEqual(np.sum(result), 3696)
+
+    def test_fillholes3d_z_axis_mask(self):
+        """Test fillholes3d with z-axis mask."""
+        mask = np.tile(np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]]), (1, 1, 3))
+        result = fillholes3d(self.complex_vol, 4, mask)
+        self.assertEqual(np.sum(result), 3212)
+
+
 @unittest.skipIf(
     (int(mpl_ver[0]), int(mpl_ver[1])) < (3, 6), "Requires Matplotlib 3.6 or higher"
 )

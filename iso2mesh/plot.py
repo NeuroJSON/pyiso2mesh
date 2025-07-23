@@ -144,7 +144,9 @@ def plotasurf(node, face, *args, **kwargs):
     node_values = node[:, 3] if node.shape[1] > 3 else node[:, 2]
     face_values = np.array([np.mean(node_values[f]) for f in face[:, :3] - 1])
     norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
-    colmap = kwargs["cmap"](norm(face_values))
+    colmap = []
+    if "cmap" in kwargs:
+        colmap = kwargs["cmap"](norm(face_values))
     return poly3d, colmap
 
 

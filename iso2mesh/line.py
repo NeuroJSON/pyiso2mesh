@@ -144,7 +144,7 @@ def closestnode(node, p):
     dist_sq = np.sum(dd * dd, axis=1)
     idx = np.argmin(dist_sq)
     dist = dist_sq[idx]
-    return idx, dist
+    return idx + 1, dist
 
 
 def polylinelen(node, p0=None, p1=None, pmid=None):
@@ -197,7 +197,7 @@ def polylinelen(node, p0=None, p1=None, pmid=None):
 
     if p0 < pmid and pmid < p1:
         inputreversed = 0
-        node = node[p0 : p1 + 1, :]
+        node = node[range(p0, p1 + 1), :]
     elif p0 < pmid and p1 < pmid:
         inputreversed = min(p0, p1) == p0
         idx_range = list(range(min(p0, p1), -1, -1)) + list(
@@ -208,7 +208,7 @@ def polylinelen(node, p0=None, p1=None, pmid=None):
             node = np.flipud(node)
     elif p0 > pmid and pmid > p1:
         inputreversed = 1
-        node = node[p0 : p1 - 1 : -1, :]
+        node = node[range(p0, p1 - 1, -1), :]
     elif p0 > pmid and p1 > pmid:
         inputreversed = max(p0, p1) == p1
         idx_range = list(range(max(p0, p1), node.shape[0])) + list(
