@@ -1079,7 +1079,7 @@ class Test_core(unittest.TestCase):
         self.mask = self.dist < 400
         self.mask = self.mask.astype(float)
         self.mask[25:35, 25:35, :] = 2
-        self.no, self.fc, _, _ = v2s(self.dist < 100, 0.5, 2)
+        self.no, self.fc, _, _ = v2s(self.dist < 100, 0.5, 1)
 
         self.plcno = (
             np.array(
@@ -1186,10 +1186,10 @@ class Test_core(unittest.TestCase):
         node, elem, face = cgals2m(self.no[:, :3], self.fc[:, :3], 1, 50)
 
         self.assertAlmostEqual(
-            sum(elemvolume(node[:, :3], face[:, :3])) * 0.001, 2.456809397314205, 2
+            sum(elemvolume(node[:, :3], face[:, :3])) * 0.001, 2.5059953, 2
         )
         self.assertAlmostEqual(
-            sum(elemvolume(node[:, :3], elem[:, :4])) * 0.001, 3.983804447661502, 2
+            sum(elemvolume(node[:, :3], elem[:, :4])) * 0.001, 4.059537859114509, 2
         )
 
     def test_v2s_label(self):
@@ -1253,7 +1253,7 @@ class Test_core(unittest.TestCase):
             np.arange(19, 42, 1),
             np.arange(19, 42, 1),
         )
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.125, 2)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.1800001, 2)
 
     def test_surf2vol(self):
         vol = surf2vol(
@@ -1263,7 +1263,7 @@ class Test_core(unittest.TestCase):
             np.arange(19, 42, 1),
             np.arange(19, 42, 1),
         )
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.72, 2)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.7860001, 2)
 
     def test_surf2vol_fill(self):
         vol = surf2vol(
@@ -1274,11 +1274,11 @@ class Test_core(unittest.TestCase):
             np.arange(19, 42, 0.5),
             fill=1,
         )
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 3.5391, 2)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 3.6134, 2)
 
     def test_s2v(self):
         vol = s2v(self.no, self.fc, 100, fill=1)
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.00001, 6.0598097, 2)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.00001, 6.16385, 2)
 
     def test_mesh2mask(self):
         node = np.array([[0, 0], [2, 0], [2, 1], [0, 1], [1, 0.5]])
