@@ -428,7 +428,15 @@ def plotmesh(node, *args, **kwargs):
         if getattr(idx, "size", None) == 0:
             print("Warning: nothing to plot")
             return None
-        handles = plottetra(node, elem[idx, :], opt, *args, **kwargs)
+        if "alpha" not in kwargs and selector:
+            faceselect, elemid = volface(elem[idx, :4])
+            if elem.shape[1] > 4:
+                faceselect = np.hstack(
+                    (faceselect, elem[idx[elemid - 1], 4].reshape(-1, 1))
+                )
+            handles = plotsurf(node, faceselect, opt, *args, **kwargs)
+        else:
+            handles = plottetra(node, elem[idx, :], opt, *args, **kwargs)
 
     if not "hold" in extraarg or not extraarg["hold"] or extraarg["hold"] == "off":
         plt.draw()

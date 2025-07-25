@@ -673,8 +673,8 @@ def brain2mesh(seg, **cfg):
 
     # Generate brain_f if requested
     brain_f = np.array([])
-    #    if len(sys._getframe().f_back.f_code.co_names) > 2:  # Check if brain_f is requested
-    #        brain_f = layersurf(brain_el)
+    if cfg.get("face", False):  # Check if brain_f is requested
+        brain_f = layersurf(brain_el)[0]
 
     return brain_n, brain_el, brain_f
 
@@ -1387,7 +1387,7 @@ def brain1020(
     # At this point, initpoints contains {nz, iz, lpa, rpa, cz0}
     # Plot the head mesh
     if showplot:
-        hh = plotmesh(node, face, alpha=0.6, color="wheat", linewidth=0)
+        hh = plotmesh(node, face, alpha=0, color="wheat", linewidth=0.1)
         ax = hh["ax"][0]
         ax.set_xlabel("X")
         ax.set_ylabel("Y")

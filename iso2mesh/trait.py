@@ -142,10 +142,9 @@ def surfedge(f, junction=None):
 
     openedge = edges[ix[qx], :]
 
-    elemid = None
-    elemid, _ = np.unravel_index(ix[qx], f.shape)
+    elemid, _ = np.unravel_index(ix[qx], f.shape, order="F")
 
-    return openedge, elemid
+    return openedge, elemid + 1
 
 
 # _________________________________________________________________________________________________________
@@ -495,11 +494,11 @@ def layersurf(elem, **kwargs):
     # Process each label
     for i in range(len(labels)):
         if outsideislower == ">=" and labels[i] not in innermost:
-            newface = volface(elem[elem[:, 4] >= labels[i], :4])
+            newface = volface(elem[elem[:, 4] >= labels[i], :4])[0]
         elif outsideislower == "<=" and labels[i] not in innermost:
-            newface = volface(elem[elem[:, 4] <= labels[i], :4])
+            newface = volface(elem[elem[:, 4] <= labels[i], :4])[0]
         else:
-            newface = volface(elem[elem[:, 4] == labels[i], :4])
+            newface = volface(elem[elem[:, 4] == labels[i], :4])[0]
 
         # Add label to faces
         newface = np.hstack((newface, np.full((newface.shape[0], 1), labels[i])))

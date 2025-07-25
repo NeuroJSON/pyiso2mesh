@@ -1112,24 +1112,24 @@ class Test_core(unittest.TestCase):
     def test_binsurface(self):
         no, fc = binsurface(self.im)
         expected_fc = [
-            [10, 4, 1],
-            [7, 10, 1],
-            [12, 6, 5],
-            [11, 5, 4],
-            [2, 3, 9],
-            [1, 2, 8],
-            [11, 12, 5],
-            [10, 11, 4],
-            [2, 9, 8],
-            [1, 8, 7],
-            [8, 9, 12],
-            [7, 8, 11],
-            [6, 3, 2],
-            [5, 2, 1],
-            [8, 12, 11],
-            [7, 11, 10],
-            [5, 6, 2],
             [4, 5, 1],
+            [5, 6, 2],
+            [7, 11, 10],
+            [8, 12, 11],
+            [5, 2, 1],
+            [6, 3, 2],
+            [7, 8, 11],
+            [8, 9, 12],
+            [1, 8, 7],
+            [2, 9, 8],
+            [10, 11, 4],
+            [11, 12, 5],
+            [1, 2, 8],
+            [2, 3, 9],
+            [11, 5, 4],
+            [12, 6, 5],
+            [7, 10, 1],
+            [10, 4, 1],
         ]
         self.assertEqual(fc.tolist(), expected_fc)
 
@@ -1168,7 +1168,7 @@ class Test_core(unittest.TestCase):
     def test_v2m(self):
         no, el, fc = v2m(self.im, 0.5, 0.03, 10)
         self.assertAlmostEqual(sum(elemvolume(no, fc[:, :3])), 5.01, 2)
-        self.assertAlmostEqual(sum(elemvolume(no, el[:, :4])), 0.8786, 4)
+        self.assertAlmostEqual(sum(elemvolume(no, el[:, :4])), 0.8786654361973504, 4)
 
     def test_cgalv2m(self):
         no, el, fc = v2m(
@@ -1184,11 +1184,12 @@ class Test_core(unittest.TestCase):
     @unittest.skipIf(sys.platform.startswith("darwin"), "skip cgals2m")
     def test_cgals2m(self):
         node, elem, face = cgals2m(self.no[:, :3], self.fc[:, :3], 1, 50)
+
         self.assertAlmostEqual(
-            sum(elemvolume(node[:, :3], face[:, :3])) * 0.001, 2.464594888865948, 3
+            sum(elemvolume(node[:, :3], face[:, :3])) * 0.001, 2.456809397314205, 3
         )
         self.assertAlmostEqual(
-            sum(elemvolume(node[:, :3], elem[:, :4])) * 0.001, 3.9983115207040685, 2
+            sum(elemvolume(node[:, :3], elem[:, :4])) * 0.001, 3.983804447661502, 2
         )
 
     def test_v2s_label(self):
@@ -1252,7 +1253,7 @@ class Test_core(unittest.TestCase):
             np.arange(19, 42, 1),
             np.arange(19, 42, 1),
         )
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.099, 2)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.125, 2)
 
     def test_surf2vol(self):
         vol = surf2vol(
@@ -1262,7 +1263,7 @@ class Test_core(unittest.TestCase):
             np.arange(19, 42, 1),
             np.arange(19, 42, 1),
         )
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.704, 2)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.72, 2)
 
     def test_surf2vol_fill(self):
         vol = surf2vol(
@@ -1273,11 +1274,11 @@ class Test_core(unittest.TestCase):
             np.arange(19, 42, 0.5),
             fill=1,
         )
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 3.5536, 2)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 3.5391, 2)
 
     def test_s2v(self):
         vol = s2v(self.no, self.fc, 100, fill=1)
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.00001, 6.0827, 2)
+        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.00001, 6.0598097, 2)
 
     def test_mesh2mask(self):
         node = np.array([[0, 0], [2, 0], [2, 1], [0, 1], [1, 0.5]])

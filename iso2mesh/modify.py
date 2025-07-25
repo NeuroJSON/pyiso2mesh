@@ -378,6 +378,7 @@ def meshcheckrepair(node, elem, opt=None, **kwargs):
         if status:
             raise RuntimeError(f"jmeshlib command failed: {output}")
         node, elem = readoff(mwpath("post_sclean.off"))
+        elem = np.flipud(elem)
 
     if opt == "meshfix":
         exesuff = fallbackexeext(getexeext(), "meshfix")

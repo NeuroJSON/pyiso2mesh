@@ -331,7 +331,7 @@ def vol2surf(img, ix, iy, iz, opt, dofix=0, method="cgalsurf", isovalues=None):
             else:
                 levelmask = newimg >= isovalues[i]
 
-            levelno, levelel = binsurface(levelmask)
+            levelno, levelel = binsurface(levelmask, clean=False)
 
             if levelel.size > 0:
                 if opt.get("autoregion", 0):
@@ -694,7 +694,7 @@ def surf2vol(node, face, xi, yi, zi, **kwargs):
     return img.astype(np.uint8)
 
 
-def binsurface(img, nface=3):
+def binsurface(img, nface=3, **kwargs):
     """
     node, elem = binsurface(img, nface)
 
@@ -787,7 +787,7 @@ def binsurface(img, nface=3):
     xi, yi, zi = np.unravel_index(id, newdim, order="F")
     node = np.column_stack([xi, yi, zi])
 
-    if nface == 3:
+    if nface == 3 and kwargs.get("clean", True):
         node, elem = meshcheckrepair(node, elem)
 
     return node, elem
