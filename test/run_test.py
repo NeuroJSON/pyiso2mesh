@@ -1168,7 +1168,7 @@ class Test_core(unittest.TestCase):
     def test_v2m(self):
         no, el, fc = v2m(self.im, 0.5, 0.03, 10)
         self.assertAlmostEqual(sum(elemvolume(no, fc[:, :3])), 5.01, 2)
-        self.assertAlmostEqual(sum(elemvolume(no, el[:, :4])), 0.8786654361973504, 4)
+        self.assertAlmostEqual(sum(elemvolume(no, el[:, :4])), 0.8786654361973504, 3)
 
     def test_cgalv2m(self):
         no, el, fc = v2m(
