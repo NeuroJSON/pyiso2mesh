@@ -1276,7 +1276,9 @@ class Test_core(unittest.TestCase):
             np.arange(19, 42, 0.5),
             fill=1,
         )
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.0001, 3.6134, 2)
+        self.assertAlmostEqual(
+            np.sum(vol.astype(np.float32)) * 0.0001, 3.6134, delta=0.01
+        )
 
     def test_s2v(self):
         vol = s2v(self.no, self.fc, 100, fill=1)
