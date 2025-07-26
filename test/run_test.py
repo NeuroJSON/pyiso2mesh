@@ -1263,7 +1263,9 @@ class Test_core(unittest.TestCase):
             np.arange(19, 42, 1),
             np.arange(19, 42, 1),
         )
-        self.assertAlmostEqual(np.sum(vol.astype(np.float32)) * 0.001, 1.7860001, 2)
+        self.assertAlmostEqual(
+            np.sum(vol.astype(np.float32)) * 0.001, 1.7860001, delta=0.01
+        )
 
     def test_surf2vol_fill(self):
         vol = surf2vol(

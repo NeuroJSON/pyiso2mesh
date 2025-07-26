@@ -22,6 +22,7 @@ from .plot import (
     plotmesh,
     plottetra,
     plotedges,
+    plotvolume,
 )
 
 from .trait import (
@@ -245,6 +246,7 @@ __all__ = [
     "plotmesh",
     "plotsurf",
     "plottetra",
+    "plotvolume",
     "qmeshcut",
     "raytrace",
     "readmedit",
