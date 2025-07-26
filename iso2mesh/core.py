@@ -506,8 +506,6 @@ def surf2mesh(
         maxvol = None
 
     # Dump surface mesh to .poly file format
-    if not isinstance(el, list) and no.size and el.size:
-        saveoff(no[:, :3], el[:, :3], "post_vmesh.off")
     deletemeshfile(mwpath("post_vmesh.mtr"))
     savesurfpoly(
         no, el, holes, regions, p0, p1, mwpath("post_vmesh.poly"), forcebox=dobbx
