@@ -178,7 +178,9 @@ from .volume import (
     thinbinvol,
 )
 
-__version__ = "0.4.1"
+from jdata import *
+
+__version__ = "0.4.2"
 __all__ = [
     "advancefront",
     "barycentricgrid",
@@ -321,5 +323,39 @@ __all__ = [
     "tpm2label",
     "ray2surf",
     "nargout",
+    "loadjson",
+    "savejson",
+    "loadjd",
+    "savejd",
+    "loadbj",
+    "savebj",
+    "jsonpath",
+    "jdataencode",
+    "jdatadecode",
+    "zlibencode",
+    "zlibdecode",
+    "gzipencode",
+    "gzipdecode",
+    "lzmaencode",
+    "lzmadecode",
+    "lz4encode",
+    "lz4decode",
+    "base64encode",
+    "base64decode",
+    "nii2jnii",
+    "jnii2nii",
+    "loadnifti",
+    "loadjnifti",
+    "savenifti",
+    "savejnifti",
+    "nifticreate",
+    "jnifticreate",
+    "memmapstream",
+    "niiheader2jnii",
+    "niicodemap",
+    "niiformat",
+    "jdlink",
+    "jsoncache",
+    "loadurl",
 ]
 __license__ = """GNU General Public License v3 and later"""
