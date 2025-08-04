@@ -14,7 +14,6 @@ __all__ = [
     "removeisolatedsurf",
     "surfaceclean",
     "removeedgefaces",
-    "getintersecttri",
     "delendelem",
     "surfreorient",
     "sortmesh",
@@ -31,11 +30,10 @@ __all__ = [
 ## dependent libraries
 ##====================================================================================
 
-import numpy as np
 import os
 import re
-import platform
 import subprocess
+import numpy as np
 from iso2mesh.utils import *
 from iso2mesh.io import saveoff, readoff
 from iso2mesh.trait import (
@@ -622,32 +620,6 @@ def removeedgefaces(f, v, idx1):
     return f
 
 
-def getintersecttri(tmppath):
-    """
-    Get the IDs of self-intersecting elements from TetGen.
-
-    Args:
-    tmppath: Working directory where TetGen output is stored.
-
-    Returns:
-    eid: An array of all intersecting surface element IDs.
-    """
-    exesuff = getexeext()
-    exesuff = fallbackexeext(exesuff, "tetgen")
-    tetgen_path = mcpath("tetgen") + exesuff
-
-    command = f'"{tetgen_path}" -d "{os.path.join(tmppath, "post_vmesh.poly")}"'
-    status, str_output = subprocess.getstatusoutput(command)
-
-    eid = []
-    if status == 0:
-        ids = re.findall(r" #([0-9]+) ", str_output)
-        eid = [int(id[0]) for id in ids]
-
-    eid = np.unique(eid)
-    return eid
-
-
 def delendelem(elem, mask):
     """
     Deletes elements whose nodes are all edge nodes.
@@ -752,9 +724,6 @@ def cart2sph(x, y, z):
     return theta, phi, R
 
 
-import numpy as np
-
-
 def sortrows(A, cols=None):
     """
     Sort rows of a 2D NumPy array like MATLAB's sortrows(A, cols).
@@ -835,8 +804,8 @@ def mergemesh(node, elem, *args):
 
     # Iterate over pairs of additional meshes and merge them
     for i in range(0, len(args), 2):
-        no = args[i]  # node array
-        el = args[i + 1]  # element array
+        no = args[i].copy()  # node array
+        el = args[i + 1].copy()  # element array
         baseno = newnode.shape[0]
 
         # Ensure consistent node dimensions

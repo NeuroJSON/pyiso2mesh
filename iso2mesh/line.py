@@ -195,7 +195,7 @@ def polylinelen(node, p0=None, p1=None, pmid=None):
     p1 -= 1
     pmid -= 1
 
-    if p0 < pmid and pmid < p1:
+    if p0 < pmid < p1:
         inputreversed = 0
         node = node[range(p0, p1 + 1), :]
     elif p0 < pmid and p1 < pmid:
@@ -206,7 +206,7 @@ def polylinelen(node, p0=None, p1=None, pmid=None):
         node = node[idx_range, :]
         if not inputreversed:
             node = np.flipud(node)
-    elif p0 > pmid and pmid > p1:
+    elif p0 > pmid > p1:
         inputreversed = 1
         node = node[range(p0, p1 - 1, -1), :]
     elif p0 > pmid and p1 > pmid:

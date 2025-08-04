@@ -200,8 +200,8 @@ class Test_geometry(unittest.TestCase):
 
 
 class Test_trait(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(Test_trait, self).__init__(*args, **kwargs)
+    @classmethod
+    def setUpClass(self, *args, **kwargs):
         self.no, self.el = meshgrid6(
             np.arange(1, 3), np.arange(-1, 1), np.arange(2, 3.5, 0.5)
         )
@@ -792,8 +792,8 @@ class Test_trait(unittest.TestCase):
 
 
 class Test_modify(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(Test_modify, self).__init__(*args, **kwargs)
+    @classmethod
+    def setUpClass(self, *args, **kwargs):
         self.no, self.fc, self.el = meshacylinder(
             [1, 1, 1], [2, 3, 4], [0.5, 0.7], 1, 100, 8
         )
@@ -980,9 +980,8 @@ class Test_modify(unittest.TestCase):
 
 
 class Test_surfboolean(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(Test_surfboolean, self).__init__(*args, **kwargs)
-
+    @classmethod
+    def setUpClass(self, *args, **kwargs):
         self.no1, self.el1 = meshgrid5(
             np.arange(1, 3), np.arange(1, 3), np.arange(1, 3)
         )
@@ -1066,8 +1065,8 @@ class Test_surfboolean(unittest.TestCase):
 
 
 class Test_core(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(Test_core, self).__init__(*args, **kwargs)
+    @classmethod
+    def setUpClass(self, *args, **kwargs):
         self.im = np.zeros((3, 3, 3))
         self.im[1, 1, 1:3] = 1
 
@@ -1583,8 +1582,8 @@ class Test_volume(unittest.TestCase):
     (int(mpl_ver[0]), int(mpl_ver[1])) < (3, 6), "Requires Matplotlib 3.6 or higher"
 )
 class Test_plot(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(Test_plot, self).__init__(*args, **kwargs)
+    @classmethod
+    def setUpClass(self, *args, **kwargs):
         self.no, self.el = meshgrid6(
             np.arange(1, 3), np.arange(-1, 1), np.arange(2, 3.5, 0.5)
         )

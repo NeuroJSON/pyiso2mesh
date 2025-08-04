@@ -17,9 +17,9 @@ __all__ = [
 ## dependent libraries
 ##====================================================================================
 
+from typing import Optional
 import numpy as np
 from scipy import ndimage
-from typing import Optional
 
 
 ##====================================================================================
@@ -28,6 +28,15 @@ from typing import Optional
 
 
 def validatemask(mask, ndim=3):
+    """
+    Create a 2D or 3D kernel based on the input data dimension
+    Input:
+        mask: an imdilate and imerode structuring matrix, compute if None
+        ndim: 2 or 3
+
+    Returns:
+        validated mask
+    """
     # Create default mask if not provided or empty
     if mask is None or mask.size == 0:
         if ndim == 3:

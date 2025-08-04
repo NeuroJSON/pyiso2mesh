@@ -148,7 +148,7 @@ def mesh2mask(node, face, xi, yi=None, hf=None, **kwargs):
     """
     from matplotlib.collections import PatchCollection
     from matplotlib.patches import Polygon
-    import matplotlib.cm as cm
+    from matplotlib import cm
 
     # Determine grid size from inputs
     if isinstance(xi, (int, float)) and yi is None:

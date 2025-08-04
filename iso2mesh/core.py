@@ -30,11 +30,11 @@ __all__ = [
 ## dependent libraries
 ##====================================================================================
 
-import numpy as np
 import os
 import re
 import sys
 import subprocess
+import numpy as np
 from iso2mesh.trait import (
     surfinterior,
     surfseeds,
@@ -48,7 +48,14 @@ from iso2mesh.trait import (
     maxsurf,
     ismember_rows,
 )
-from iso2mesh.utils import *
+from iso2mesh.utils import (
+    getexeext,
+    deletemeshfile,
+    mwpath,
+    mcpath,
+    fallbackexeext,
+    jsonopt,
+)
 from iso2mesh.io import (
     saveoff,
     readoff,

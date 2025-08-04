@@ -16,7 +16,6 @@ __all__ = [
 ##====================================================================================
 
 import numpy as np
-import sys
 from iso2mesh.core import v2s, s2m
 from iso2mesh.modify import (
     removeisolatednode,
@@ -42,9 +41,8 @@ from iso2mesh.line import polylineinterp, polylinelen, polylinesimplify, closest
 from iso2mesh.plot import plotmesh
 
 from typing import Tuple, Dict, Union, Optional, List
-import matplotlib.pyplot as plt
 import warnings
-from collections import OrderedDict
+from collections import defaultdict
 
 ##====================================================================================
 ## implementations
@@ -130,8 +128,10 @@ def brain2mesh(seg, **cfg):
         return
 
     # Default density and adaptiveness parameters
-    density = {"wm": 2, "gm": 2, "csf": 5, "skull": 4, "scalp": 8}
-    adaptiveness = {"wm": 1, "gm": 1, "csf": 1, "skull": 1, "scalp": 1}
+    density = defaultdict(
+        lambda: 20, {"wm": 2, "gm": 2, "csf": 5, "skull": 4, "scalp": 8}
+    )
+    adaptiveness = defaultdict(lambda: 1)
 
     # Parse configuration
     radbound = cfg.get("radbound", density)
@@ -147,7 +147,7 @@ def brain2mesh(seg, **cfg):
     surfonly = cfg.get("surfonly", 0)
     marginsize = cfg.get("marginsize", 4)
 
-    segname = list(density.keys())
+    segname = list(radbound.keys())
 
     # Convert seg to dict format if needed
     if isinstance(seg, dict):
@@ -1387,7 +1387,9 @@ def brain1020(
     # At this point, initpoints contains {nz, iz, lpa, rpa, cz0}
     # Plot the head mesh
     if showplot:
-        hh = plotmesh(node, face, alpha=0, color="wheat", linewidth=0.1)
+        hh = plotmesh(
+            node, face, alpha=0.5, color="wheat", edgecolor="k", linewidth=0.1
+        )
         ax = hh["ax"][0]
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
@@ -1915,37 +1917,3 @@ def tpm2label(
         return vol, names
     else:
         return vol
-
-
-def orderfields_python(struct_dict, order: List[str]):
-    """
-    Python equivalent of MATLAB's orderfields function
-
-    Reorders dictionary fields according to specified order.
-
-    Parameters:
-    -----------
-    struct_dict : dict
-        Dictionary to reorder
-    order : list
-        List specifying the desired field order
-
-    Returns:
-    --------
-    ordered_dict : dict
-        Dictionary with fields reordered according to order
-    """
-
-    ordered_dict = OrderedDict()
-
-    # First add fields in the specified order
-    for field_name in order:
-        if field_name in struct_dict:
-            ordered_dict[field_name] = struct_dict[field_name]
-
-    # Then add any remaining fields that weren't in the order list
-    for field_name, field_value in struct_dict.items():
-        if field_name not in ordered_dict:
-            ordered_dict[field_name] = field_value
-
-    return ordered_dict
