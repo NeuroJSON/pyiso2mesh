@@ -491,8 +491,14 @@ def removeisolatednode(node, elem, face=None):
         Face list of the resulting mesh.
     """
 
+    zeroindex = None
+
     oid = np.arange(node.shape[0])  # Old node indices
-    elem = elem - 1
+    if not isinstance(elem, list):
+        elem = elem - 1
+        zeroindex = np.where(elem < 0)
+    else:
+        elem = [e - 1 for e in elem]
 
     if not isinstance(elem, list):
         idx = np.setdiff1d(oid, elem.ravel(order="F"))  # Indices of isolated nodes
@@ -511,12 +517,16 @@ def removeisolatednode(node, elem, face=None):
 
     if not isinstance(elem, list):
         el = oid[elem]  # Update element list with new indices
+        if isinstance(zeroindex, tuple) and len(zeroindex[0]) > 0:
+            el[zeroindex] = elem[zeroindex]
     else:
         el = [oid[e] for e in elem]
 
     if face is not None:
+        zeroindex = np.where(face == 0)
         if not isinstance(face, list):
             fa = oid[face - 1]  # Update face list with new indices
+            fa[zeroindex] = face[zeroindex] - 1
         else:
             fa = [oid[f - 1] for f in face]
         fa = fa + 1
@@ -866,7 +876,7 @@ def mergesurf(node, elem, *args):
     return newnode, newelem
 
 
-def surfboolean(node, elem, *varargin):
+def surfboolean(node, elem, *varargin, **kwargs):
     """
     Perform boolean operations on triangular meshes and resolve intersecting elements.
 
@@ -939,9 +949,12 @@ def surfboolean(node, elem, *varargin):
             if "node1" not in locals():
                 node1 = node
                 elem1 = elem
-                newnode[:, 3] = 1
-                newelem[:, 3] = 1
-            opstr = " --decouple-inin 1 --shells 2"
+                newnode = np.hstack((newnode, np.ones((newnode.shape[0], 1))))
+                newelem = np.hstack((newelem, np.ones((newelem.shape[0], 1))))
+            if kwargs.get("dir", "in"):
+                opstr = " --decouple-inin 1 --shells 2"
+            else:
+                opstr = " --decouple-outout 1 --shells 2"
             saveoff(node1[:, :3], elem1[:, :3], mwpath("pre_decouple1.off"))
             if no.shape[1] != 3:
                 opstr = f"-q --shells {no}"
@@ -1004,7 +1017,10 @@ def surfboolean(node, elem, *varargin):
             [newnode, np.hstack([nnode, np.ones((nnode.shape[0], 1)) * 4])]
         )
     else:
-        newnode, newelem = readoff(mwpath("post_surfbool.off"))
+        if op == "decouple":
+            newnode, newelem = readoff(mwpath("pre_decouple1_fixed.off"))
+        else:
+            newnode, newelem = readoff(mwpath("post_surfbool.off"))
 
     return newnode, newelem
 

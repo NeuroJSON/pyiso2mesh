@@ -983,7 +983,7 @@ def getintersecttri(tmppath):
     eid = []
     if status == 0:
         ids = re.findall(r" #([0-9]+) ", str_output)
-        eid = [int(id[0]) for id in ids]
+        eid = [int(id) for id in ids]
 
     eid = np.unique(eid)
     return eid

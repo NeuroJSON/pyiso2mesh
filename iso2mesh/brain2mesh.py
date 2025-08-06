@@ -354,6 +354,7 @@ def brain2mesh(seg, **cfg):
             continue
         if (loop == 1) and ("label_elem" not in locals()):
             if "bone_n" in locals() and "skin_n" in locals():
+                print("decoupling bone and skin surfaces")
                 bone_n, bone_f = surfboolean(
                     bone_n[:, :3],
                     bone_f[:, :3],
@@ -362,14 +363,17 @@ def brain2mesh(seg, **cfg):
                     skin_f[:, :3],
                 )
             if "bone_n" in locals() and "csf_n" in locals():
+                print("decoupling csf and bone surfaces")
                 csf_n, csf_f = surfboolean(
                     csf_n[:, :3], csf_f[:, :3], "decouple", bone_n[:, :3], bone_f[:, :3]
                 )
             if "pial_n" in locals() and "csf_n" in locals():
+                print("decoupling pial and csf surfaces")
                 pial_n, pial_f = surfboolean(
                     pial_n[:, :3], pial_f[:, :3], "decouple", csf_n[:, :3], csf_f[:, :3]
                 )
             if "pial_n" in locals() and "wm_n" in locals():
+                print("decoupling wm and pial surfaces")
                 wm_n, wm_f = surfboolean(
                     wm_n[:, :3], wm_f[:, :3], "decouple", pial_n[:, :3], pial_f[:, :3]
                 )
@@ -452,18 +456,27 @@ def brain2mesh(seg, **cfg):
             return brain_n, brain_el, brain_f
 
         # Generates a coarse tetrahedral mesh of the combined tissues
+        final_surf_n, final_surf_f = meshcheckrepair(final_surf_n, final_surf_f, "dup")
         try:
             final_n, final_e, _ = s2m(
-                final_surf_n, final_surf_f, 1.0, maxvol, "tetgen1.5", None, None, "-A"
+                final_surf_n,
+                final_surf_f,
+                1.0,
+                maxvol,
+                "tetgen1.5",
+                None,
+                None,
+                "-YY -A",
             )
-        except:
+        except RuntimeError as e:
             print(
-                "volumetric mesh generation failed, returning the intermediate surface model only"
+                f"volumetric mesh generation failed with error: {e}, returning the intermediate surface model only"
             )
-            brain_n = final_surf_n
-            brain_f = final_surf_f
-            brain_el = np.array([])
-            return brain_n, brain_el, brain_f
+            continue
+            # brain_n = final_surf_n
+            # brain_f = final_surf_f
+            # brain_el = np.array([])
+            # return brain_n, brain_el, brain_f
 
         # Removes the elements that are part of the box, but not the brain/head
         if dotruncate == 1 or isinstance(dotruncate, str):
@@ -1761,7 +1774,7 @@ def brain1020(
 
 
 def label2tpm(
-    vol: np.ndarray, names: Optional[Union[List[str], Dict[int, str]]] = None
+    vol: np.ndarray, names: Optional[Union[List[str], Dict[int, str]]] = None, **kwargs
 ) -> Dict[str, np.ndarray]:
     """
     Converting a multi-label volume to binary tissue probabilistic maps (TPMs)
@@ -1823,6 +1836,17 @@ def label2tpm(
 
         # MATLAB: seg.(nm) = uint8(vol == val(i))
         seg[nm] = (vol == val[i]).astype(np.uint8)
+
+    if kwargs.get("sigma", 0) > 0:
+        from scipy.ndimage import gaussian_filter
+
+        segsum = np.zeros_like(seg[next(iter(seg))], dtype=np.float32)
+        for key in seg:
+            seg[key] = gaussian_filter(seg[key].astype(np.float32), sigma=1)
+            segsum += seg[key]
+
+        for key in seg:
+            np.divide(seg[key], segsum, out=seg[key], where=segsum != 0)
 
     return seg
 
