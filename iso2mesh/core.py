@@ -661,9 +661,9 @@ def surf2vol(node, face, xi, yi, zi, **kwargs):
         if face.shape[1] == 5:
             label = 1
             el = face
-            face = np.empty((0, 4))
+            face = np.empty((0, 4), dtype="int64")
             for lbl in elabel:
-                fc = volface(el[el[:, 4] == lbl, :4])
+                fc, _ = volface(el[el[:, 4] == lbl, :4])
                 fc = np.hstack((fc, np.full((fc.shape[0], 1), lbl)))
                 face = np.vstack((face, fc))
     else:
