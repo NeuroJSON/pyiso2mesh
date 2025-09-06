@@ -515,6 +515,9 @@ def extrudecurve(
     """
     from scipy.interpolate import splev, splrep
 
+    xy = np.array(xy)
+    yz = np.array(yz)
+
     # Compute interpolation points along the xy curve
     xrange = np.max(xy[:, 0]) - np.min(xy[:, 0])
     dx = xrange / Nx

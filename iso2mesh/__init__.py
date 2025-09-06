@@ -121,6 +121,8 @@ from .trait import (
     highordertet,
     ismember_rows,
     ray2surf,
+    bbxflatsegment,
+    orderloopedge,
 )
 
 from .utils import (
@@ -192,6 +194,8 @@ from .modify import (
     surfboolean,
     meshresample,
     domeshsimplify,
+    slicesurf,
+    slicesurf3,
 )
 
 from .line import (
@@ -437,5 +441,9 @@ __all__ = [
     "savejnii",
     "loadh5",
     "saveh5",
+    "slicesurf",
+    "slicesurf3",
+    "bbxflatsegment",
+    "orderloopedge",
 ]
 __license__ = """GNU General Public License v3 and later"""

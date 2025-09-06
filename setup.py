@@ -41,7 +41,7 @@ setup(
         "Data format",
     ],
     platforms="any",
-    install_requires=["numpy>=1.8.0", "matplotlib", "jdata>=0.8.0", "bjdata"],
+    install_requires=["numpy>=1.8.0", "matplotlib", "jdata>=0.8.2", "bjdata"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

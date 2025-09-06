@@ -1683,5 +1683,74 @@ class Test_plot(unittest.TestCase):
         self.assertEqual(np.round(np.sum(facecolors, axis=0), 4).tolist(), expected_fc)
 
 
+class TestUtilities(unittest.TestCase):
+    """Test suite for utility and helper functions"""
+
+    def setUp(self):
+        """Set up test fixtures"""
+        self.polyline = np.array(
+            [[0, 0], [1, 0], [2, 1], [3, 1], [4, 0], [5, 0]], dtype=float
+        )
+
+    def test_polylinelen_polyline_length(self):
+        """Test polyline length calculation"""
+        result = polylinelen(self.polyline)[0]
+
+        self.assertEqual(
+            np.round(result, 8).tolist(), [1.0, 1.41421356, 1.0, 1.41421356, 1.0]
+        )
+
+    def test_polylinesimplify_polyline_simplification(self):
+        """Test polyline simplification"""
+        tolerance = 0.1
+        result = polylinesimplify(self.polyline, 3.14)
+
+        self.assertLessEqual(result[0].tolist(), [[0, 0], [5, 0]])
+        self.assertLessEqual(result[1], 5)
+
+    def test_polylineinterp_polyline_interpolation(self):
+        """Test polyline interpolation"""
+        # Interpolate at specific length
+        polylen = polylinelen(self.polyline)[0]
+        loc = [1.3, 2.7]
+        result = polylineinterp(polylen, loc)
+
+        self.assertEqual(result[0].tolist(), [2, 3])
+        self.assertEqual(np.round(result[1], 8).tolist(), [0.21213203, 0.28578644])
+
+    def test_varargin2struct_argument_parsing(self):
+        """Test argument parsing to structure"""
+        # Test with key-value pairs
+        result = varargin2struct("key1", "value1", "key2", 42, "key3", [1, 2, 3])
+
+        self.assertEqual(result["key1"], "value1")
+        self.assertEqual(result["key2"], 42)
+
+    def test_jsonopt_json_options(self):
+        """Test JSON options processing"""
+        options = {"option1": "value1", "option2": 42}
+        key = "option1"
+        default = "default_value"
+
+        result = jsonopt(key, default, options)
+
+        if result is not None:
+            self.assertEqual(result, "value1")
+
+        # Test with non-existent key
+        result = jsonopt("nonexistent", default, options)
+        if result is not None:
+            self.assertEqual(result, default)
+
+    def test_closestnode_closest_node_finding(self):
+        """Test closest node finding"""
+        nodes = self.polyline
+        query_point = np.array([1.5, 0.5], dtype=float)
+
+        result = closestnode(nodes, query_point)
+
+        self.assertEqual(result, (2, 0.5))
+
+
 if __name__ == "__main__":
     unittest.main()
