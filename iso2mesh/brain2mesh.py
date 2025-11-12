@@ -37,7 +37,13 @@ from iso2mesh.trait import (
 )
 from iso2mesh.geometry import meshabox
 from iso2mesh.volume import volgrow, fillholes3d
-from iso2mesh.line import polylineinterp, polylinelen, polylinesimplify, closestnode
+from iso2mesh.line import (
+    polylineinterp,
+    polylinelen,
+    polylinesimplify,
+    closestnode,
+    maxloop,
+)
 from iso2mesh.plot import plotmesh
 
 from typing import Tuple, Dict, Union, Optional, List
@@ -1367,10 +1373,53 @@ def brain1020(
                 landmarks["cz"],
             ]
         )
-
+    else:
+        landmarks = {
+            "nz": initpoints[0, :],
+            "iz": initpoints[1, :],
+            "lpa": initpoints[2, :],
+            "rpa": initpoints[3, :],
+            "cz": initpoints[4, :],
+        }
     # Convert tetrahedral mesh into a surface mesh
     if face.shape[1] >= 4:
         face = volface(face[:, :4])[0]  # Use first 4 columns for tetrahedral faces
+
+    if kwargs.get("clean", 1):
+        # Find the bounding box of the top part of the head, and remove all other triangles
+        p0 = landmarks.copy()
+
+        v_ni = p0["nz"] - p0["iz"]
+        v_lr = p0["lpa"] - p0["rpa"]
+        v_cz0 = np.cross(v_ni, v_lr)
+        v_cz0 = v_cz0 / np.linalg.norm(v_cz0)
+        v_cn = p0["cz"] - p0["nz"]
+        d_czlpa = np.dot(p0["cz"] - p0["lpa"], v_cz0)
+        d_cznz = np.dot(v_cn, v_cz0)
+
+        if abs(d_czlpa) > abs(d_cznz):  # if lpa is further away from cz than nz
+            # Move nz to the same level as lpa, can also add rpa
+            p0["nz"] = p0["nz"] - v_cz0 * (abs(d_czlpa) - abs(d_cznz))
+            # Move iz to the same level as lpa, can also add rpa
+            p0["iz"] = p0["iz"] - v_cz0 * (abs(d_czlpa) - abs(d_cznz))
+
+        v_cz = d_cznz * v_cz0
+        bbx0 = p0["nz"] - 0.6 * v_lr - 0.1 * v_cz + 0.1 * v_ni
+
+        # Calculate mesh centroids
+        c0 = meshcentroid(node, face)
+
+        # Calculate distance from bounding box plane
+        v_cz0_rep = np.tile(
+            v_cz0, (face.shape[0], 1)
+        )  # repmat(v_cz0, size(face, 1), 1)
+        bbx0_rep = np.tile(bbx0, (face.shape[0], 1))  # repmat(bbx0, size(face, 1), 1)
+        dz = np.sum(v_cz0_rep * (c0 - bbx0_rep), axis=1)
+
+        # Filter faces - keep only those with dz > 0
+        face = face[dz > 0, :]
+
+        del p0, bbx0, c0, dz
 
     # Remove nodes not located in the surface
     node, face, _ = removeisolatednode(node, face)
@@ -1386,16 +1435,6 @@ def brain1020(
     if showplot:
         print("Initial points:")
         print(initpoints)
-
-    # Save input initpoints to landmarks output, cz is not finalized
-    if initpoints.shape[0] >= 5:
-        landmarks = {
-            "nz": initpoints[0, :],
-            "iz": initpoints[1, :],
-            "lpa": initpoints[2, :],
-            "rpa": initpoints[3, :],
-            "cz": initpoints[4, :],
-        }
 
     # At this point, initpoints contains {nz, iz, lpa, rpa, cz0}
     # Plot the head mesh
@@ -1417,7 +1456,8 @@ def brain1020(
     while np.linalg.norm(initpoints[4, :] - lastcz) > tol and cziter < maxcziter:
 
         # Step 1: nz, iz and cz0 to determine saggital reference curve
-        nsagg = slicesurf(node, face, initpoints[[0, 1, 4], :])
+        nsagg, curveloop, _ = slicesurf(node, face, initpoints[[0, 1, 4], :], full=True)
+        nsagg = nsagg[maxloop(curveloop) - 1, :]
 
         # Step 1.1: get cz1 as the mid-point between iz and nz
         slen, nsagg, _ = polylinelen(
@@ -1429,7 +1469,11 @@ def brain1020(
         initpoints[4, :] = cz[0, :]
 
         # Step 1.2: lpa, rpa and cz1 to determine coronal reference curve, update cz1
-        curves["cm"] = slicesurf(node, face, initpoints[[2, 3, 4], :])
+        curves["cm"], curveloop, _ = slicesurf(
+            node, face, initpoints[[2, 3, 4], :], full=True
+        )
+        curves["cm"] = curves["cm"][maxloop(curveloop) - 1, :]
+
         len_cm, curves["cm"], _ = polylinelen(
             curves["cm"], initpoints[2, :], initpoints[3, :], initpoints[4, :]
         )
@@ -1458,7 +1502,11 @@ def brain1020(
     )
     landmarks["cm"] = coro  # t7, c3, cz, c4, t8
 
-    curves["sm"] = slicesurf(node, face, initpoints[[0, 1, 4], :])
+    curves["sm"], curveloop, _ = slicesurf(
+        node, face, initpoints[[0, 1, 4], :], full=True
+    )
+    curves["sm"] = curves["sm"][maxloop(curveloop) - 1, :]
+
     slen, curves["sm"], _ = polylinelen(
         curves["sm"], initpoints[0, :], initpoints[1, :], initpoints[4, :]
     )
@@ -1475,6 +1523,8 @@ def brain1020(
         landmarks["cm"][0, :],
         landmarks["sm"][-1, :],
         perc2 * 2,
+        0,
+        maxloop=1,
     )
 
     # Step 4: fpz, t8 and oz to determine right 10% axial reference curve
@@ -1485,6 +1535,8 @@ def brain1020(
         landmarks["cm"][-1, :],
         landmarks["sm"][-1, :],
         perc2 * 2,
+        0,
+        maxloop=1,
     )
 
     # Show plots of the landmarks
@@ -1611,6 +1663,8 @@ def brain1020(
             landmarks["sm"][idxcz - 1 - i, :],
             landmarks["aar"][i - 1, :],
             step,
+            0,
+            maxloop=1,
         )
 
         landmarks[f"cal_{i}"] = cal_landmarks
@@ -1661,6 +1715,8 @@ def brain1020(
             landmarks["sm"][idxcz - 1 + i, :],
             landmarks["apr"][i - 1, :],
             step,
+            0,
+            maxloop=1,
         )
 
         landmarks[f"cpl_{i}"] = cpl_landmarks
@@ -1696,7 +1752,14 @@ def brain1020(
             landmarks["papl"],
             curves["papl"],
         ) = slicesurf3(
-            node, face, landmarks["nz"], landmarks["lpa"], landmarks["iz"], perc2 * 2
+            node,
+            face,
+            landmarks["nz"],
+            landmarks["lpa"],
+            landmarks["iz"],
+            perc2 * 2,
+            0,
+            maxloop=1,
         )
         (
             landmarks["paar"],
@@ -1704,7 +1767,14 @@ def brain1020(
             landmarks["papr"],
             curves["papr"],
         ) = slicesurf3(
-            node, face, landmarks["nz"], landmarks["rpa"], landmarks["iz"], perc2 * 2
+            node,
+            face,
+            landmarks["nz"],
+            landmarks["rpa"],
+            landmarks["iz"],
+            perc2 * 2,
+            0,
+            maxloop=1,
         )
 
         if showplot:

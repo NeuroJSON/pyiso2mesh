@@ -205,6 +205,7 @@ from .line import (
     closestnode,
     polylineinterp,
     polylinesimplify,
+    maxloop,
 )
 
 from .raster import (
@@ -241,7 +242,7 @@ from .volume import (
     thinbinvol,
 )
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 __all__ = [
     "advancefront",
     "barycentricgrid",
@@ -362,6 +363,7 @@ __all__ = [
     "closestnode",
     "polylineinterp",
     "polylinesimplify",
+    "maxloop",
     "affinemap",
     "meshinterp",
     "meshremap",

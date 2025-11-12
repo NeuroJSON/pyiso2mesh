@@ -11,6 +11,7 @@ __all__ = [
     "closestnode",
     "polylineinterp",
     "polylinesimplify",
+    "maxloop",
 ]
 ##====================================================================================
 ## dependent libraries
@@ -349,3 +350,69 @@ def polylinesimplify(nodes, minangle=None):
         length = np.array([])
 
     return newnodes, length
+
+
+def maxloop(curveloop: np.ndarray) -> np.ndarray:
+    """
+    Return the curve segment that has the largest number of nodes
+
+    Author: Qianqian Fang, <q.fang at neu.edu>
+    Python conversion: Preserves exact algorithm from MATLAB version
+
+    Parameters:
+    -----------
+    curveloop : ndarray (1D)
+        Curves defined by 1-based node indices, separated by nan.
+        The values in this array are node indices (1-based from MATLAB),
+        not Python array positions. NaN values serve as segment separators.
+
+    Returns:
+    --------
+    newloop : ndarray (1D)
+        The 1-based node indices defining the longest segment.
+        These are the actual node index values, maintaining 1-based indexing.
+
+    Notes:
+    ------
+    This function is part of iso2mesh toolbox (http://iso2mesh.sf.net)
+
+    Important: curveloop and newloop contain 1-based node indices as data values.
+    The indexing for array access (loopend positions) uses Python's 0-based indexing,
+    but the actual node index values remain 1-based throughout.
+    """
+
+    newloop = curveloop.copy()
+
+    # Find array positions where nan occurs - equivalent to find(isnan(curveloop))
+    # loopend contains Python 0-based positions in the curveloop array where NaN appears
+    loopend = np.where(np.isnan(curveloop))[0]
+
+    if len(loopend) > 1:  # length(loopend) > 1
+        # Calculate segment lengths - equivalent to [loopend(1), diff(loopend)]
+        # MATLAB: seglen = [loopend(1), diff(loopend)];
+        # seglen[0] = number of elements before first NaN
+        # seglen[i] = number of elements between consecutive NaNs
+        seglen = np.concatenate(([loopend[0]], np.diff(loopend)))
+
+        # Find maximum segment length and its location
+        # MATLAB: [maxlen, maxloc] = max(seglen);
+        maxloc = np.argmax(seglen)
+        maxlen = seglen[maxloc]
+
+        # Prepend 0 to loopend - equivalent to loopend = [0 loopend];
+        # This represents a virtual NaN at position -1 for easier indexing
+        loopend = np.concatenate(([-1], loopend))
+
+        # Extract the longest segment
+        # MATLAB: newloop = curveloop((loopend(maxloc)+1):(loopend(maxloc+1)-maxloc));
+        # We're extracting array elements, so we use Python 0-based array indexing
+        # But the VALUES we extract are 1-based node indices that we keep as-is
+        start_idx = loopend[maxloc] + 1  # Position after the NaN (or start)
+        end_idx = loopend[maxloc + 1]  # Position of the next NaN
+        newloop = curveloop[start_idx:end_idx]
+
+    # Remove any remaining nan values - equivalent to newloop(isnan(newloop)) = [];
+    # The node index values in newloop remain 1-based
+    newloop = newloop[~np.isnan(newloop)]
+
+    return newloop.astype(int)

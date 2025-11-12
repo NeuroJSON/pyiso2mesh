@@ -44,7 +44,13 @@ from iso2mesh.trait import (
     surfedge,
     extractloops,
 )
-from iso2mesh.line import getplanefrom3pt, polylinesimplify, polylinelen, polylineinterp
+from iso2mesh.line import (
+    getplanefrom3pt,
+    polylinesimplify,
+    polylinelen,
+    polylineinterp,
+    maxloop,
+)
 
 ##====================================================================================
 ## implementations
@@ -1156,7 +1162,7 @@ def slicesurf(node, face, *args, **kwargs):
     return bcutpos, bcutloop, bcutvalue
 
 
-def slicesurf3(node, elem, p1, p2, p3, step=None, minangle=None):
+def slicesurf3(node, elem, p1, p2, p3, step=None, minangle=None, **kwargs):
     """
     slicesurf3(node, elem, p1, p2, p3, step=None, minangle=None)
 
@@ -1187,7 +1193,9 @@ def slicesurf3(node, elem, p1, p2, p3, step=None, minangle=None):
     """
 
     # Slice full curve through p1-p2-p3
-    fullcurve = slicesurf(node, elem, np.vstack((p1, p2, p3)))
+    fullcurve, curveloop, _ = slicesurf(node, elem, np.vstack((p1, p2, p3)), full=True)
+    if kwargs.get("maxloop", 0):
+        fullcurve = fullcurve[maxloop(curveloop) - 1, :]
 
     # Optional simplification
     if minangle is not None and minangle > 0:
