@@ -765,7 +765,6 @@ def intriangulation(
     TESTP = testp.copy()
 
     for n in range(1, heavytest + 2):  # MATLAB: for n = 1:heavytest + 1
-
         # Randomize
         if n > 1:
             v = np.random.rand(1, 3)
@@ -879,7 +878,6 @@ def VOXELISEinternal(
         nm = meshXYZmin.shape[0]
 
         for loop in range(len(OUTPUT)):
-
             nf = 0
             # - 1a - Find which mesh facets could possibly be crossed by the ray:
             # possibleCROSSLISTy = find( meshXYZmin(:,2)<=testy(loop) & meshXYZmax(:,2)>=testy(loop) );
@@ -899,7 +897,6 @@ def VOXELISEinternal(
             if (
                 len(possibleCROSSLIST) != 0
             ):  # Only continue the analysis if some nearby facets were actually identified
-
                 # - 2 - For each facet, check if the ray really does cross the facet rather than just passing it close-by:
 
                 # GENERAL METHOD:
@@ -914,7 +911,6 @@ def VOXELISEinternal(
                 # 2. If a ray crosses exactly on a vertex, this is also taken into account.
 
                 for loopCHECKFACET in possibleCROSSLIST:
-
                     # Check if ray crosses the facet. This method is much (>>10 times) faster than using the built-in function 'inpolygon'.
                     # Taking each edge of the facet in turn, check if the ray is on the same side as the opposing vertex. If so, let testVn=1
 
@@ -1063,7 +1059,6 @@ def VOXELISEinternal(
                 # - 3 - Find the z coordinate of the locations where the ray crosses each facet:
                 gridCOzCROSS = np.zeros(nf)
                 for i, loopFINDZ in enumerate(facetCROSSLIST):
-
                     # METHOD:
                     # 1. Define the equation describing the plane of the facet. For a
                     # more detailed outline of the maths, see:
@@ -1152,7 +1147,6 @@ def VOXELISEinternal(
                 if (
                     len(gridCOzCROSS) % 2 == 0
                 ):  # Only rays which cross an even number of facets are voxelised
-
                     for loopASSIGN in range(1, len(gridCOzCROSS) // 2 + 1):
                         voxelsINSIDE = (
                             testz[loop] > gridCOzCROSS[2 * loopASSIGN - 2]
@@ -1321,7 +1315,6 @@ def brain1020(
         (isinstance(initpoints, dict) and "iz" not in initpoints)
         or (isinstance(initpoints, np.ndarray) and initpoints.shape[0] == 3)
     ):
-
         if isinstance(initpoints, dict):
             nz = np.array(initpoints["nz"]).flatten()
             lpa = np.array(initpoints["lpa"]).flatten()
@@ -1454,7 +1447,6 @@ def brain1020(
 
     # Find cz that bisects cm and sm curves within a tolerance, using UI 10-10 approach
     while np.linalg.norm(initpoints[4, :] - lastcz) > tol and cziter < maxcziter:
-
         # Step 1: nz, iz and cz0 to determine saggital reference curve
         nsagg, curveloop, _ = slicesurf(node, face, initpoints[[0, 1, 4], :], full=True)
         nsagg = nsagg[maxloop(curveloop) - 1, :]
@@ -1523,7 +1515,7 @@ def brain1020(
         landmarks["cm"][0, :],
         landmarks["sm"][-1, :],
         perc2 * 2,
-        0,
+        dosimplify,
         maxloop=1,
     )
 
@@ -1535,7 +1527,7 @@ def brain1020(
         landmarks["cm"][-1, :],
         landmarks["sm"][-1, :],
         perc2 * 2,
-        0,
+        dosimplify,
         maxloop=1,
     )
 
@@ -1663,7 +1655,7 @@ def brain1020(
             landmarks["sm"][idxcz - 1 - i, :],
             landmarks["aar"][i - 1, :],
             step,
-            0,
+            dosimplify,
             maxloop=1,
         )
 
@@ -1715,7 +1707,7 @@ def brain1020(
             landmarks["sm"][idxcz - 1 + i, :],
             landmarks["apr"][i - 1, :],
             step,
-            0,
+            dosimplify,
             maxloop=1,
         )
 
@@ -1758,7 +1750,7 @@ def brain1020(
             landmarks["lpa"],
             landmarks["iz"],
             perc2 * 2,
-            0,
+            dosimplify,
             maxloop=1,
         )
         (
@@ -1773,7 +1765,7 @@ def brain1020(
             landmarks["rpa"],
             landmarks["iz"],
             perc2 * 2,
-            0,
+            dosimplify,
             maxloop=1,
         )
 

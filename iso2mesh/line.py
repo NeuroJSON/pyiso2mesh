@@ -383,6 +383,9 @@ def maxloop(curveloop: np.ndarray) -> np.ndarray:
 
     newloop = curveloop.copy()
 
+    if (len(curveloop) > 0) and (not np.isnan(curveloop[-1])):
+        curveloop = np.append(curveloop, np.nan)
+
     # Find array positions where nan occurs - equivalent to find(isnan(curveloop))
     # loopend contains Python 0-based positions in the curveloop array where NaN appears
     loopend = np.where(np.isnan(curveloop))[0]
