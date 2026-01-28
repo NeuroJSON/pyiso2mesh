@@ -129,34 +129,28 @@ def meshremap(fromval, elemid, elembary, toelem, nodeto):
     """
 
     # Ensure fromval is a column vector if it is a row vector
-    if fromval.shape[0] == 1:
-        fromval = fromval.T
+    if fromval.ndim == 1:
+        fromval = fromval[:, np.newaxis]
 
     # Ensure fromval's number of columns matches the length of elemid
     if fromval.shape[1] == len(elemid):
         fromval = fromval.T
 
-    # Initialize output array newval
-    newval = np.zeros((nodeto, fromval.shape[1]))
+    elem_0 = toelem[:, :4].astype(int) - 1
+    ncol = fromval.shape[1]
+    newval = np.zeros((nodeto, ncol))
 
-    # Ignore NaN elements
-    idx = ~np.isnan(elemid)
-    fromval = fromval[idx, :]
-    elembary = elembary[idx, :]
-    idx = elemid[idx]
+    valid = ~np.isnan(elemid)
+    valid_idx = np.where(valid)[0]
+    valid_eid = elemid[valid].astype(int)
+    valid_bary = elembary[valid]
+    valid_from = fromval[valid]
 
-    # Compute nodal values weighted by barycentric coordinates
-    nodeval = np.repeat(
-        fromval[:, np.newaxis, :], elembary.shape[1], axis=1
-    ) * np.repeat(elembary[:, np.newaxis, :], fromval.shape[1], axis=1).transpose(
-        0, 2, 1
-    )
+    node_ids = elem_0[valid_eid]
+    weighted = valid_from[:, np.newaxis, :] * valid_bary[:, :, np.newaxis]
 
-    # Accumulate contributions to target mesh nodes
-    for i in range(elembary.shape[1]):
-        ix, iy = np.meshgrid(toelem[idx, i], np.arange(fromval.shape[1]))
-        nval = nodeval[:, :, i].T
-        newval += np.add.at(newval, (ix.flatten(), iy.flatten()), nval.flatten())
+    for j in range(4):
+        np.add.at(newval, node_ids[:, j], weighted[:, j, :])
 
     return newval
 

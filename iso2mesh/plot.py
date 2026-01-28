@@ -19,6 +19,29 @@ __all__ = [
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Attempt to register 3D projection - handle version conflicts gracefully
+_3D_AVAILABLE = False
+try:
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
+    _3D_AVAILABLE = True
+except ImportError:
+    # Handle matplotlib version conflicts between system and pip installations
+    try:
+        # Alternative registration method for newer matplotlib
+        import matplotlib.projections as proj
+
+        if "3d" not in proj.get_projection_names():
+            import warnings
+
+            warnings.warn(
+                "3D plotting may not be available due to matplotlib version conflict. "
+                "Consider: pip uninstall matplotlib && pip install matplotlib"
+            )
+    except Exception:
+        pass
+
 from iso2mesh.trait import volface, meshcentroid
 
 COLOR_OFFSET = 3
@@ -460,32 +483,63 @@ def _autoscale_3d(ax, points):
 
 
 def _createaxis(*args, **kwargs):
+    """
+    Create or retrieve a 3D matplotlib axis.
+
+    Parameters:
+        *args: Positional arguments (unused but accepted for compatibility)
+        **kwargs: Keyword arguments including:
+            - subplot: subplot specification (default: 111)
+            - parent: existing figure/axis handle dict or list
+
+    Returns:
+        ax: matplotlib 3D axis object
+    """
+    # Try to ensure 3D projection is available
+    global _3D_AVAILABLE
+    if not _3D_AVAILABLE:
+        try:
+            from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
+            _3D_AVAILABLE = True
+        except ImportError:
+            pass
+
     subplotid = kwargs.get("subplot", 111)
-    docreate = True
     fig = None
+    ax = None
 
     if "parent" in kwargs:
         hh = kwargs["parent"]
         if isinstance(hh, dict):
-            fig = hh["fig"][0]
-            ax = hh["ax"][-1]
-        elif isinstance(hh, list):
+            fig = hh.get("fig", [None])[0]
+            ax = hh.get("ax", [None])[-1]
+        elif isinstance(hh, list) and len(hh) > 0:
             ax = hh[-1]
-        if "subplot" in kwargs and fig:
+
+        # If we have a parent but need a new subplot
+        if "subplot" in kwargs and fig is not None:
             ax = fig.add_subplot(subplotid, projection="3d")
-    elif not docreate and len(plt.get_fignums()) > 0 and len(plt.gcf().axes) > 0:
-        if not fig:
-            fig = plt.gcf()
-        ax = fig.axes[-1]
-    else:
-        if docreate and not fig:
-            fig = plt.figure()
-        ax = fig.add_subplot(subplotid, projection="3d")
+            return ax
 
-    if ax.name != "3d":
-        fig = plt.figure()  # Create a new figure
-        ax = fig.add_subplot(subplotid, projection="3d")
+        # If we have a valid 3D axis, return it
+        if ax is not None and hasattr(ax, "name") and ax.name == "3d":
+            return ax
 
+    # Check for existing figures and axes
+    if len(plt.get_fignums()) > 0:
+        fig = plt.gcf()
+        if len(fig.axes) > 0:
+            ax = fig.axes[-1]
+            # Check if it's already a 3D axis
+            if hasattr(ax, "name") and ax.name == "3d":
+                return ax
+
+    # Create new figure and 3D axis
+    if fig is None:
+        fig = plt.figure()
+
+    ax = fig.add_subplot(subplotid, projection="3d")
     return ax
 
 

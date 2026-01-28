@@ -16,6 +16,8 @@ __all__ = [
     "varargin2struct",
     "jsonopt",
     "nargout",
+    "orthdisk",
+    "surfdiffuse",
 ]
 ##====================================================================================
 ## dependent libraries
@@ -384,3 +386,121 @@ def nargout():
         return instruction.arg
     else:
         return 1
+
+
+def orthdisk(c0, c1, r=1, ndiv=20, v1=None, angle0=0):
+    """
+    Define a 3D disk orthogonal to a vector.
+
+    Parameters:
+        c0 : ndarray
+            Origin point, shape (3,).
+        c1 : ndarray
+            Point defining direction vector (c1 - c0), shape (3,).
+        r : float, optional
+            Radius of the disk (default: 1).
+        ndiv : int, optional
+            Number of divisions to approximate circle (default: 20).
+        v1 : ndarray, optional
+            Vector specifying the first point direction on the disk.
+            If not perpendicular to c1-c0, rotation axis is adjusted.
+        angle0 : float, optional
+            Starting angle in radians for first point (default: 0).
+
+    Returns:
+        node : ndarray
+            3D vertices of the disk, shape (ndiv, 3).
+    """
+    c0 = np.asarray(c0).flatten()
+    c1 = np.asarray(c1).flatten()
+    v0 = c1 - c0
+
+    if v1 is not None:
+        v1 = np.asarray(v1).flatten()
+        vt = np.cross(v0, v1)
+        if abs(np.dot(v0, v1)) > 1e-5:  # Not orthogonal
+            v0 = np.cross(v1, vt)
+
+    # Generate circle points in xy-plane
+    dt = 2 * np.pi / ndiv
+    theta = np.arange(angle0 + dt, 2 * np.pi + angle0 + dt, dt)[:ndiv]
+    cx = r * np.cos(theta)
+    cy = r * np.sin(theta)
+    pp = np.column_stack([cx, cy, np.zeros(ndiv)])
+
+    # Rotate to align with v0 and translate to c0
+    node = rotatevec3d(pp, v0) + c0
+
+    return node
+
+
+def surfdiffuse(node, tri, val, ddt, niter, type1=None, opt="simple"):
+    """
+    Apply smoothing/diffusion process on a surface.
+
+    Parameters:
+        node : ndarray
+            Node coordinates, shape (N, 3).
+        tri : ndarray or list
+            Triangle element list, shape (M, 3), 1-based indices.
+            Or precomputed connectivity list.
+        val : ndarray
+            Scalar value for each node, shape (N,).
+        ddt : float
+            Diffusion coefficient multiplied by delta t.
+        niter : int
+            Number of smoothing iterations.
+        type1 : array-like, optional
+            Indices of nodes that will not be updated (1-based).
+        opt : str, optional
+            Method: 'grad' for gradient-based, 'simple' for simple average.
+
+    Returns:
+        valnew : ndarray
+            Nodal values after smoothing.
+    """
+    nn = node.shape[0]
+
+    # Get connectivity
+    if isinstance(tri, list):
+        conn = tri
+    else:
+        conn = meshconn(tri, nn)
+
+    valnew = val.copy().astype(float)
+    val_work = val.copy().astype(float)
+
+    # Determine nodes to update
+    if type1 is None:
+        type1 = []
+    type1_set = set(np.asarray(type1).flatten() - 1)  # Convert to 0-based set
+    nontype1 = [i for i in range(nn) if i not in type1_set]
+
+    if opt == "grad":
+        for _ in range(niter):
+            for j in nontype1:
+                neighbors = [n - 1 for n in conn[j]]  # Convert to 0-based
+                if not neighbors:
+                    continue
+                dist = node[neighbors] - node[j]
+                c0 = np.sqrt(np.sum(dist * dist, axis=1))
+                valid = c0 > 0
+                if np.any(valid):
+                    neighbors = np.array(neighbors)[valid]
+                    c0 = c0[valid]
+                    valnew[j] = val_work[j] + ddt * np.sum(
+                        (val_work[neighbors] - val_work[j]) / c0
+                    )
+            val_work = valnew.copy()
+
+    elif opt == "simple":
+        for _ in range(niter):
+            for j in nontype1:
+                neighbors = [n - 1 for n in conn[j]]  # Convert to 0-based
+                if neighbors:
+                    valnew[j] = (1 - ddt) * val_work[j] + ddt * np.mean(
+                        val_work[neighbors]
+                    )
+            val_work = valnew.copy()
+
+    return valnew

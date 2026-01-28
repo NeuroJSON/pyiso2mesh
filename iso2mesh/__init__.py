@@ -136,6 +136,8 @@ from .utils import (
     varargin2struct,
     jsonopt,
     nargout,
+    orthdisk,
+    surfdiffuse,
 )
 
 from .io import (
@@ -148,6 +150,19 @@ from .io import (
     readtetgen,
     savesurfpoly,
     readoff,
+    loadjmesh,
+    savejmesh,
+    readinr,
+    readmptiff,
+    readnirfast,
+    savenirfast,
+    readobjmesh,
+    readsmf,
+    saveabaqus,
+    savemphtxt,
+    savemsh,
+    savesmf,
+    savevrml,
 )
 
 from .core import (
@@ -196,6 +211,8 @@ from .modify import (
     domeshsimplify,
     slicesurf,
     slicesurf3,
+    raysurf,
+    raytrace,
 )
 
 from .line import (
@@ -240,6 +257,9 @@ from .volume import (
     fillholes3d,
     thickenbinvol,
     thinbinvol,
+    maskdist,
+    ndgaussian,
+    ndimfilter,
 )
 
 __version__ = "0.5.2"
@@ -447,5 +467,25 @@ __all__ = [
     "slicesurf3",
     "bbxflatsegment",
     "orderloopedge",
+    "loadjmesh",
+    "savejmesh",
+    "readinr",
+    "readmptiff",
+    "readnirfast",
+    "savenirfast",
+    "readobjmesh",
+    "readsmf",
+    "saveabaqus",
+    "savemphtxt",
+    "savemsh",
+    "savesmf",
+    "savevrml",
+    "raysurf",
+    "raytrace",
+    "orthdisk",
+    "surfdiffuse",
+    "maskdist",
+    "ndgaussian",
+    "ndimfilter",
 ]
 __license__ = """GNU General Public License v3 and later"""

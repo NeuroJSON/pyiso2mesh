@@ -11,6 +11,9 @@ __all__ = [
     "fillholes3d",
     "thickenbinvol",
     "thinbinvol",
+    "maskdist",
+    "ndgaussian",
+    "ndimfilter",
 ]
 
 ##====================================================================================
@@ -277,6 +280,156 @@ def fillholes3d(
     resimg = filled.astype(np.float64)
 
     return resimg
+
+
+def maskdist(vol):
+    """
+    Return the distance in each voxel towards the nearest label boundaries.
+
+    Parameters:
+        vol : ndarray
+            A 2D or 3D array with label values.
+
+    Returns:
+        dist : ndarray
+            An array storing the distance (in voxel units) towards the nearest
+            boundary between two distinct non-zero voxels. Zero voxels and space
+            outside the array are treated as a unique label. For minimum distance
+            measured from voxel center, use (dist - 0.5).
+
+    Raises:
+        ValueError: If vol is empty or has more than 256 unique values.
+
+    Example:
+        >>> a = np.ones((60, 60, 60))
+        >>> a[:, :, :10] = 2
+        >>> a[:, :, 10:20] = 3
+        >>> im = maskdist(a)
+        >>> plt.imshow(im[:, 30, :])
+    """
+    if vol.size == 0:
+        raise ValueError("Input vol cannot be empty")
+
+    vals = np.unique(vol)
+    if len(vals) > 256:
+        raise ValueError(
+            "Input appears to be a gray-scale image; convert to binary or labels first"
+        )
+
+    # Pad volume with a new unique label
+    pad_val = vals.max() + 1
+    if vol.ndim == 2:
+        newvol = np.full((vol.shape[0] + 2, vol.shape[1] + 2), pad_val, dtype=vol.dtype)
+        newvol[1:-1, 1:-1] = vol
+    elif vol.ndim == 3:
+        newvol = np.full(
+            (vol.shape[0] + 2, vol.shape[1] + 2, vol.shape[2] + 2),
+            pad_val,
+            dtype=vol.dtype,
+        )
+        newvol[1:-1, 1:-1, 1:-1] = vol
+    else:
+        raise ValueError("vol must be 2D or 3D")
+
+    # Include padding label, exclude zero (treat zero as padding label)
+    vals = list(vals)
+    vals.append(pad_val)
+    vals = [v for v in vals if v != 0]
+
+    # Replace zeros with padding label
+    newvol[newvol == 0] = pad_val
+
+    # Compute minimum distance to any label boundary
+    dist = np.full(newvol.shape, np.inf)
+
+    for val in vals:
+        mask = newvol == val
+        vdist = ndimage.distance_transform_edt(~mask)
+        vdist[vdist == 0] = np.inf
+        dist = np.minimum(dist, vdist)
+
+    # Remove padding
+    if vol.ndim == 2:
+        dist = dist[1:-1, 1:-1]
+    else:
+        dist = dist[1:-1, 1:-1, 1:-1]
+
+    return dist
+
+
+def ndgaussian(r=1, sigma=1, ndim=3):
+    """
+    Create an N-dimensional Gaussian kernel.
+
+    Parameters:
+        r : int
+            Kernel half-width. Output size is (2*r+1) in each dimension.
+        sigma : float
+            Standard deviation. If inf, returns a box filter.
+        ndim : int
+            Number of dimensions.
+
+    Returns:
+        kernel : ndarray
+            Normalized Gaussian kernel.
+    """
+    size = 2 * r + 1
+
+    if np.isinf(sigma):
+        # Box filter
+        kernel = np.ones([size] * ndim)
+        return kernel / kernel.sum()
+
+    # Create coordinate grids
+    coords = [np.arange(-r, r + 1) for _ in range(ndim)]
+    grids = np.meshgrid(*coords, indexing="ij")
+
+    # Compute squared distance from center
+    dist_sq = sum(g**2 for g in grids)
+
+    # Gaussian
+    kernel = np.exp(-dist_sq / (2 * sigma**2))
+    return kernel / kernel.sum()
+
+
+def ndimfilter(im, kernel="box", *args):
+    """
+    Filter an ND array using convolution.
+
+    Parameters:
+        im : ndarray
+            Input ND array.
+        kernel : ndarray or str
+            Filter kernel array, or one of:
+            - 'box': box filter (requires r)
+            - 'gaussian': Gaussian filter (requires r, sigma)
+        *args : additional arguments
+            r : int - kernel half-width (output is 2*r+1 in each dimension)
+            sigma : float - standard deviation for Gaussian (default: 1)
+
+    Returns:
+        img : ndarray
+            Filtered ND array.
+
+    Example:
+        >>> filtered = ndimfilter(volume, 'gaussian', 2, 1.5)
+        >>> filtered = ndimfilter(volume, 'box', 3)
+    """
+    if isinstance(kernel, str):
+        if kernel == "box":
+            if len(args) < 1:
+                r = 1
+            else:
+                r = args[0]
+            kernel = ndgaussian(r, np.inf, im.ndim)
+        elif kernel == "gaussian":
+            r = args[0] if len(args) >= 1 else 1
+            sigma = args[1] if len(args) >= 2 else 1
+            kernel = ndgaussian(r, sigma, im.ndim)
+        else:
+            raise ValueError(f"Filter type '{kernel}' is not supported")
+
+    return ndimage.convolve(im, kernel, mode="reflect")
 
 
 ##====================================================================================

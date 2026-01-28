@@ -24,6 +24,8 @@ __all__ = [
     "surfboolean",
     "meshresample",
     "domeshsimplify",
+    "raysurf",
+    "raytrace",
 ]
 
 ##====================================================================================
@@ -1227,3 +1229,149 @@ def slicesurf3(node, elem, p1, p2, p3, step=None, minangle=None, **kwargs):
         return leftpt, leftcurve, rightpt, rightcurve
 
     return leftpt, leftcurve
+
+
+def raysurf(p0, v0, node, face):
+    """
+    Perform Havel-styled ray tracing for a triangular surface.
+
+    Parameters:
+        p0 : ndarray
+            Starting points of the rays, shape (N, 3).
+        v0 : ndarray
+            Directional vectors of the rays, shape (N, 3) or (3,) for single direction.
+        node : ndarray
+            Node coordinates, shape (M, 3).
+        face : ndarray
+            Surface mesh triangle list, shape (K, 3), 1-based indices.
+
+    Returns:
+        t : ndarray
+            Distance from p0 to intersection point for each ray. NaN if no intersection.
+        u : ndarray
+            Barycentric coordinate 1 of intersection points.
+        v : ndarray
+            Barycentric coordinate 2 of intersection points.
+            The barycentric triplet is [u, v, 1-u-v].
+        idx : ndarray
+            Face element IDs that intersect each ray (1-based). NaN if no intersection.
+        xnode : ndarray
+            Intersection point coordinates (p0 + t * v0).
+
+    References:
+        [1] J. Havel and A. Herout, "Yet faster ray-triangle intersection (using SSE4),"
+            IEEE Trans. on Visualization and Computer Graphics, 16(3):434-438 (2010)
+    """
+    p0 = np.atleast_2d(p0)
+    nrays = p0.shape[0]
+
+    if nrays == 0:
+        raise ValueError("p0 cannot be empty")
+    if node.shape[1] < 3:
+        raise ValueError("node must contain at least 3 columns")
+    if face.shape[1] < 3:
+        raise ValueError("face must contain at least 3 columns")
+
+    v0 = np.atleast_2d(v0)
+    if v0.shape[0] == 1 and nrays > 1:
+        v0 = np.tile(v0, (nrays, 1))
+
+    t = np.full(nrays, np.nan)
+    u = np.full(nrays, np.nan)
+    v = np.full(nrays, np.nan)
+    idx = np.full(nrays, np.nan)
+
+    for i in range(nrays):
+        ti, ui, vi, hit_ids = raytrace(p0[i], v0[i], node, face)
+        if len(hit_ids) == 0:
+            continue
+
+        ti_hits = ti[hit_ids - 1]  # Convert to 0-based for indexing
+        positive_mask = ti_hits >= 0
+        if not np.any(positive_mask):
+            continue
+
+        positive_idx = np.where(positive_mask)[0]
+        min_loc = positive_idx[np.argmin(ti_hits[positive_mask])]
+        hit_face = hit_ids[min_loc]
+
+        t[i] = ti_hits[min_loc]
+        u[i] = ui[hit_face - 1]
+        v[i] = vi[hit_face - 1]
+        idx[i] = hit_face
+
+    xnode = p0 + t[:, np.newaxis] * v0
+
+    return t, u, v, idx, xnode
+
+
+def raytrace(p0, v0, node, face):
+    """
+    Ray-triangle intersection test using Möller-Trumbore algorithm.
+
+    Parameters:
+        p0 : ndarray
+            Ray origin, shape (3,).
+        v0 : ndarray
+            Ray direction, shape (3,).
+        node : ndarray
+            Node coordinates, shape (N, 3).
+        face : ndarray
+            Triangle list, shape (M, 3), 1-based indices.
+
+    Returns:
+        t : ndarray
+            Intersection distances for each triangle.
+        u : ndarray
+            Barycentric u coordinates.
+        v : ndarray
+            Barycentric v coordinates.
+        idx : ndarray
+            Indices of triangles that intersect (1-based).
+    """
+    eps = 1e-10
+    nface = face.shape[0]
+
+    t = np.full(nface, np.nan)
+    u = np.full(nface, np.nan)
+    v = np.full(nface, np.nan)
+    idx_list = []
+
+    # Convert to 0-based indexing for node access
+    face_0 = face[:, :3].astype(int) - 1
+
+    for i in range(nface):
+        v0_tri = node[face_0[i, 0]]
+        v1_tri = node[face_0[i, 1]]
+        v2_tri = node[face_0[i, 2]]
+
+        e1 = v1_tri - v0_tri
+        e2 = v2_tri - v0_tri
+
+        pvec = np.cross(v0, e2)
+        det = np.dot(e1, pvec)
+
+        if abs(det) < eps:
+            continue
+
+        inv_det = 1.0 / det
+        tvec = p0 - v0_tri
+        u_val = np.dot(tvec, pvec) * inv_det
+
+        if u_val < 0 or u_val > 1:
+            continue
+
+        qvec = np.cross(tvec, e1)
+        v_val = np.dot(v0, qvec) * inv_det
+
+        if v_val < 0 or u_val + v_val > 1:
+            continue
+
+        t_val = np.dot(e2, qvec) * inv_det
+
+        t[i] = t_val
+        u[i] = u_val
+        v[i] = v_val
+        idx_list.append(i + 1)  # Return 1-based index
+
+    return t, u, v, np.array(idx_list, dtype=int)

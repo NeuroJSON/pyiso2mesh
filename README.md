@@ -205,17 +205,17 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `s2v.m` | ✅ tested |                    | ✅ `savebinstl.m`                  | ⭕️ tested |
 | ✅ `m2v.m` | ✅ tested |                    | ✅ `saveinr.m`                     | ⭕️ tested |
 | ✅ `sms.m` | ✅ tested |                    | ✅ `saveoff.m`                     | ✅ tested |
-| > Streamlined mesh generation| |            | ⭕️ `savesmf.m`                    | ⭕️ tested |
+| > Streamlined mesh generation| |            | ✅ `savesmf.m`                    | ⭕️ tested |
 | ✅ `vol2mesh.m` | ✅ tested |               | ✅ `savesurfpoly.m`                | ✅ tested |
-| ✅ `vol2surf.m` | ✅ tested |               | ⭕️ `savegts.m`                    | ⭕️ tested |
-| ✅ `surf2mesh.m` | ✅ tested |              | ⭕️ `readgts.m`                    | ⭕️ tested |
-| ✅ `surf2vol.m` | ✅ tested |               | ⭕️ `savemsh.m`                    | ⭕️ tested |
-| ✅ `mesh2vol.m` | ✅ tested |               | ⭕️ `savevrml.m`                   | ⭕️ tested |
+| ✅ `vol2surf.m` | ✅ tested |               | ✅ `savegts.m`                    | ⭕️ tested |
+| ✅ `surf2mesh.m` | ✅ tested |              | ✅ `readgts.m`                    | ⭕️ tested |
+| ✅ `surf2vol.m` | ✅ tested |               | ✅ `savemsh.m`                    | ⭕️ tested |
+| ✅ `mesh2vol.m` | ✅ tested |               | ✅ `savevrml.m`                   | ⭕️ tested |
 | > Iso2mesh main function backend| |         | ✅ `readasc.m`                     | ⭕️ tested |
-| ✅ `binsurface.m` | ✅ tested |             | ⭕️ `readinr.m`                    | ⭕️ tested |
+| ✅ `binsurface.m` | ✅ tested |             | ✅ `readinr.m`                    | ⭕️ tested |
 | ✅ `cgalv2m.m` | ✅ tested |                | ✅ `readmedit.m`                   | ⭕️ tested |
 | ✅ `cgals2m.m` | ✅ tested |                | ✅ `readoff.m`                     | ✅ tested |
-| ✅ `vol2restrictedtri.m` | ✅ tested |      | ⭕️ `readsmf.m`                    | ⭕️ tested |
+| ✅ `vol2restrictedtri.m` | ✅ tested |      | ✅ `readsmf.m`                    | ⭕️ tested |
 | ✅ `surf2volz.m` | ✅ tested |              | ✅ `readtetgen.m`                  | ✅ tested |
 | ✅ `mesh2mask.m` | ✅ tested |              | ✅ `deletemeshfile.m`              | ✅ tested |
 | > Iso2mesh primitive meshing|          |    | ✅ `mcpath.m`                      | ✅ tested |
@@ -229,21 +229,21 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `latticegrid.m` | ✅ tested |            | ✅ `savemsgpack.m`                | ⭕️ tested |
 | ✅ `extrudecurve.m` | ⭕️ tested |           | ✅ `savebj.m`                      | ⭕️ tested |
 | ✅ `meshcylinders.m` | ✅ tested |          | ✅ `loadbj.m`                      | ⭕️ tested |
-| > Mesh decomposition and query| |           | ⭕️ `savemphtxt.m`                 | ⭕️ tested |
+| > Mesh decomposition and query| |           | ✅ `savemphtxt.m`                 | ⭕️ tested |
 | ✅ `finddisconnsurf.m` | ✅ tested |        | ✅ `savetetgenele.m`              | ⭕️ tested |
 | ✅ `surfedge.m` | ✅ tested |               | ✅ `savetetgennode.m`             | ⭕️ tested |
-| ✅ `volface.m` | ✅ tested |                | ⭕️ `saveabaqus.m`                 | ⭕️ tested |
-| ✅ `extractloops.m` | ✅ tested |           | ⭕️ `savenirfast.m`                | ⭕️ tested |
-| ✅ `meshconn.m` | ✅ tested |               | ⭕️ `readnirfast.m`                | ⭕️ tested |
+| ✅ `volface.m` | ✅ tested |                | ✅ `saveabaqus.m`                 | ⭕️ tested |
+| ✅ `extractloops.m` | ✅ tested |           | ✅ `savenirfast.m`                | ⭕️ tested |
+| ✅ `meshconn.m` | ✅ tested |               | ✅ `readnirfast.m`                | ⭕️ tested |
 | ✅ `meshcentroid.m` | ✅ tested |           | ✅ `loadnifti.m`                   | ⭕️ tested |
-| ✅ `nodevolume.m` | ✅ tested |             | ⭕️ `readmptiff.m`                 | ⭕️ tested |
+| ✅ `nodevolume.m` | ✅ tested |             | ✅ `readmptiff.m`                 | ⭕️ tested |
 | ✅ `elemvolume.m` | ✅ tested |             | ✅ `loadjsnirf.m`                 | ⭕️ tested |
 | ✅ `neighborelem.m` | ✅ tested |           | ✅ `savejsnirf.m`                 | ⭕️ tested |
 | ✅ `layersurf.m` | ⭕️ tested |              | ✅ `loadsnirf.m`                  | ⭕️ tested |
 | ✅ `faceneighbors.m` | ✅ tested |          | ✅ `savesnirf.m`                  | ⭕️ tested |
-| ✅ `edgeneighbors.m` | ✅ tested |          | ⭕️ `readobjmesh.m`                | ⭕️ tested |
-| ✅ `maxsurf.m` | ⭕️ tested |                | ⭕️ `loadjmesh.m`                  | ⭕️ tested |
-| ✅ `flatsegment.m` | ⭕️ tested |            | ⭕️ `savejmesh.m`                  | ⭕️ tested |
+| ✅ `edgeneighbors.m` | ✅ tested |          | ✅ `readobjmesh.m`                | ⭕️ tested |
+| ✅ `maxsurf.m` | ⭕️ tested |                | ✅ `loadjmesh.m`                  | ⭕️ tested |
+| ✅ `flatsegment.m` | ⭕️ tested |            | ✅ `savejmesh.m`                  | ⭕️ tested |
 | ✅ `orderloopedge.m` | ⭕️ tested |          | > Volumetric image pre-processing | |
 | ✅ `mesheuler.m` | ✅ tested |              | ✅ `volgrow.m`                     | ✅ tested |
 | ✅ `bbxflatsegment.m` | ⭕️ tested |         | ✅ `volshrink.m`                   | ✅ tested |
@@ -254,14 +254,14 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `meshquality.m` | ✅ tested |            | ⭕️ `laplacefill.m`                | ⭕️ tested |
 | ✅ `meshedge.m` | ✅ tested |               | ⭕️ `deislands2d.m`                | ⭕️ tested |
 | ✅ `meshface.m` | ✅ tested |               | ⭕️ `deislands3d.m`                | ⭕️ tested |
-| ✅ `surfacenorm.m` | ✅ tested |            | ⭕️ `ndgaussian.m`                 | ⭕️ tested |
-| ✅ `nodesurfnorm.m` | ✅ tested |           | ⭕️ `ndimfilter.m`                 | ⭕️ tested |
+| ✅ `surfacenorm.m` | ✅ tested |            | ✅ `ndgaussian.m`                 | ⭕️ tested |
+| ✅ `nodesurfnorm.m` | ✅ tested |           | ✅ `ndimfilter.m`                 | ⭕️ tested |
 | ✅ `uniqedges.m` | ✅ tested |              | ⭕️ `imedge3d.m`                   | ⭕️ tested |
 | ✅ `uniqfaces.m` | ✅ tested |              | ⭕️ `internalpoint.m`              | ⭕️ tested |
 | ✅ `advancefront.m` | ⭕️ tested |           | ⭕️ `smoothbinvol.m`               | ⭕️ tested |
 | ✅ `innersurf.m` | ⭕️ tested |              | ✅ `thickenbinvol.m`               | ✅ tested |
 | ✅ `outersurf.m` | ⭕️ tested |              | ✅ `thinbinvol.m`                  | ✅ tested |
-| ✅ `surfvolume.m` | ✅ tested |             | ⭕️ `maskdist.m`                   | ⭕️ tested |
+| ✅ `surfvolume.m` | ✅ tested |             | ✅ `maskdist.m`                   | ⭕️ tested |
 | ✅ `insurface.m` | ✅ tested |              | > Mesh plotting                   | |
 | > Mesh processing and reparing| |           | ✅ `plotmesh.m`                    | ✅ tested |
 | ✅ `meshcheckrepair.m` | ✅ tested |        | ✅ `plotsurf.m`                    | ✅ tested |
@@ -269,7 +269,7 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `removedupelem.m` | ✅ tested |          | ✅ `plotedges.m`                   | ✅ tested |
 | ✅ `removedupnodes.m` | ✅ tested |         | ✅ `qmeshcut.m`                    | ✅ tested |
 | ✅ `removeisolatednode.m` | ✅ tested |     | > Miscellaneous functions         | |
-| ✅ `removeisolatedsurf.m` | ⭕️ tested |     | ⭕️ `surfdiffuse.m`                | ⭕️ tested |
+| ✅ `removeisolatedsurf.m` | ⭕️ tested |     | ✅ `surfdiffuse.m`                | ⭕️ tested |
 | ✅ `surfaceclean.m` | ⭕️ tested |           | ⭕️ `volmap2mesh.m`                | ⭕️ tested |
 | ✅ `getintersecttri.m` | ⭕️ tested |        | ⭕️ `isoctavemesh.m`               | ⭕️ tested |
 | ✅ `delendelem.m` | ⭕️ tested |             | ⭕️ `getvarfrom.m`                 | ⭕️ tested |
@@ -279,14 +279,14 @@ tracked in https://github.com/NeuroJSON/pyiso2mesh/issues/1
 | ✅ `dist2surf.m` | ⭕️ tested |              | ✅ `getexeext.m`                   | ✅ tested |
 | ✅ `regpt2surf.m` | ⭕️ tested |             | ✅ `fallbackexeext.m`              | ✅ tested |
 | ✅ `affinemap.m` | ⭕️ tested |              | ⭕️ `iso2meshver.m`                | ⭕️ tested |
-| > Polyline handling| |                      | ⭕️ `raysurf.m`                    | ⭕️ tested |
+| > Polyline handling| |                      | ✅ `raysurf.m`                    | ⭕️ tested |
 | ✅ `slicesurf.m` | ⭕️ tested |              | ⭕️ `getoptkey.m`                  | ⭕️ tested |
 | ✅ `slicesurf3.m` | ⭕️ tested |             | ✅ `rotatevec3d.m`                 | ⭕️ tested |
 | ✅ `polylinelen.m` | ⭕️ tested |            | ✅ `rotmat2vec.m`                  | ⭕️ tested |
 | ✅ `polylinesimplify.m` | ⭕️ tested |       | ✅ `varargin2struct.m`             | ⭕️ tested |
 | ✅ `polylineinterp.m` | ⭕️ tested |         | ✅ `jsonopt.m`                     | ⭕️ tested |
 | ✅ `closestnode.m` | ⭕️ tested |            | ⭕️ `mergestruct.m`                | ⭕️ tested |
-| > Mesh resampling and optimization| |       | ⭕️ `orthdisk.m`                   | ⭕️ tested |
+| > Mesh resampling and optimization| |       | ✅ `orthdisk.m`                   | ⭕️ tested |
 | ✅ `meshresample.m` | ✅ tested |           | ⭕️ `nestbracket2dim.m`            | ⭕️ tested |
 | ✅ `remeshsurf.m` | ✅ tested |             | ✅ `memmapstream.m`                | ⭕️ tested |
 | ✅ `smoothsurf.m` | ✅ tested |             | ✅ `aos2soa.m`                    | ⭕️ tested |
