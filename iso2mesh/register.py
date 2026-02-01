@@ -60,7 +60,7 @@ def affinemap(pfrom, pto):
     return A, b
 
 
-def meshinterp(fromval, elemid, elembary, fromelem, initval=None):
+def meshinterp(fromval, elemid, elembary, fromelem, toval=None):
     """
     Interpolate nodal values from the source mesh to the target mesh based on a linear interpolation.
 
@@ -79,34 +79,37 @@ def meshinterp(fromval, elemid, elembary, fromelem, initval=None):
                 the value numbers defined at each source mesh node.
     """
 
-    # If fromval is a single row, convert it to a column vector
-    if fromval.shape[0] == 1:
-        fromval = fromval.T
+    if fromval.ndim == 1:
+        fromval = fromval[:, np.newaxis]
 
-    # Find valid indices (non-NaN element IDs)
-    idx = np.where(~np.isnan(elemid))[0]
+    elem_0 = fromelem[:, :4].astype(int) - 1
+    npts = len(elemid)
+    ncol = fromval.shape[1]
 
-    # Reshape fromval to match the size of elembary and fromelem
-    allval = np.reshape(
-        fromval[fromelem[elemid[idx], :], :],
-        (len(idx), elembary.shape[1], fromval.shape[1]),
-    )
-
-    # Perform linear interpolation using barycentric coordinates
-    tmp = np.array(
-        [np.sum(elembary[idx, :] * x, axis=1) for x in np.rollaxis(allval, 2)]
-    )
-
-    # Initialize newval with initval or NaN
-    if initval is not None:
-        newval = initval
+    if toval is None:
+        newval = np.zeros((npts, ncol))
     else:
-        newval = np.full((len(elemid), fromval.shape[1]), np.nan)
+        newval = toval.copy() if toval.ndim > 1 else toval[:, np.newaxis].copy()
 
-    # Assign interpolated values to newval at valid indices
-    newval[idx, :] = np.squeeze(np.stack(tmp, axis=2))
+    # Filter valid entries
+    valid = ~np.isnan(elemid)
+    valid_idx = np.where(valid)[0]
+    valid_eid = elemid[valid].astype(int) - 1
+    valid_bary = elembary[valid]
 
-    return newval
+    # Get node indices: (nvalid, 4)
+    node_ids = elem_0[valid_eid]
+
+    # Get values at nodes: (nvalid, 4, ncol)
+    vals_at_nodes = fromval[node_ids]
+
+    # Interpolate: sum over 4 nodes weighted by barycentric coords
+    # (nvalid, 4, ncol) * (nvalid, 4, 1) -> sum -> (nvalid, ncol)
+    interp_vals = np.sum(vals_at_nodes * valid_bary[:, :, np.newaxis], axis=1)
+
+    newval[valid_idx] = interp_vals
+
+    return newval if newval.shape[1] > 1 else newval.squeeze()
 
 
 def meshremap(fromval, elemid, elembary, toelem, nodeto):
@@ -127,32 +130,36 @@ def meshremap(fromval, elemid, elembary, toelem, nodeto):
     newval: A 2D array with rows equal to the target mesh nodes and columns equal to
             the value numbers defined at each source mesh node.
     """
+    from scipy.sparse import csr_matrix
 
-    # Ensure fromval is a column vector if it is a row vector
     if fromval.ndim == 1:
         fromval = fromval[:, np.newaxis]
-
-    # Ensure fromval's number of columns matches the length of elemid
     if fromval.shape[1] == len(elemid):
         fromval = fromval.T
 
     elem_0 = toelem[:, :4].astype(int) - 1
+    nquery = len(elemid)
     ncol = fromval.shape[1]
-    newval = np.zeros((nodeto, ncol))
 
+    # Filter valid entries
     valid = ~np.isnan(elemid)
     valid_idx = np.where(valid)[0]
-    valid_eid = elemid[valid].astype(int)
+    valid_eid = elemid[valid].astype(int) - 1
     valid_bary = elembary[valid]
-    valid_from = fromval[valid]
+    nvalid = len(valid_idx)
 
-    node_ids = elem_0[valid_eid]
-    weighted = valid_from[:, np.newaxis, :] * valid_bary[:, :, np.newaxis]
+    # Build sparse matrix: nodeto x nquery
+    # Each query point contributes to 4 nodes with barycentric weights
+    node_ids = elem_0[valid_eid]  # (nvalid, 4)
 
-    for j in range(4):
-        np.add.at(newval, node_ids[:, j], weighted[:, j, :])
+    row = node_ids.ravel()  # (nvalid * 4,)
+    col = np.repeat(valid_idx, 4)  # (nvalid * 4,)
+    data = valid_bary.ravel()  # (nvalid * 4,)
 
-    return newval
+    W = csr_matrix((data, (row, col)), shape=(nodeto, nquery))
+    newval = W @ fromval
+
+    return np.asarray(newval).squeeze()
 
 
 def proj2mesh(v, f, pt, nv=None, cn=None, radmax=None):

@@ -42,6 +42,7 @@ __all__ = [
     "highordertet",
     "ismember_rows",
     "ray2surf",
+    "tsearchn",
 ]
 
 ##====================================================================================
@@ -1498,13 +1499,13 @@ def ismember_rows(array1, array2):
     isinside = np.isin(a1_view, a2_view)
 
     # Mapping: initialize with 0 (not found), +1 for 1-based MATLAB-like output
-    map = np.zeros(array1.shape[0], dtype=int)
+    idxmap = np.zeros(array1.shape[0], dtype=int)
     for i in range(array1.shape[0]):
         matches = np.where((array2 == array1[i]).all(axis=1))[0]
         if matches.size > 0:
-            map[i] = matches[0] + 1  # MATLAB-style index (1-based)
+            idxmap[i] = matches[0] + 1  # MATLAB-style index (1-based)
 
-    return isinside, map
+    return isinside, idxmap
 
 
 def advancefront(edges, loop, elen=3):
@@ -1778,6 +1779,9 @@ def highordertet(node, elem, order=2, opt=None):
     return newnode, newelem + 1
 
 
+# _________________________________________________________________________________________________________
+
+
 def internalpoint(v, aloop):
     """
     Empirical function to find an internal point of a planar polygon.
@@ -1841,6 +1845,9 @@ def internalpoint(v, aloop):
         raise ValueError("Fail to find an internal point of curve")
 
     return p
+
+
+# _________________________________________________________________________________________________________
 
 
 def ray2surf(node, elem, p0, v0, e0):
@@ -1945,3 +1952,221 @@ def ray2surf(node, elem, p0, v0, e0):
                 e0 = faceidx
 
     return p, e0
+
+
+# _________________________________________________________________________________________________________
+
+
+def tsearchn(node, elem, points):
+    """
+    Find enclosing tetrahedra and barycentric coordinates.
+
+    Parameters
+    ----------
+    node : (N, 3) array
+        Vertex coordinates
+    elem : (M, 4) array or None
+        Tetrahedral connectivity (1-indexed). If None, computes Delaunay.
+    points : (P, 3) array
+        Query points
+
+    Returns
+    -------
+    idx : (P,) array
+        Index of enclosing tetrahedron (1-indexed, NaN if outside)
+    bary : (P, 4) array
+        Barycentric coordinates (NaN if outside)
+    """
+    points = np.atleast_2d(np.asarray(points, dtype=np.float64))
+    node = np.asarray(node, dtype=np.float64)
+
+    if elem is None:
+        return _tsearchn_delaunay(node, points)
+
+    elem = np.asarray(elem) - 1  # Convert to 0-indexed internally
+    return _tsearchn_custom(node, elem, points)
+
+
+def _tsearchn_delaunay(node, points):
+    from scipy.spatial import Delaunay
+
+    """Fast path using scipy Delaunay."""
+    tri = Delaunay(node)
+    idx_internal = tri.find_simplex(points)
+
+    n_points = len(points)
+    idx = np.full(n_points, np.nan)
+    bary = np.full((n_points, 4), np.nan)
+
+    inside = idx_internal >= 0
+
+    if inside.any():
+        idx[inside] = idx_internal[inside] + 1  # Convert to 1-indexed
+        T = tri.transform[idx_internal[inside]]
+        p = points[inside] - T[:, 3]
+        b = np.einsum("ijk,ik->ij", T[:, :3], p)
+        bary[inside, :3] = b
+        bary[inside, 3] = 1.0 - b.sum(axis=1)
+
+    return idx, bary
+
+
+def _tsearchn_custom(node, elem, points):
+    """Custom mesh with spatial indexing."""
+    from scipy.spatial import cKDTree
+
+    n_points = len(points)
+    idx = np.full(n_points, np.nan)
+    bary = np.full((n_points, 4), np.nan)
+
+    # Precompute tetrahedra centroids and bounding radii
+    tet_verts = node[elem]  # (M, 4, 3)
+    centroids = tet_verts.mean(axis=1)  # (M, 3)
+
+    # Bounding radius: max distance from centroid to any vertex
+    radii = np.sqrt(((tet_verts - centroids[:, None, :]) ** 2).sum(axis=2).max(axis=1))
+
+    # Build KDTree on centroids
+    tree = cKDTree(centroids)
+
+    # Precompute inverse transformation matrices for all tetrahedra
+    v3 = tet_verts[:, 3, :]  # (M, 3)
+    T = tet_verts[:, :3, :] - v3[:, None, :]  # (M, 3, 3)
+    T = T.transpose(0, 2, 1)  # (M, 3, 3)
+
+    # Compute inverses, handling degenerate tets
+    invT = np.zeros_like(T)
+    valid_tet = np.ones(len(elem), dtype=bool)
+    for i in range(len(elem)):
+        try:
+            invT[i] = np.linalg.inv(T[i])
+        except np.linalg.LinAlgError:
+            valid_tet[i] = False
+
+    # Query radius: use max bounding radius + margin
+    max_radius = radii.max() * 1.5
+
+    # Find candidate tetrahedra for each point
+    candidate_lists = tree.query_ball_point(points, max_radius)
+
+    # Process each point
+    for i, candidates in enumerate(candidate_lists):
+        if not candidates:
+            continue
+
+        candidates = [c for c in candidates if valid_tet[c]]
+        if not candidates:
+            continue
+
+        # Filter by actual bounding radius
+        dist = np.linalg.norm(points[i] - centroids[candidates], axis=1)
+        candidates = [c for c, d in zip(candidates, dist) if d <= radii[c] * 1.01]
+
+        if not candidates:
+            continue
+
+        # Check barycentric coordinates
+        p = points[i] - v3[candidates]  # (C, 3)
+        b = np.einsum("cij,cj->ci", invT[candidates], p)  # (C, 3)
+        b4 = 1.0 - b.sum(axis=1)
+
+        # Find first containing tetrahedron
+        tol = -1e-10
+        inside = (b >= tol).all(axis=1) & (b4 >= tol)
+
+        if inside.any():
+            j = np.where(inside)[0][0]
+            idx[i] = candidates[j] + 1  # Convert to 1-indexed
+            bary[i, :3] = b[j]
+            bary[i, 3] = b4[j]
+
+    return idx, bary
+
+
+def tsearchn_precomputed(node, elem, points, precomp=None):
+    """
+    Version with precomputed data for repeated queries on same mesh.
+
+    Parameters
+    ----------
+    node, elem, points : as in tsearchn
+        elem is 1-indexed
+    precomp : dict or None
+        Precomputed data from previous call. Pass None on first call.
+
+    Returns
+    -------
+    idx : (P,) array
+        1-indexed tetrahedron indices (NaN if outside)
+    bary : (P, 4) array
+        Barycentric coordinates (NaN if outside)
+    precomp : dict
+        Pass this to subsequent calls for speedup
+    """
+    from scipy.spatial import cKDTree
+
+    points = np.atleast_2d(np.asarray(points, dtype=np.float64))
+    node = np.asarray(node, dtype=np.float64)
+    elem = np.asarray(elem) - 1  # Convert to 0-indexed internally
+
+    if precomp is None:
+        tet_verts = node[elem]
+        centroids = tet_verts.mean(axis=1)
+        radii = np.sqrt(
+            ((tet_verts - centroids[:, None, :]) ** 2).sum(axis=2).max(axis=1)
+        )
+
+        v3 = tet_verts[:, 3, :]
+        T = (tet_verts[:, :3, :] - v3[:, None, :]).transpose(0, 2, 1)
+
+        invT = np.zeros_like(T)
+        valid = np.ones(len(elem), dtype=bool)
+        for i in range(len(elem)):
+            try:
+                invT[i] = np.linalg.inv(T[i])
+            except np.linalg.LinAlgError:
+                valid[i] = False
+
+        precomp = {
+            "tree": cKDTree(centroids),
+            "centroids": centroids,
+            "radii": radii,
+            "v3": v3,
+            "invT": invT,
+            "valid": valid,
+            "max_radius": radii.max() * 1.5,
+        }
+
+    n_points = len(points)
+    idx = np.full(n_points, np.nan)
+    bary = np.full((n_points, 4), np.nan)
+
+    candidates_list = precomp["tree"].query_ball_point(points, precomp["max_radius"])
+
+    for i, candidates in enumerate(candidates_list):
+        candidates = [c for c in candidates if precomp["valid"][c]]
+        if not candidates:
+            continue
+
+        dist = np.linalg.norm(points[i] - precomp["centroids"][candidates], axis=1)
+        candidates = [
+            c for c, d in zip(candidates, dist) if d <= precomp["radii"][c] * 1.01
+        ]
+
+        if not candidates:
+            continue
+
+        p = points[i] - precomp["v3"][candidates]
+        b = np.einsum("cij,cj->ci", precomp["invT"][candidates], p)
+        b4 = 1.0 - b.sum(axis=1)
+
+        tol = -1e-10
+        inside = (b >= tol).all(axis=1) & (b4 >= tol)
+
+        if inside.any():
+            j = np.where(inside)[0][0]
+            idx[i] = candidates[j] + 1  # Convert to 1-indexed
+            bary[i, :3] = b[j]
+            bary[i, 3] = b4[j]
+
+    return idx, bary, precomp

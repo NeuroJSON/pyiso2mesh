@@ -123,6 +123,7 @@ from .trait import (
     ray2surf,
     bbxflatsegment,
     orderloopedge,
+    tsearchn,
 )
 
 from .utils import (
@@ -262,7 +263,7 @@ from .volume import (
     ndimfilter,
 )
 
-__version__ = "0.5.2"
+__version__ = "0.5.4"
 __all__ = [
     "advancefront",
     "barycentricgrid",
@@ -487,5 +488,6 @@ __all__ = [
     "maskdist",
     "ndgaussian",
     "ndimfilter",
+    "tsearchn",
 ]
 __license__ = """GNU General Public License v3 and later"""
