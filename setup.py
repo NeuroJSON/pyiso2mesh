@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
     name="iso2mesh",
     packages=["iso2mesh"],
-    version="0.5.4",
+    version="0.5.5",
     license="GPLv3+",
     description="One-liner 3D Surface and Tetrahedral Mesh Generation Toolbox",
     long_description=readme,
@@ -41,7 +41,7 @@ setup(
         "Data format",
     ],
     platforms="any",
-    install_requires=["numpy>=1.8.0", "matplotlib", "jdata>=0.8.2", "bjdata"],
+    install_requires=["numpy>=1.8.0,<3.0.0", "matplotlib", "jdata>=0.8.2", "bjdata"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
