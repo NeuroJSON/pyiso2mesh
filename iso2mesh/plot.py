@@ -19,6 +19,9 @@ __all__ = [
 ##====================================================================================
 
 import os
+import sys
+import dis
+import functools
 import numpy as np
 
 # matplotlib is the default backend; import it eagerly but tolerate its absence so
@@ -56,6 +59,53 @@ except ImportError:
 from iso2mesh.trait import volface, meshcentroid
 
 COLOR_OFFSET = 3
+
+##====================================================================================
+## MATLAB-style nargout emulation
+##====================================================================================
+
+
+def _return_value_used():
+    """
+    Best-effort emulation of MATLAB's ``nargout``: inspect the caller's bytecode
+    at the call site and report whether the returned value is actually used.
+
+    Returns False when the result is discarded -- a bare ``plotmesh(...)``
+    statement in a script (``POP_TOP``) or auto-displayed as the last expression
+    in a Jupyter/IPython cell or REPL (``PRINT_EXPR``) -- so the caller can avoid
+    returning (and thereby echoing) the handle dict. Returns True otherwise, or
+    if the call site cannot be inspected, preserving the documented return value.
+    """
+    try:
+        frame = sys._getframe(2)  # 0: this fn, 1: decorated wrapper, 2: caller
+        lasti = frame.f_lasti
+        nxt = next(
+            (
+                ins.opname
+                for ins in dis.get_instructions(frame.f_code)
+                if ins.offset > lasti
+            ),
+            None,
+        )
+        return nxt not in ("POP_TOP", "PRINT_EXPR")
+    except Exception:
+        return True
+
+
+def _nargout_aware(func):
+    """
+    Decorator that returns ``None`` (instead of the handle dict) when the wrapped
+    plotting function's return value is discarded by the caller, so an
+    interactive ``plotmesh(...)`` does not print its handle dict.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        return result if _return_value_used() else None
+
+    return wrapper
+
 
 ##====================================================================================
 ## plotting backend selection (matplotlib | plotly | pyvista)
@@ -221,6 +271,7 @@ _TAG_PALETTE = [
 # _________________________________________________________________________________________________________
 
 
+@_nargout_aware
 def plotsurf(node, face, *args, **kwargs):
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     from matplotlib.colors import Normalize
@@ -350,6 +401,7 @@ def plotasurf(node, face, *args, **kwargs):
 # _________________________________________________________________________________________________________
 
 
+@_nargout_aware
 def plottetra(node, elem, *args, **kwargs):
     """
     hm = plottetra(node, elem, *args, **kwargs)
@@ -435,6 +487,7 @@ def plottetra(node, elem, *args, **kwargs):
 # _________________________________________________________________________________________________________
 
 
+@_nargout_aware
 def plotedges(node, edges, *args, **kwargs):
     """
     Plot a 3D polyline or closed loop (1D manifold).
@@ -524,6 +577,7 @@ def plotedges(node, edges, *args, **kwargs):
 # _________________________________________________________________________________________________________
 
 
+@_nargout_aware
 def plotmesh(node, *args, **kwargs):
     """
     handles = plotmesh(node, face, elem, selector, ...)
@@ -722,8 +776,25 @@ def _plot_options(kwargs, default_cmap):
         "cmap": kwargs.pop("cmap", default_cmap),
         "opacity": float(kwargs.pop("alpha", kwargs.pop("opacity", 1.0))),
         "show_edges": kwargs.pop("show_edges", True),
+        "edgecolor": kwargs.pop("edgecolor", kwargs.pop("edgecolors", "black")),
+        "jupyter_backend": kwargs.pop("jupyter_backend", None),
         "show": kwargs.pop("show", not hold),
     }
+
+
+def _edge_lines(node, face):
+    """
+    Return nan-separated x/y/z polyline arrays tracing the unique triangle edges
+    of ``face`` (1-based). Used to overlay a wireframe on plotly Mesh3d, which
+    has no native edge rendering.
+    """
+    f = np.asarray(face)[:, :3].astype(int) - 1
+    e = np.sort(np.vstack((f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]])), axis=1)
+    e = np.unique(e, axis=0)
+    seg = np.full((e.shape[0] * 3, 3), np.nan)  # 3rd row of each triple = break
+    seg[0::3] = node[e[:, 0], :3]
+    seg[1::3] = node[e[:, 1], :3]
+    return seg[:, 0], seg[:, 1], seg[:, 2]
 
 
 def _render_mesh(node, args, kwargs, ops):
@@ -758,7 +829,7 @@ def _render_mesh(node, args, kwargs, ops):
             return None
         ops.tetra(canvas, handles, node, elem, cfg)
 
-    ops.finalize(canvas, cfg["show"])
+    ops.finalize(canvas, cfg)
     return handles
 
 
@@ -840,17 +911,35 @@ class _PlotlyOps:
                 ),
             )
 
+        # Mesh3d has no native edges; overlay a wireframe as a line trace
+        if cfg["show_edges"]:
+            xe, ye, ze = _edge_lines(node, face)
+            self._add(
+                fig,
+                h,
+                self.go.Scatter3d(
+                    x=xe,
+                    y=ye,
+                    z=ze,
+                    mode="lines",
+                    line=dict(color=cfg["edgecolor"], width=1),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    name="edges",
+                ),
+            )
+
     def tetra(self, fig, h, node, elem, cfg):
         self.surface(fig, h, node, _tetra_surface(elem), cfg)
 
-    def finalize(self, fig, show):
+    def finalize(self, fig, cfg):
         fig.update_layout(
             scene=dict(
                 xaxis_title="x", yaxis_title="y", zaxis_title="z", aspectmode="data"
             ),
             margin=dict(l=0, r=0, t=0, b=0),
         )
-        if show:
+        if cfg["show"]:
             fig.show()
 
     @staticmethod
@@ -906,7 +995,11 @@ class _PyVistaOps:
         return pl, {"fig": [pl], "ax": [pl], "obj": []}
 
     def _add(self, pl, h, mesh, cfg, scalar=None, color="lightgray", **extra):
-        opts = dict(opacity=cfg["opacity"], show_edges=cfg["show_edges"])
+        opts = dict(
+            opacity=cfg["opacity"],
+            show_edges=cfg["show_edges"],
+            edge_color=cfg["edgecolor"],
+        )
         opts.update(extra)
         if scalar is not None:
             mesh[scalar[0]] = scalar[1]
@@ -941,9 +1034,17 @@ class _PyVistaOps:
         grid = self.pv.UnstructuredGrid(_vtk_cells(elem, 4), celltypes, pts)
         self._add(pl, h, grid, cfg, scalar=_mesh_scalar(node, elem, 4))
 
-    def finalize(self, pl, show):
-        if show:
-            pl.show()
+    def finalize(self, pl, cfg):
+        if not cfg["show"]:
+            return
+        # In a Jupyter notebook pyvista renders a *static* image unless an
+        # interactive backend (e.g. 'trame') is active; forward jupyter_backend
+        # so users can request live rotation/zoom. Outside notebooks it opens an
+        # interactive native window as usual.
+        kw = {}
+        if cfg.get("jupyter_backend"):
+            kw["jupyter_backend"] = cfg["jupyter_backend"]
+        pl.show(**kw)
 
 
 def _plotmesh_pyvista(node, *args, **kwargs):
