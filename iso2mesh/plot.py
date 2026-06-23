@@ -11,14 +11,25 @@ __all__ = [
     "plotedges",
     "plottetra",
     "plotvolume",
+    "plotbackend",
 ]
 
 ##====================================================================================
 ## dependent libraries
 ##====================================================================================
 
+import os
 import numpy as np
-import matplotlib.pyplot as plt
+
+# matplotlib is the default backend; import it eagerly but tolerate its absence so
+# that the module can still be used with an alternative backend (plotly/pyvista).
+try:
+    import matplotlib.pyplot as plt
+
+    _MPL_AVAILABLE = True
+except ImportError:
+    plt = None
+    _MPL_AVAILABLE = False
 
 # Attempt to register 3D projection - handle version conflicts gracefully
 _3D_AVAILABLE = False
@@ -45,6 +56,168 @@ except ImportError:
 from iso2mesh.trait import volface, meshcentroid
 
 COLOR_OFFSET = 3
+
+##====================================================================================
+## plotting backend selection (matplotlib | plotly | pyvista)
+##====================================================================================
+
+# Canonical backend names and their accepted aliases.
+_BACKEND_ALIASES = {
+    "matplotlib": "matplotlib",
+    "mpl": "matplotlib",
+    "plotly": "plotly",
+    "pyvista": "pyvista",
+    "pv": "pyvista",
+    "vtk": "pyvista",
+}
+
+# The selected backend is stored in the ISO2MESH_PLOT_BACKEND environment
+# variable, following the same convention as other iso2mesh runtime options
+# (e.g. ISO2MESH_TEMP, ISO2MESH_SESSION, ISO2MESH_SURFBOOLEAN). It is read at
+# the point of use so it can be set any time (via os.environ, the shell, or
+# plotbackend()) and defaults to 'matplotlib' when unset.
+
+
+def _canonical_backend(name):
+    """Validate ``name`` and map any accepted alias to its canonical backend."""
+    key = str(name).lower()
+    if key not in _BACKEND_ALIASES:
+        raise ValueError(
+            f"unknown plotting backend '{name}'; "
+            f"choose from {sorted(set(_BACKEND_ALIASES.values()))}"
+        )
+    return _BACKEND_ALIASES[key]
+
+
+def plotbackend(name=None):
+    """
+    Get or set the global plotting backend used by ``plotmesh`` and friends.
+
+    Called with no argument, returns the currently selected backend, read from
+    the ``ISO2MESH_PLOT_BACKEND`` environment variable (default 'matplotlib'; an
+    unrecognized value falls back to 'matplotlib').
+
+    Called with a name, validates it and sets the global backend by writing the
+    ``ISO2MESH_PLOT_BACKEND`` environment variable (setting that variable
+    directly, e.g. in the shell or via ``os.environ``, has the same effect), then
+    returns the resolved canonical name.
+
+    Parameters:
+        name: one of 'matplotlib' (default, alias 'mpl'), 'plotly', or
+              'pyvista' (aliases 'pv', 'vtk'); or None to query the current one.
+
+    Returns:
+        The resolved canonical backend name.
+
+    A per-call override is also possible by passing ``backend=`` to ``plotmesh``.
+    """
+    if name is None:
+        return _BACKEND_ALIASES.get(
+            os.environ.get("ISO2MESH_PLOT_BACKEND", "matplotlib").lower(), "matplotlib"
+        )
+    os.environ["ISO2MESH_PLOT_BACKEND"] = _canonical_backend(name)
+    return os.environ["ISO2MESH_PLOT_BACKEND"]
+
+
+def _resolve_backend(kwargs):
+    """
+    Pop and resolve the ``backend`` keyword (if any), otherwise fall back to the
+    global ``ISO2MESH_PLOT_BACKEND`` setting. Returns the canonical backend name.
+    """
+    name = kwargs.pop("backend", None)
+    return plotbackend() if name is None else _canonical_backend(name)
+
+
+def _parse_plotmesh_args(node, args):
+    """
+    Parse the positional arguments of ``plotmesh`` into (node, face, elem,
+    selector, opt). This logic is shared by every backend so that input
+    handling stays identical regardless of the renderer.
+    """
+    selector = None
+    opt = []
+    face = None
+    elem = None
+    node = np.asarray(node)
+
+    for i, a in enumerate(args):
+        if isinstance(a, str):
+            if any(c in a for c in "<>=&|") and any(c in a for c in "xyzXYZ"):
+                selector = a
+                opt = list(args[i + 1 :])
+                break
+            else:
+                opt = list(args[i:])
+                break
+        else:
+            if i == 0:
+                if isinstance(a, list) or (
+                    isinstance(a, np.ndarray) and a.ndim == 2 and a.shape[1] < 4
+                ):
+                    face = a
+                elif isinstance(a, np.ndarray) and a.ndim == 2 and a.shape[1] in (4, 5):
+                    uniq = np.unique(a[:, 3])
+                    counts = np.bincount(a[:, 3].astype(int))
+                    if len(uniq) == 1 or np.any(counts > 50):
+                        face = a
+                    else:
+                        elem = a
+                else:
+                    elem = a
+            elif i == 1:
+                face = args[0]
+                elem = a
+
+    return node, face, elem, selector, opt
+
+
+def _selector_idx(coords, selector):
+    """
+    Return the row indices of ``coords`` (centroids or points) that satisfy a
+    MATLAB-style selector string such as 'x<10 & z>0'. Returns ``slice(None)``
+    when no selector is given.
+    """
+    if not selector:
+        return slice(None)
+    x, y, z = coords[:, 0], coords[:, 1], coords[:, 2]
+    return np.where(eval(selector, {"x": x, "y": y, "z": z, "np": np}))[0]
+
+
+def _opt_color(opt):
+    """Extract a single-letter matplotlib-style color (e.g. from 'ro') if present."""
+    table = {
+        "r": "red",
+        "g": "green",
+        "b": "blue",
+        "k": "black",
+        "w": "white",
+        "y": "yellow",
+        "m": "magenta",
+        "c": "cyan",
+    }
+    for a in opt or []:
+        if isinstance(a, str):
+            for ch in a:
+                if ch in table:
+                    return table[ch]
+    return None
+
+
+# A small qualitative palette reused by the plotly/pyvista backends to color
+# tagged sub-surfaces and sub-domains.
+_TAG_PALETTE = [
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf",
+]
+
 # _________________________________________________________________________________________________________
 
 
@@ -357,7 +530,25 @@ def plotmesh(node, *args, **kwargs):
     Plot surface and volumetric meshes in 3D.
     Converts 1-based MATLAB indices in `face` and `elem` to 0-based.
     Supports optional selector strings and stylistic options.
+
+    The rendering backend can be selected globally via ``plotbackend()`` or the
+    ``ISO2MESH_PLOT_BACKEND`` environment variable, or per call via the
+    ``backend=`` keyword. Supported backends:
+
+        'matplotlib' (default): static/interactive Matplotlib 3D axes.
+        'plotly':               interactive, web/notebook-friendly (go.Mesh3d).
+        'pyvista':              VTK/GPU-accelerated, best for large/volumetric
+                                meshes with native tetrahedral support.
+
+    The non-matplotlib backends require the corresponding package to be
+    installed (``pip install plotly`` or ``pip install pyvista``).
     """
+
+    backend = _resolve_backend(kwargs)
+    if backend == "plotly":
+        return _plotmesh_plotly(node, *args, **kwargs)
+    if backend == "pyvista":
+        return _plotmesh_pyvista(node, *args, **kwargs)
 
     selector = None
     opt = []
@@ -467,6 +658,303 @@ def plotmesh(node, *args, **kwargs):
         plt.show(block=False)
 
     return handles
+
+
+# _________________________________________________________________________________________________________
+#  Shared helpers for the plotly / pyvista backends
+# _________________________________________________________________________________________________________
+
+
+def _faces_from_list(node, face):
+    """
+    Fan-triangulate a cell-array style ``face`` (a list of facets, each either a
+    node-index array or a ``[indices, [group_id]]`` pair) into an (M,3) triangle
+    array (1-based) and a matching per-triangle tag vector.
+    """
+    tris, tags = [], []
+    for fc in face:
+        if (
+            isinstance(fc, (list, tuple))
+            and len(fc) >= 2
+            and isinstance(fc[0], (list, tuple, np.ndarray))
+        ):
+            idx, gid = np.asarray(fc[0]).ravel(), int(np.asarray(fc[1]).ravel()[0])
+        else:
+            idx, gid = np.asarray(fc).ravel(), 1
+        for t in range(1, len(idx) - 1):
+            tris.append([idx[0], idx[t], idx[t + 1]])
+            tags.append(gid)
+    return np.asarray(tris, dtype=int), np.asarray(tags, dtype=int)
+
+
+def _as_face_array(node, face):
+    """Return ``face`` as an (M,>=3) array, fan-triangulating list facets."""
+    if isinstance(face, list):
+        tris, tags = _faces_from_list(node, face)
+        return np.hstack((tris, tags.reshape(-1, 1)))
+    return np.asarray(face)
+
+
+def _tetra_surface(elem):
+    """Extract the bounding triangular surface of a tet mesh, carrying tags."""
+    if elem.shape[1] > 4:
+        faces, elemid = volface(elem[:, :4])
+        return np.hstack((faces, elem[elemid - 1, 4].reshape(-1, 1)))
+    return volface(elem[:, :4])[0]
+
+
+def _select_rows(node, conn, ncol, selector):
+    """Filter face/elem rows by a centroid selector; returns rows or None if empty."""
+    if not selector:
+        return conn
+    idx = _selector_idx(meshcentroid(node[:, :3], conn[:, :ncol]), selector)
+    if getattr(idx, "size", None) == 0:
+        print("Warning: nothing to plot")
+        return None
+    return conn[idx, :]
+
+
+def _plot_options(kwargs, default_cmap):
+    """Pop the options common to the plotly/pyvista backends."""
+    hold = str(kwargs.pop("hold", "off")).lower() in ("on", "true", "1")
+    return {
+        "parent": kwargs.pop("parent", None),
+        "cmap": kwargs.pop("cmap", default_cmap),
+        "opacity": float(kwargs.pop("alpha", kwargs.pop("opacity", 1.0))),
+        "show_edges": kwargs.pop("show_edges", True),
+        "show": kwargs.pop("show", not hold),
+    }
+
+
+def _render_mesh(node, args, kwargs, ops):
+    """
+    Backend-agnostic control flow shared by the plotly and pyvista renderers.
+    ``ops`` supplies the canvas/points/surface/tetra/finalize primitives.
+    """
+    node, face, elem, selector, opt = _parse_plotmesh_args(node, args)
+    node = np.asarray(node, dtype=float)
+    kwargs.pop("subplot", None)
+    cfg = _plot_options(kwargs, ops.default_cmap)
+    canvas, handles = ops.canvas(cfg["parent"])
+
+    if face is None and elem is None:
+        idx = _selector_idx(node[:, :3], selector)
+        pts = node[idx, :3]
+        if pts.shape[0] == 0:
+            print("Warning: nothing to plot")
+            return None
+        vals = node[idx, 3] if node.shape[1] > 3 else None
+        ops.points(canvas, handles, pts, vals, _opt_color(opt), cfg)
+
+    if face is not None:
+        face = _select_rows(node, _as_face_array(node, face), 3, selector)
+        if face is None:
+            return None
+        ops.surface(canvas, handles, node, face, cfg)
+
+    if elem is not None:
+        elem = _select_rows(node, np.asarray(elem), 4, selector)
+        if elem is None:
+            return None
+        ops.tetra(canvas, handles, node, elem, cfg)
+
+    ops.finalize(canvas, cfg["show"])
+    return handles
+
+
+# _________________________________________________________________________________________________________
+#  Plotly backend
+# _________________________________________________________________________________________________________
+
+
+class _PlotlyOps:
+    default_cmap = "Jet"
+
+    def __init__(self, go):
+        self.go = go
+
+    def canvas(self, parent):
+        if isinstance(parent, dict) and parent.get("fig"):
+            fig = parent["fig"][0]
+        elif isinstance(parent, self.go.Figure):
+            fig = parent
+        else:
+            fig = self.go.Figure()
+        return fig, {"fig": [fig], "ax": [None], "obj": []}
+
+    def points(self, fig, h, pts, vals, color, cfg):
+        tr = self.go.Scatter3d(
+            x=pts[:, 0],
+            y=pts[:, 1],
+            z=pts[:, 2],
+            mode="markers",
+            marker=dict(
+                size=3,
+                color=vals if vals is not None else (color or "red"),
+                colorscale=cfg["cmap"],
+            ),
+            name="nodes",
+        )
+        fig.add_trace(tr)
+        h["obj"].append(tr)
+
+    def surface(self, fig, h, node, face, cfg):
+        node_vals = node.shape[1] > 3
+        common = dict(
+            x=node[:, 0],
+            y=node[:, 1],
+            z=node[:, 2],
+            opacity=cfg["opacity"],
+            flatshading=True,
+        )
+        if face.shape[1] >= 4 and not node_vals:  # tagged sub-surfaces
+            for n, t in enumerate(np.unique(face[:, 3])):
+                f = face[face[:, 3] == t, :3].astype(int) - 1
+                self._add(
+                    fig,
+                    h,
+                    self.go.Mesh3d(
+                        i=f[:, 0],
+                        j=f[:, 1],
+                        k=f[:, 2],
+                        color=_TAG_PALETTE[n % len(_TAG_PALETTE)],
+                        name=f"surf {int(t)}",
+                        **common,
+                    ),
+                )
+        else:
+            f = face[:, :3].astype(int) - 1
+            self._add(
+                fig,
+                h,
+                self.go.Mesh3d(
+                    i=f[:, 0],
+                    j=f[:, 1],
+                    k=f[:, 2],
+                    intensity=node[:, 3] if node_vals else node[:, 2],
+                    intensitymode="vertex",
+                    colorscale=cfg["cmap"],
+                    showscale=node_vals,
+                    name="surf",
+                    **common,
+                ),
+            )
+
+    def tetra(self, fig, h, node, elem, cfg):
+        self.surface(fig, h, node, _tetra_surface(elem), cfg)
+
+    def finalize(self, fig, show):
+        fig.update_layout(
+            scene=dict(
+                xaxis_title="x", yaxis_title="y", zaxis_title="z", aspectmode="data"
+            ),
+            margin=dict(l=0, r=0, t=0, b=0),
+        )
+        if show:
+            fig.show()
+
+    @staticmethod
+    def _add(fig, h, trace):
+        fig.add_trace(trace)
+        h["obj"].append(trace)
+
+
+def _plotmesh_plotly(node, *args, **kwargs):
+    """Plotly implementation of plotmesh (see plotmesh for the public API)."""
+    try:
+        import plotly.graph_objects as go
+    except ImportError as e:
+        raise ImportError(
+            "the 'plotly' backend requires plotly; install with 'pip install plotly'"
+        ) from e
+    return _render_mesh(node, args, kwargs, _PlotlyOps(go))
+
+
+# _________________________________________________________________________________________________________
+#  PyVista backend
+# _________________________________________________________________________________________________________
+
+
+def _mesh_scalar(node, conn, tagcol):
+    """Pick the coloring scalar for a mesh: node values, else element/face tags."""
+    if node.shape[1] > 3:
+        return "nodeval", node[:, 3]
+    if conn.shape[1] > tagcol:
+        return "tag", conn[:, tagcol]
+    return None
+
+
+def _vtk_cells(conn, n):
+    """Build a VTK connectivity array [n, i0..i_{n-1}, ...] (0-based)."""
+    c = conn[:, :n].astype(np.int64) - 1
+    return np.hstack((np.full((c.shape[0], 1), n, dtype=np.int64), c)).ravel()
+
+
+class _PyVistaOps:
+    default_cmap = "jet"
+
+    def __init__(self, pv):
+        self.pv = pv
+
+    def canvas(self, parent):
+        if isinstance(parent, dict) and parent.get("fig"):
+            pl = parent["fig"][0]
+        elif isinstance(parent, self.pv.Plotter):
+            pl = parent
+        else:
+            pl = self.pv.Plotter()
+        return pl, {"fig": [pl], "ax": [pl], "obj": []}
+
+    def _add(self, pl, h, mesh, cfg, scalar=None, color="lightgray", **extra):
+        opts = dict(opacity=cfg["opacity"], show_edges=cfg["show_edges"])
+        opts.update(extra)
+        if scalar is not None:
+            mesh[scalar[0]] = scalar[1]
+            actor = pl.add_mesh(mesh, cmap=cfg["cmap"], **opts)
+        else:
+            actor = pl.add_mesh(mesh, color=color, **opts)
+        h["obj"].append(actor)
+
+    def points(self, pl, h, pts, vals, color, cfg):
+        cloud = self.pv.PolyData(np.ascontiguousarray(pts, dtype=float))
+        scalar = ("nodeval", vals) if vals is not None else None
+        self._add(
+            pl,
+            h,
+            cloud,
+            cfg,
+            scalar=scalar,
+            color=color or "red",
+            show_edges=False,
+            render_points_as_spheres=True,
+            point_size=8,
+        )
+
+    def surface(self, pl, h, node, face, cfg):
+        pts = np.ascontiguousarray(node[:, :3], dtype=float)
+        surf = self.pv.PolyData(pts, _vtk_cells(face, 3))
+        self._add(pl, h, surf, cfg, scalar=_mesh_scalar(node, face, 3))
+
+    def tetra(self, pl, h, node, elem, cfg):
+        pts = np.ascontiguousarray(node[:, :3], dtype=float)
+        celltypes = np.full(elem.shape[0], 10, dtype=np.uint8)  # VTK_TETRA == 10
+        grid = self.pv.UnstructuredGrid(_vtk_cells(elem, 4), celltypes, pts)
+        self._add(pl, h, grid, cfg, scalar=_mesh_scalar(node, elem, 4))
+
+    def finalize(self, pl, show):
+        if show:
+            pl.show()
+
+
+def _plotmesh_pyvista(node, *args, **kwargs):
+    """PyVista implementation of plotmesh (see plotmesh for the public API)."""
+    try:
+        import pyvista as pv
+    except ImportError as e:
+        raise ImportError(
+            "the 'pyvista' backend requires pyvista; install with 'pip install pyvista'"
+        ) from e
+    return _render_mesh(node, args, kwargs, _PyVistaOps(pv))
 
 
 def _autoscale_3d(ax, points):

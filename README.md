@@ -4,7 +4,7 @@
 
 * **Copyright**: (C) Qianqian Fang (2024-2025) <q.fang at neu.edu>
 * **License**: GNU Public License V3 or later
-* **Version**: 0.5.5
+* **Version**: 0.6.0
 * **URL**: [https://pypi.org/project/iso2mesh/](https://pypi.org/project/iso2mesh/)
 * **Homepage**: [https://iso2mesh.sf.net](https://iso2mesh.sf.net)
 * **Github**: [https://github.com/NeuroJSON/pyiso2mesh](https://github.com/NeuroJSON/pyiso2mesh)
@@ -24,6 +24,7 @@
   - [Build Steps](#build-steps)
   - [Run built-in unit-tests](#run-built-in-unit-tests)
 - [How to Use](#how-to-use)
+- [Plotting backends](#plotting-backends)
 - [Iso2Mesh function port status](#iso2mesh-function-port-status)
 - [How to Cite](#how-to-cite)
 - [Acknowledgement](#acknowledgement)
@@ -63,7 +64,13 @@ python3 -m pip install iso2mesh
 
 * **numpy**: `pyiso2mesh` relies heavily on vectorized NumPy
   matrix operations, similar to those used in the MATLAB version of Iso2Mesh.
-* **matplotlib**: Used for plotting results. Install with `pip install matplotlib`.
+* **matplotlib**: The default plotting backend, used to render meshes. Install with `pip install matplotlib`.
+* **plotly** (optional): An alternative, interactive plotting backend suitable for
+  web pages and Jupyter notebooks. Install with `pip install plotly`. See
+  [Plotting backends](#plotting-backends).
+* **pyvista** (optional): A VTK/GPU-accelerated plotting backend, recommended for
+  large or volumetric meshes thanks to native tetrahedral (unstructured-grid)
+  rendering. Install with `pip install pyvista`. See [Plotting backends](#plotting-backends).
 * **jdata** (optional): A lightweight module to load JSON-encoded volume/mesh data,
   including dynamically downloading data from [NeuroJSON.io](https://neurojson.io) `pip install jdata`.
 
@@ -190,6 +197,58 @@ no, fc, _, _ = v2s(img, 0.5, {'distbound': 0.2})
 ax = plotmesh(no, fc, 'y < 30', alpha=0.5,  edgecolor='none')
 plotmesh(no, fc, 'y > 30', parent = ax)
 ```
+
+## Plotting backends
+
+The mesh plotting functions (`plotmesh`, `plotsurf`, `plottetra`, `plotedges`)
+support three interchangeable rendering backends:
+
+| Backend        | Best for                                              | Requires |
+| -------------- | ----------------------------------------------------- | -------- |
+| `matplotlib`   | the default; static figures and quick previews        | `matplotlib` |
+| `plotly`       | interactive plots for web pages and Jupyter notebooks | `plotly` |
+| `pyvista`      | large or volumetric meshes (VTK/GPU, native tetrahedra)| `pyvista` |
+
+`matplotlib` is the default and is always available. The `plotly` and `pyvista`
+backends are optional and only need to be installed if you intend to use them; a
+clear error is raised if you select a backend whose package is missing.
+
+The global default is controlled by the `ISO2MESH_PLOT_BACKEND` environment
+variable, following the same convention as other iso2mesh runtime options such
+as `ISO2MESH_TEMP` and `ISO2MESH_SESSION`. The backend can be selected in three
+ways (in order of precedence: a per-call `backend=` flag overrides the global
+`ISO2MESH_PLOT_BACKEND` setting, which defaults to `matplotlib`):
+
+```python3
+import os
+import iso2mesh as i2m
+import numpy as np
+
+no, fc, el = i2m.meshabox([0,0,0], [30, 20, 10], 2)
+
+# 1) per-call, using the `backend=` keyword (highest priority)
+i2m.plotmesh(no, el, 'z < 5', backend='plotly')
+
+# 2) globally, via the ISO2MESH_PLOT_BACKEND environment variable, either from
+#    the shell (export ISO2MESH_PLOT_BACKEND=plotly) or from Python:
+os.environ['ISO2MESH_PLOT_BACKEND'] = 'plotly'
+
+# 3) globally, using plotbackend() -- a combined getter/setter that validates
+#    the name and sets ISO2MESH_PLOT_BACKEND for you:
+i2m.plotbackend('pyvista')      # set the backend
+i2m.plotmesh(no, el)
+print(i2m.plotbackend())        # query the backend -> 'pyvista'
+i2m.plotbackend('matplotlib')
+```
+
+All backends accept the same `plotmesh` inputs (nodes, faces, tetrahedra,
+selector strings such as `'z < 5'`, per-node values in a 4th node column, and
+sub-domain/sub-surface tags) and return a handle dictionary with `fig`, `ax`,
+and `obj` keys. Common style options are mapped where applicable (e.g. `alpha`
+controls opacity, `cmap` selects the colormap). The `plotly` and `pyvista`
+backends open their own interactive window/figure; pass `hold='on'` (or
+`show=False`) to suppress display, for example when composing multiple plots
+into the same figure via the `parent=` keyword.
 
 ## Iso2Mesh function port status
 

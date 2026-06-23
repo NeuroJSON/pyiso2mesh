@@ -83,6 +83,7 @@ from .plot import (
     plottetra,
     plotedges,
     plotvolume,
+    plotbackend,
 )
 
 from .trait import (
@@ -263,7 +264,7 @@ from .volume import (
     ndimfilter,
 )
 
-__version__ = "0.5.5"
+__version__ = "0.6.0"
 __all__ = [
     "advancefront",
     "barycentricgrid",
@@ -331,6 +332,7 @@ __all__ = [
     "plotsurf",
     "plottetra",
     "plotvolume",
+    "plotbackend",
     "qmeshcut",
     "raytrace",
     "readmedit",
