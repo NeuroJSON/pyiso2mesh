@@ -387,9 +387,15 @@ def plotsurf(node, face, *args, **kwargs):
     if "colormap" in locals() and len(colormap) > 0 and not "facecolors" in kwargs:
         kwargs["facecolors"] = colormap
 
-    if "cmap" in kwargs and not "facecolors" in kwargs and face:
+    if (
+        "cmap" in kwargs
+        and not "facecolors" in kwargs
+        and not isinstance(face, list)
+        and face is not None
+    ):
+        f = np.asarray(face)[:, :3].astype(int) - 1
         node_values = node[:, 3] if node.shape[1] > 3 else node[:, 2]
-        face_values = np.array([np.mean(node_values[f]) for f in face[:, :3] - 1])
+        face_values = node_values[f].mean(axis=1)
         norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
         kwargs["facecolors"] = kwargs["cmap"](norm(face_values))
 
@@ -414,12 +420,16 @@ def plotsurf(node, face, *args, **kwargs):
 def plotasurf(node, face, *args, **kwargs):
     from matplotlib.colors import Normalize
 
-    poly3d = [[node[i, :3] for i in p] for p in face[:, :3] - 1]
+    # vectorized: (Nf,3,3) vertex array and per-face mean values via fancy
+    # indexing (the previous Python list comprehensions were O(Nf) interpreted
+    # loops and dominated rendering time on large surfaces).
+    f = np.asarray(face)[:, :3].astype(int) - 1
+    poly3d = node[f, :3]
     node_values = node[:, 3] if node.shape[1] > 3 else node[:, 2]
-    face_values = np.array([np.mean(node_values[f]) for f in face[:, :3] - 1])
-    norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
+    face_values = node_values[f].mean(axis=1)
     colmap = []
     if "cmap" in kwargs:
+        norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
         colmap = kwargs["cmap"](norm(face_values))
     return poly3d, colmap
 
@@ -489,8 +499,9 @@ def plottetra(node, elem, *args, **kwargs):
         kwargs["facecolors"] = colormap
 
     if "cmap" in kwargs and not "facecolors" in kwargs:
+        e = elem[:, :4].astype(int) - 1
         node_values = node[:, 3] if node.shape[1] > 3 else node[:, 2]
-        face_values = np.array([np.mean(node_values[f]) for f in elem[:, :4] - 1])
+        face_values = node_values[e].mean(axis=1)
         norm = Normalize(vmin=face_values.min(), vmax=face_values.max())
         kwargs["facecolors"] = kwargs["cmap"](norm(face_values))
 
@@ -1310,7 +1321,7 @@ class plotvolume:
     """
 
     def __init__(
-        self, vol, I2X=None, figsize=(12, 8), subsample=1, colormap="viridis", **kwargs
+        self, vol, I2X=None, figsize=(12, 8), subsample=1, cmap="jet", **kwargs
     ):
         """
         Initialize the interactive volume slicer
@@ -1330,10 +1341,14 @@ class plotvolume:
         # Handle different volume types
         self.current_vol = vol
         self.frame = 0
+        # accept colormap= as a back-compat alias for cmap= (and keep it out of
+        # the Poly3DCollection params below)
+        cmap = kwargs.pop("colormap", cmap)
         self.params = kwargs
 
-        if vol.ndim == 4 and vol.shape[3] > 3:
-            # Multi-frame volume
+        # Like mcxplotvol.m, any 4-D array is treated as a stack of frames
+        # (the 4th dimension), navigable with the up/down arrow keys.
+        if vol.ndim == 4:
             self.current_vol = vol[:, :, :, 0]
             self.is_multiframe = True
         else:
@@ -1362,11 +1377,21 @@ class plotvolume:
 
         # Single patch collection for all slices
         self.patch_collection = None
-        self.colormap_name = colormap
+        # may be a colormap name (str) or a matplotlib Colormap, like plotmesh
+        self.colormap_name = cmap
 
         self.setup_figure(figsize)
-        self.setup_controls()
         self.update_patches()
+        self._update_title()
+
+        # Display the viewer immediately (non-blocking) so a bare
+        # plotvolume(vol) call pops up the interactive window like mcxplotvol,
+        # while keeping the REPL/notebook responsive. Call .show() for a
+        # blocking display (e.g. at the end of a script).
+        try:
+            plt.show(block=False)
+        except Exception:
+            pass
 
     def setup_figure(self, figsize):
         """Setup the main figure and 3D axis"""
@@ -1394,63 +1419,13 @@ class plotvolume:
         self.fig.canvas.mpl_connect("motion_notify_event", self.on_mouse_move)
         self.fig.canvas.mpl_connect("key_press_event", self.on_key_press)
 
-    def setup_controls(self):
-        """Setup control widgets with proper spacing to avoid overlap"""
-        # Create even more space for controls
-        from matplotlib.widgets import Slider
-
-        plt.subplots_adjust(bottom=0.3)
-
-        # X-slice slider - leftmost position, smaller width
-        ax_x = plt.axes([0.05, 0.18, 0.20, 0.03])
-        self.slider_x = Slider(
-            ax_x,
-            "X-slice",
-            0,
-            self.current_vol.shape[0] - 1,
-            valinit=self.slice_positions[0],
-            valfmt="%d",
-        )
-        self.slider_x.on_changed(self.update_x_slice)
-
-        # Y-slice slider - center position with gap
-        ax_y = plt.axes([0.35, 0.18, 0.20, 0.03])
-        self.slider_y = Slider(
-            ax_y,
-            "Y-slice",
-            0,
-            self.current_vol.shape[1] - 1,
-            valinit=self.slice_positions[1],
-            valfmt="%d",
-        )
-        self.slider_y.on_changed(self.update_y_slice)
-
-        # Z-slice slider - rightmost position with gap
-        ax_z = plt.axes([0.66, 0.18, 0.20, 0.03])
-        self.slider_z = Slider(
-            ax_z,
-            "Z-slice",
-            0,
-            self.current_vol.shape[2] - 1,
-            valinit=self.slice_positions[2],
-            valfmt="%d",
-        )
-        self.slider_z.on_changed(self.update_z_slice)
-
-        # Colormap levels slider - full width, positioned lower with more gap
-        ax_cmap = plt.axes([0.05, 0.10, 0.64, 0.03])
-        self.colormap_slider = Slider(
-            ax_cmap, "Color Levels", 8, 256, valinit=256, valfmt="%d"
-        )
-        self.colormap_slider.on_changed(self.update_colormap_levels)
-
-        # Frame slider for 4D volumes - positioned at bottom with more gap
+    def _update_title(self):
+        """Show the current frame (of N) in the title for 4-D volumes."""
         if self.is_multiframe:
-            ax_frame = plt.axes([0.05, 0.02, 0.64, 0.03])
-            self.frame_slider = Slider(
-                ax_frame, "Frame", 0, self.vol.shape[3] - 1, valinit=0, valfmt="%d"
+            self.ax.set_title(
+                "use up/down keys to change frame "
+                f"(frame {self.frame + 1} of {self.vol.shape[3]})"
             )
-            self.frame_slider.on_changed(self.update_frame)
 
     def set_equal_aspect(self):
         """Set 1:1:1 aspect ratio with correct axis bounds (no transformation)"""
@@ -1480,206 +1455,179 @@ class plotvolume:
 
     def create_slice_polygons(self, slicedim, sliceidx):
         """
-        Create polygon vertices for a slice with optional subsampling
-        Returns list of 4-vertex polygons (quads) and corresponding colors
+        Build quad vertices and per-quad colors for one slice (with subsampling).
+
+        Fully vectorized: returns an (N, 4, 3) array of quad corners and an (N,)
+        array of block-mean colors. The previous per-quad Python loops made
+        interactive dragging slow on large volumes.
         """
         vol = self.current_vol
         sliceidx = int(np.clip(sliceidx, 0, vol.shape[slicedim] - 1))
-        s = self.subsample  # Subsampling factor
+        s = self.subsample
 
-        if slicedim == 2:  # k dimension (z-slice)
-            # Create grid of quads
+        if slicedim == 2:  # z-slice: in-plane axes (i=0, j=1)
             slice_data = vol[:, :, sliceidx]
-            ni, nj = slice_data.shape
-
-            polygons = []
-            colors = []
-
-            for i in range(0, ni - s, s):
-                for j in range(0, nj - s, s):
-                    # Four corners of the quad in volume coordinates
-                    corners_vol = np.array(
-                        [
-                            [i, j, sliceidx],
-                            [i + s, j, sliceidx],
-                            [i + s, j + s, sliceidx],
-                            [i, j + s, sliceidx],
-                        ]
-                    )
-
-                    polygons.append(corners_vol)
-
-                    # Use average color of the subsampled region
-                    i_end = min(i + s, ni)
-                    j_end = min(j + s, nj)
-                    region = slice_data[i:i_end, j:j_end]
-                    quad_color = np.mean(region)
-                    colors.append(quad_color)
-
-        elif slicedim == 1:  # j dimension (y-slice)
+            a_axis, b_axis = 0, 1
+        elif slicedim == 1:  # y-slice: in-plane axes (i=0, k=2)
             slice_data = vol[:, sliceidx, :]
-            ni, nk = slice_data.shape
-
-            polygons = []
-            colors = []
-
-            for i in range(0, ni - s, s):
-                for k in range(0, nk - s, s):
-                    corners_vol = np.array(
-                        [
-                            [i, sliceidx, k],
-                            [i + s, sliceidx, k],
-                            [i + s, sliceidx, k + s],
-                            [i, sliceidx, k + s],
-                        ]
-                    )
-
-                    polygons.append(corners_vol)
-
-                    i_end = min(i + s, ni)
-                    k_end = min(k + s, nk)
-                    region = slice_data[i:i_end, k:k_end]
-                    quad_color = np.mean(region)
-                    colors.append(quad_color)
-
-        elif slicedim == 0:  # i dimension (x-slice)
+            a_axis, b_axis = 0, 2
+        else:  # x-slice: in-plane axes (j=1, k=2)
             slice_data = vol[sliceidx, :, :]
-            nj, nk = slice_data.shape
+            a_axis, b_axis = 1, 2
 
-            polygons = []
-            colors = []
+        na, nb = slice_data.shape
+        ia = np.arange(0, na - s, s)
+        jb = np.arange(0, nb - s, s)
+        if ia.size == 0 or jb.size == 0:
+            return np.empty((0, 4, 3)), np.empty((0,))
 
-            for j in range(0, nj - s, s):
-                for k in range(0, nk - s, s):
-                    corners_vol = np.array(
-                        [
-                            [sliceidx, j, k],
-                            [sliceidx, j + s, k],
-                            [sliceidx, j + s, k + s],
-                            [sliceidx, j, k + s],
-                        ]
-                    )
+        nbi, nbj = ia.size, jb.size
+        # block-mean color of each (s x s) tile (tiles are full-size by construction)
+        colors = (
+            slice_data[: nbi * s, : nbj * s]
+            .reshape(nbi, s, nbj, s)
+            .mean(axis=(1, 3))
+            .ravel()
+        )
 
-                    polygons.append(corners_vol)
-
-                    j_end = min(j + s, nj)
-                    k_end = min(k + s, nk)
-                    region = slice_data[j:j_end, k:k_end]
-                    quad_color = np.mean(region)
-                    colors.append(quad_color)
-
-        return polygons, colors
+        # quad corners in the two in-plane coordinates
+        a0, b0 = np.meshgrid(ia, jb, indexing="ij")
+        a0, b0 = a0.ravel(), b0.ravel()
+        da = np.array([0, s, s, 0])
+        db = np.array([0, 0, s, s])
+        verts = np.empty((a0.size, 4, 3))
+        verts[:, :, slicedim] = sliceidx
+        verts[:, :, a_axis] = a0[:, None] + da[None, :]
+        verts[:, :, b_axis] = b0[:, None] + db[None, :]
+        return verts, colors
 
     def update_patches(self):
         """Update the single patch collection with all slice polygons"""
         # Remove existing patch collection
         from mpl_toolkits.mplot3d.art3d import Poly3DCollection
         from matplotlib.colors import Normalize
-        import matplotlib.cm as cm
 
         if self.patch_collection is not None:
             self.patch_collection.remove()
 
         # Collect all polygons and colors from all active slices
-        all_polygons = []
-        all_colors = []
+        verts_list = []
+        colors_list = []
 
         # Add polygons from each slice dimension
         for slicedim in [0, 1, 2]:
-            polygons, colors = self.create_slice_polygons(
+            verts, colors = self.create_slice_polygons(
                 slicedim, self.slice_positions[slicedim]
             )
-            all_polygons.extend(polygons)
-            all_colors.extend(colors)
+            if verts.shape[0]:
+                verts_list.append(verts)
+                colors_list.append(colors)
 
-        if all_polygons:
+        if verts_list:
+            all_polygons = np.concatenate(verts_list, axis=0)
+            all_colors = np.concatenate(colors_list)
             # Normalize colors
-            all_colors = np.array(all_colors)
             if all_colors.max() > 0:
                 norm = Normalize(vmin=all_colors.min(), vmax=all_colors.max())
                 normalized_colors = norm(all_colors)
             else:
                 normalized_colors = all_colors
 
-            if "alpha" not in self.params:
-                self.params["alpha"] = 1.0
-            if "edgecolors" not in self.params:
-                self.params["edgecolors"] = "none"
-            if "linewidths" not in self.params:
-                self.params["linewidths"] = 0.0
-            if "shade" not in self.params:
-                self.params["shade"] = False
-            if "antialiased" not in self.params:
-                self.params["antialiased"] = False
-            if "rasterized" not in self.params:
-                self.params["rasterized"] = True
+            params = dict(self.params)
+            params.setdefault("alpha", 1.0)
+            params.setdefault("edgecolors", "none")
+            params.setdefault("linewidths", 0.0)
+            params.setdefault("shade", False)
+            params.setdefault("antialiased", False)
+            params.setdefault("rasterized", True)
+
+            # Discretize the colormap to the current level count (adjusted by
+            # right-mouse drag), mirroring mcxplotvol's colormap(jet(level)).
+            # self.colormap_name may be a name or a Colormap object (plotmesh
+            # accepts both via cmap=).
+            levels = int(self.gui_state.get("colormap_levels", 256))
+            base = self.colormap_name
+            cmap = (
+                plt.get_cmap(base, levels)
+                if isinstance(base, str)
+                else base.resampled(levels)
+            )
+            facecolors = cmap(normalized_colors)
+
+            # shade=True is matplotlib's closest analog to MATLAB camlight, but
+            # its shading path divides by the edge colors and chokes on the
+            # 'none' edge color used for a clean slice image. Give it a valid
+            # (still invisible, linewidth 0) edge color so it can broadcast.
+            if params.get("shade") and params.get("edgecolors") in (None, "none"):
+                params["edgecolors"] = facecolors
 
             # Create single Poly3DCollection
             self.patch_collection = Poly3DCollection(
                 all_polygons,
-                facecolors=cm.get_cmap(self.colormap_name)(normalized_colors),
-                **self.params,
+                facecolors=facecolors,
+                **params,
             )
 
             self.ax.add_collection3d(self.patch_collection)
 
         self.fig.canvas.draw_idle()
 
-    def get_mouse_ray(self, event):
-        """Get the 3D ray (origin and direction) from a mouse click on 3D axes."""
-        if event.xdata is None or event.ydata is None:
-            return None, None
+    def _project_points(self, pts):
+        """
+        Forward-project Nx3 data-coordinate points to display pixels.
 
-        # Step 1: Get renderer and projection matrix
-        ax = self.ax
-        fig = self.fig
-        proj = ax.get_proj()
+        Uses matplotlib's own 3D projection (reliable), unlike inverting
+        ax.get_proj() by hand. Returns (Nx2 pixel array, depth array); smaller
+        depth is closer to the viewer.
+        """
+        from mpl_toolkits.mplot3d import proj3d
 
-        # Step 2: Get axes bbox instead of figure bbox
-        ax_bbox = ax.get_window_extent()
+        pts = np.atleast_2d(np.asarray(pts, dtype=float))
+        xs, ys, zs = proj3d.proj_transform(
+            pts[:, 0], pts[:, 1], pts[:, 2], self.ax.get_proj()
+        )
+        disp = self.ax.transData.transform(
+            np.column_stack([np.atleast_1d(xs), np.atleast_1d(ys)])
+        )
+        return np.atleast_2d(disp), np.atleast_1d(zs)
 
-        # Convert event coordinates to axes-relative coordinates
-        x_screen = event.x - ax_bbox.x0
-        y_screen = event.y - ax_bbox.y0
+    @staticmethod
+    def _quad_pick_depth(disp, zs, px, py):
+        """
+        If pixel (px, py) lies inside the projected slice rectangle, return the
+        view depth there, else None. The rectangle projects to a parallelogram
+        under matplotlib's orthographic 3D projection, so the click's affine
+        (u, v) coordinates give an exact inside-test and a depth interpolation --
+        which lets overlapping slices be ordered by depth *at the click point*
+        (not by an averaged depth). Smaller depth is closer to the viewer.
+        """
+        c0, c1, c3 = disp[0], disp[1], disp[3]
+        basis = np.array(
+            [[c1[0] - c0[0], c3[0] - c0[0]], [c1[1] - c0[1], c3[1] - c0[1]]]
+        )
+        try:
+            u, v = np.linalg.solve(
+                basis, np.array([px - c0[0], py - c0[1]], dtype=float)
+            )
+        except np.linalg.LinAlgError:
+            return None
+        tol = 1e-9
+        if -tol <= u <= 1 + tol and -tol <= v <= 1 + tol:
+            return float(zs[0] + u * (zs[1] - zs[0]) + v * (zs[3] - zs[0]))
+        return None
 
-        # Invert Y coordinate relative to axes
-        y_screen = ax_bbox.height - y_screen
-
-        def inv_proj(x, y, z):
-            """Invert projection from screen coords to data coords"""
-            # Normalize screen coordinates to axes bbox, then to [-1,1]
-            w, h = ax_bbox.width, ax_bbox.height
-            x_ndc = 2 * x / w - 1
-            y_ndc = 2 * y / h - 1
-            z_ndc = 2 * z - 1
-            ndc = np.array([x_ndc, y_ndc, z_ndc, 1.0])
-            try:
-                inv = np.linalg.inv(proj)
-            except np.linalg.LinAlgError:
-                return None
-            world = inv @ ndc
-            if abs(world[3]) < 1e-10:
-                return None
-            world /= world[3]
-            return world[:3]
-
-        # Step 3: Compute world coords at near and far planes
-        p_near = inv_proj(x_screen, y_screen, 0.0)
-        p_far = inv_proj(x_screen, y_screen, 1.0)
-
-        if p_near is None or p_far is None:
-            return None, None
-
-        origin = p_near
-        direction = p_far - p_near
-        direction_length = np.linalg.norm(direction)
-
-        if direction_length < 1e-10:
-            return None, None
-
-        direction /= direction_length
-
-        return origin, direction
+    def _slice_axis_screen(self, slicedim):
+        """
+        Screen-space displacement (in pixels) produced by advancing ``slicedim``
+        by one voxel, evaluated at the volume center. Mirrors slice3i's
+        projection of the click ray onto the slice-normal axis: dragging the
+        cursor along this 2D vector moves the slice by the matching index step.
+        """
+        center = np.array(self.current_vol.shape, dtype=float) / 2.0
+        normal = np.zeros(3)
+        normal[slicedim] = 1.0
+        disp, _ = self._project_points(np.vstack([center, center + normal]))
+        return disp[1] - disp[0]
 
     def get_slice_rectangle_bounds(self, slicedim, sliceidx):
         """
@@ -1725,118 +1673,30 @@ class plotvolume:
 
         return corners
 
-    def point_in_rectangle(self, point, rectangle_corners):
+    def detect_clicked_slice(self, event):
         """
-        Test if a 3D point lies within a rectangular slice boundary
-        Simplified and more robust version using 2D projection
+        Determine which slice was clicked by forward-projecting each slice's
+        rectangle to screen pixels and testing which projected quad contains the
+        cursor. When several overlap, the front-most (smallest depth) wins. This
+        mirrors MATLAB slice3i, where each slice is its own clickable object.
         """
-        # Get rectangle vectors
-        p0, p1, p2, p3 = rectangle_corners
-
-        # Create two edge vectors from p0
-        edge1 = p1 - p0  # First edge
-        edge2 = p3 - p0  # Adjacent edge
-
-        # Vector from p0 to test point
-        point_vec = point - p0
-
-        # Project the point onto the rectangle's local coordinate system
-        # Use dot products to get coordinates in the rectangle's basis
-        edge1_len_sq = np.dot(edge1, edge1)
-        edge2_len_sq = np.dot(edge2, edge2)
-
-        if edge1_len_sq < 1e-10 or edge2_len_sq < 1e-10:
-            return False  # Degenerate rectangle
-
-        # Get local coordinates (u, v) in rectangle space
-        u = np.dot(point_vec, edge1) / edge1_len_sq
-        v = np.dot(point_vec, edge2) / edge2_len_sq
-
-        # Point is inside rectangle if 0 <= u <= 1 and 0 <= v <= 1
-        return 0 <= u <= 1 and 0 <= v <= 1
-
-    def ray_rectangle_intersection(self, ray_origin, ray_direction, rectangle_corners):
-        """
-        Calculate intersection of ray with rectangular slice boundary
-        Improved version with better debugging
-        """
-        # Get rectangle corners
-        p0, p1, p2, p3 = rectangle_corners
-
-        # Calculate plane normal using cross product of two edges
-        edge1 = p1 - p0
-        edge2 = p3 - p0
-        plane_normal = np.cross(edge1, edge2)
-
-        # Check for degenerate rectangle
-        normal_length = np.linalg.norm(plane_normal)
-        if normal_length < 1e-10:
-            return None, None
-
-        plane_normal = plane_normal / normal_length
-
-        # Ray-plane intersection using parametric form
-        # Ray: P = ray_origin + t * ray_direction
-        # Plane: (P - p0) · normal = 0
-        denominator = np.dot(ray_direction, plane_normal)
-
-        if abs(denominator) < 1e-10:  # Ray parallel to plane
-            return None, None
-
-        # Calculate intersection parameter t
-        t = np.dot(p0 - ray_origin, plane_normal) / denominator
-
-        if t < 0:  # Intersection behind camera
-            return None, None
-
-        # Calculate intersection point
-        intersection = ray_origin + t * ray_direction
-
-        # Check if intersection is within rectangle bounds
-        if self.point_in_rectangle(intersection, rectangle_corners):
-            distance = np.linalg.norm(intersection - ray_origin)
-            return intersection, distance
-        else:
-            return None, None
-
-    def detect_clicked_slice_raycast(self, event):
-        """
-        Detect which slice was clicked using proper ray-rectangle intersection
-        Only considers actual rectangular slice boundaries
-        """
-        if not event.inaxes == self.ax:
-            return 2
-
-        # Get ray from camera through mouse
-        ray_origin, ray_direction = self.get_mouse_ray(event)
-        if ray_origin is None:
+        if event.x is None or event.y is None:
             return self.detect_slice_from_view_angle()
 
-        # Test intersection with each slice rectangle
-        valid_intersections = []
+        best_dim, best_depth = None, None
+        for slicedim in (0, 1, 2):
+            corners = self.get_slice_rectangle_bounds(
+                slicedim, self.slice_positions[slicedim]
+            ).astype(float)
+            disp, zs = self._project_points(corners)
+            depth = self._quad_pick_depth(disp, zs, event.x, event.y)
+            if depth is not None and (best_depth is None or depth < best_depth):
+                best_dim, best_depth = slicedim, depth
 
-        for slicedim in [0, 1, 2]:
-            sliceidx = self.slice_positions[slicedim]
+        if best_dim is not None:
+            return best_dim
 
-            # Get the actual rectangular bounds of this slice
-            rectangle_corners = self.get_slice_rectangle_bounds(slicedim, sliceidx)
-
-            # Calculate ray-rectangle intersection
-            intersection, distance = self.ray_rectangle_intersection(
-                ray_origin, ray_direction, rectangle_corners
-            )
-
-            if intersection is not None and distance is not None:
-                valid_intersections.append((slicedim, distance, intersection))
-
-        # Return the closest valid intersection
-        if valid_intersections:
-            # Sort by distance (closest first)
-            valid_intersections.sort(key=lambda x: x[1])
-            closest_slice = valid_intersections[0][0]
-            return closest_slice
-
-        # Fallback if no intersections found
+        # No slice under the cursor -> fall back to a view-angle heuristic
         return self.detect_slice_from_view_angle()
 
     def detect_slice_from_view_angle(self):
@@ -1866,33 +1726,38 @@ class plotvolume:
             # Ultimate fallback
             return 2  # Default to Z-slice
 
-    def update_x_slice(self, val):
-        """Update X-slice from slider"""
-        self.slice_positions[0] = int(val)
+    def update_frame(self, frame):
+        """Switch the displayed frame of a 4-D volume (keeps slice positions)."""
+        if not self.is_multiframe:
+            return
+        self.frame = int(np.clip(frame, 0, self.vol.shape[3] - 1))
+        self.current_vol = self.vol[:, :, :, self.frame]
+        self._update_title()
         self.update_patches()
 
-    def update_y_slice(self, val):
-        """Update Y-slice from slider"""
-        self.slice_positions[1] = int(val)
-        self.update_patches()
+    def _begin_interactive(self):
+        """
+        Enter a coarse level-of-detail while dragging/rotating. matplotlib has no
+        GPU acceleration for Poly3DCollection, so rendering every voxel quad is
+        slow on large volumes; temporarily increasing the subsample keeps
+        interaction responsive. Full resolution is restored in _end_interactive.
+        """
+        if self.gui_state.get("full_subsample") is not None:
+            return
+        self.gui_state["full_subsample"] = self.subsample
+        # target ~40 quads along the largest dimension during interaction
+        coarse = int(np.ceil(max(self.current_vol.shape) / 40.0))
+        coarse = max(self.subsample, coarse)
+        if coarse != self.subsample:
+            self.subsample = coarse
+            self.update_patches()
 
-    def update_z_slice(self, val):
-        """Update Z-slice from slider"""
-        self.slice_positions[2] = int(val)
-        self.update_patches()
-
-    def update_colormap_levels(self, val):
-        """Update colormap levels"""
-        levels = int(val)
-        self.gui_state["colormap_levels"] = levels
-        # For simplicity, we'll just update the patches
-        self.update_patches()
-
-    def update_frame(self, val):
-        """Update frame for 4D volumes"""
-        if self.is_multiframe:
-            self.frame = int(val)
-            self.current_vol = self.vol[:, :, :, self.frame]
+    def _end_interactive(self):
+        """Restore full resolution after an interactive drag/rotation ends."""
+        full = self.gui_state.get("full_subsample")
+        self.gui_state["full_subsample"] = None
+        if full is not None and self.subsample != full:
+            self.subsample = full
             self.update_patches()
 
     def on_mouse_press(self, event):
@@ -1907,6 +1772,7 @@ class plotvolume:
                 event.x,
                 event.y,
             )  # Use pixel coordinates
+            self._begin_interactive()
             # Change cursor to indicate rotation mode
             try:
                 self.fig.canvas.set_cursor(2)  # Hand cursor
@@ -1920,6 +1786,8 @@ class plotvolume:
             ]:  # Don't allow colormap adjustment during rotation
                 self.gui_state["adjusting_colormap"] = True
                 self.gui_state["start_mouse_pos"] = (event.x, event.y)
+                # remember the level at drag start, like slice3i's level0
+                self.gui_state["level0"] = self.gui_state["colormap_levels"]
             return
 
         elif event.button == 1:  # Left mouse - slice dragging
@@ -1929,10 +1797,17 @@ class plotvolume:
                 self.gui_state["dragging"] = True
                 self.gui_state["start_mouse_pos"] = (event.x, event.y)
 
-                # Use ray-casting to detect which slice to drag
-                detected_slice = self.detect_clicked_slice_raycast(event)
+                # Detect the clicked slice by forward projection (robust), then
+                # cache the screen direction of its normal for slice3i-style drag.
+                # Detect BEFORE switching to coarse LOD so the click uses the
+                # currently displayed slice geometry.
+                detected_slice = self.detect_clicked_slice(event)
                 self.gui_state["active_slicedim"] = detected_slice
                 self.gui_state["start_idx"] = self.slice_positions[detected_slice]
+                self.gui_state["drag_axis_screen"] = self._slice_axis_screen(
+                    detected_slice
+                )
+                self._begin_interactive()
 
                 # Change cursor to indicate dragging mode
                 try:
@@ -1946,6 +1821,7 @@ class plotvolume:
             self.gui_state["rotating"] = False
             self.gui_state["rotation_enabled"] = False
             self.gui_state["last_mouse_pos"] = None
+            self._end_interactive()
             try:
                 self.fig.canvas.set_cursor(1)  # Default cursor
             except:
@@ -1964,6 +1840,7 @@ class plotvolume:
             self.gui_state["start_mouse_pos"] = None
             self.gui_state["start_idx"] = None
             self.gui_state["active_slicedim"] = None
+            self._end_interactive()
             try:
                 self.fig.canvas.set_cursor(1)  # Default cursor
             except:
@@ -1971,7 +1848,10 @@ class plotvolume:
 
     def on_mouse_move(self, event):
         """Handle mouse move events"""
-        if not event.inaxes == self.ax:
+        # Use pixel coordinates (valid even off-axis) so a drag/rotation keeps
+        # working when the cursor briefly leaves the axes, like MATLAB's
+        # window-level motion callback.
+        if event.x is None or event.y is None:
             return
 
         if self.gui_state["rotating"] and self.gui_state["last_mouse_pos"]:
@@ -1985,13 +1865,15 @@ class plotvolume:
                 elev = self.ax.elev
                 azim = self.ax.azim
 
-                # Update angles based on mouse movement (pixel coordinates)
-                # Scale factors for sensitivity
+                # Update angles based on mouse movement (pixel coordinates).
+                # Match MATLAB rotate3d / mcxplotvol: dragging right decreases
+                # azimuth, dragging up decreases elevation. (event.y grows
+                # upward, so dy > 0 means the cursor moved up.)
                 azim_sensitivity = 0.5
                 elev_sensitivity = 0.5
 
-                new_azim = azim + dx * azim_sensitivity
-                new_elev = elev - dy * elev_sensitivity  # Invert Y for natural rotation
+                new_azim = azim - dx * azim_sensitivity
+                new_elev = elev - dy * elev_sensitivity
 
                 # Clamp elevation to reasonable bounds
                 new_elev = max(-90, min(90, new_elev))
@@ -2006,68 +1888,54 @@ class plotvolume:
                 self.fig.canvas.draw_idle()
 
         elif self.gui_state["adjusting_colormap"] and self.gui_state["start_mouse_pos"]:
-            # Colormap adjustment (right mouse drag) - only if not rotating
+            # Colormap level adjustment (right mouse drag), matching slice3i.m:
+            #   currentlevel = round(level0 + delta_y_norm / 4 * 256)
+            # i.e. a full-window vertical drag changes the count by ~64 colors,
+            # relative to the level when the drag started (drag up = more levels).
             start_x, start_y = self.gui_state["start_mouse_pos"]
-            delta_y = event.y - start_y
-
-            # Scale the delta to colormap levels
             fig_height = self.fig.get_size_inches()[1] * self.fig.dpi
-            normalized_delta = delta_y / fig_height
+            normalized_delta = (event.y - start_y) / fig_height
 
-            new_levels = int(256 + normalized_delta * 256 * 4)
+            level0 = self.gui_state.get("level0", self.gui_state["colormap_levels"])
+            new_levels = int(round(level0 + normalized_delta / 4 * 256))
             new_levels = max(8, min(256, new_levels))
 
-            self.colormap_slider.set_val(new_levels)
+            if new_levels != self.gui_state["colormap_levels"]:
+                self.gui_state["colormap_levels"] = new_levels
+                self.update_patches()
 
         elif self.gui_state["dragging"] and self.gui_state["start_mouse_pos"]:
-            # Slice dragging (left mouse drag) - only if not rotating
-            start_x, start_y = self.gui_state["start_mouse_pos"]
-            delta_x = event.x - start_x
-            delta_y = event.y - start_y
-
-            # Convert mouse movement to slice index change
-            # Note: Mouse Y coordinates are inverted (down = positive Y)
-            # For intuitive control, we want:
-            # - Mouse down = slice index decreases (for Z-slice: move down in volume)
-            # - Mouse up = slice index increases (for Z-slice: move up in volume)
-            # - Mouse right = slice index increases
-            # - Mouse left = slice index decreases
-
+            # Slice dragging (left mouse drag) - slice3i-style: move the slice
+            # along its normal proportional to the cursor displacement projected
+            # onto the screen direction of that normal. This is correct for any
+            # camera orientation/zoom (unlike a fixed pixel sensitivity).
             slicedim = self.gui_state.get("active_slicedim", 2)
+            u = self.gui_state.get("drag_axis_screen")
+            if u is None:
+                return
+            start_x, start_y = self.gui_state["start_mouse_pos"]
+            delta = np.array([event.x - start_x, event.y - start_y], dtype=float)
 
-            if slicedim == 2:  # Z-slice - use Y movement (inverted)
-                movement = -delta_y  # Invert Y movement for natural control
-            elif slicedim == 1:  # Y-slice - use Y movement (inverted)
-                movement = -delta_y  # Invert Y movement
-            else:  # X-slice - use X movement
-                movement = delta_x
+            uu = float(np.dot(u, u))
+            if uu < 1e-6:  # normal nearly parallel to view -> can't drag reliably
+                return
+            slice_delta = float(np.dot(delta, u)) / uu
 
-            # Scale movement to slice indices
             max_slices = self.current_vol.shape[slicedim]
-            slice_delta = movement / 20.0  # Adjust sensitivity
             new_idx = self.gui_state["start_idx"] + slice_delta
-            new_idx = max(0, min(max_slices - 1, int(new_idx)))
+            new_idx = int(round(max(0, min(max_slices - 1, new_idx))))
 
             if new_idx != self.slice_positions[slicedim]:
                 self.slice_positions[slicedim] = new_idx
-
-                # Update corresponding slider
-                if slicedim == 0:
-                    self.slider_x.set_val(new_idx)
-                elif slicedim == 1:
-                    self.slider_y.set_val(new_idx)
-                elif slicedim == 2:
-                    self.slider_z.set_val(new_idx)
+                self.update_patches()
 
     def on_key_press(self, event):
-        """Handle key press events"""
+        """Up/Down arrows step through frames of a 4-D volume (like mcxplotvol)."""
         if self.is_multiframe:
             if event.key == "up":
-                new_frame = min(self.frame + 1, self.vol.shape[3] - 1)
-                self.frame_slider.set_val(new_frame)
+                self.update_frame(self.frame + 1)
             elif event.key == "down":
-                new_frame = max(self.frame - 1, 0)
-                self.frame_slider.set_val(new_frame)
+                self.update_frame(self.frame - 1)
 
     def set_quality(self, subsample):
         """
@@ -2087,14 +1955,6 @@ class plotvolume:
         """
         self.slice_positions[slicedim] = int(sliceidx)
         self.update_patches()
-
-        # Update corresponding slider
-        if slicedim == 0:
-            self.slider_x.set_val(sliceidx)
-        elif slicedim == 1:
-            self.slider_y.set_val(sliceidx)
-        elif slicedim == 2:
-            self.slider_z.set_val(sliceidx)
 
     def show(self):
         """Display the interactive viewer"""

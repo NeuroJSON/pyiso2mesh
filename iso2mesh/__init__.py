@@ -264,7 +264,7 @@ from .volume import (
     ndimfilter,
 )
 
-__version__ = "0.6.3"
+__version__ = "0.6.5"
 __all__ = [
     "advancefront",
     "barycentricgrid",
