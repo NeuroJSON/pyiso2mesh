@@ -61,47 +61,73 @@ from iso2mesh.trait import volface, meshcentroid
 COLOR_OFFSET = 3
 
 ##====================================================================================
-## MATLAB-style nargout emulation
+## handle dict that does not echo in Jupyter / IPython
 ##====================================================================================
+
+
+class PlotHandle(dict):
+    """
+    A dict of plot handles (keys ``'fig'``, ``'ax'``, ``'obj'``) returned by the
+    plotting functions. It behaves exactly like a normal dict -- indexing,
+    ``print()`` and ``repr()`` all work -- but declares an empty rich display so
+    that a bare ``plotmesh(...)`` as the last line of a Jupyter/Colab/IPython
+    cell does not echo the (often huge) handle dict. Capture it (``h =
+    plotmesh(...)``) to use the handles as before.
+
+    This mechanism is environment-independent (unlike bytecode/``nargout``
+    inspection) and works across notebook frontends and Python versions.
+    """
+
+    def _ipython_display_(self):
+        # Defining this method makes IPython treat display as "handled"; by
+        # doing nothing we suppress the automatic Out[...] echo entirely, while
+        # repr()/print() and dict access keep working normally.
+        pass
 
 
 def _return_value_used():
     """
-    Best-effort emulation of MATLAB's ``nargout``: inspect the caller's bytecode
-    at the call site and report whether the returned value is actually used.
+    Best-effort emulation of MATLAB's ``nargout`` for *non-notebook* callers:
+    inspect the caller's bytecode and report whether the return value is used.
 
     Returns False when the result is discarded -- a bare ``plotmesh(...)``
-    statement in a script (``POP_TOP``) or auto-displayed as the last expression
-    in a Jupyter/IPython cell or REPL (``PRINT_EXPR``) -- so the caller can avoid
-    returning (and thereby echoing) the handle dict. Returns True otherwise, or
-    if the call site cannot be inspected, preserving the documented return value.
+    statement (``POP_TOP``) or auto-displayed as the last expression in a plain
+    Python REPL (``PRINT_EXPR`` on <=3.11, ``CALL_INTRINSIC_1``/print on 3.12+).
+    Returns True otherwise, or if the call site cannot be inspected. In notebooks
+    the suppression is handled robustly by :class:`PlotHandle` instead, so a
+    misfire here is harmless.
     """
     try:
         frame = sys._getframe(2)  # 0: this fn, 1: decorated wrapper, 2: caller
         lasti = frame.f_lasti
         nxt = next(
-            (
-                ins.opname
-                for ins in dis.get_instructions(frame.f_code)
-                if ins.offset > lasti
-            ),
+            (ins for ins in dis.get_instructions(frame.f_code) if ins.offset > lasti),
             None,
         )
-        return nxt not in ("POP_TOP", "PRINT_EXPR")
+        if nxt is None:
+            return True
+        if nxt.opname in ("POP_TOP", "PRINT_EXPR"):
+            return False
+        # Python 3.12 replaced PRINT_EXPR with CALL_INTRINSIC_1(INTRINSIC_PRINT)
+        if nxt.opname == "CALL_INTRINSIC_1" and "PRINT" in str(nxt.argval):
+            return False
+        return True
     except Exception:
         return True
 
 
 def _nargout_aware(func):
     """
-    Decorator that returns ``None`` (instead of the handle dict) when the wrapped
-    plotting function's return value is discarded by the caller, so an
-    interactive ``plotmesh(...)`` does not print its handle dict.
+    Decorator for the plotting functions. Wraps the returned handle dict in a
+    :class:`PlotHandle` (so it never echoes in notebooks) and, for plain
+    scripts/REPLs, returns ``None`` when the caller discards the value.
     """
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
+        if isinstance(result, dict) and not isinstance(result, PlotHandle):
+            result = PlotHandle(result)
         return result if _return_value_used() else None
 
     return wrapper
@@ -778,6 +804,11 @@ def _plot_options(kwargs, default_cmap):
         "show_edges": kwargs.pop("show_edges", True),
         "edgecolor": kwargs.pop("edgecolor", kwargs.pop("edgecolors", "black")),
         "jupyter_backend": kwargs.pop("jupyter_backend", None),
+        # plotly: disable wheel-zoom by default so the page/output can scroll
+        # (esp. in Colab's short output frame); zoom stays available via the
+        # modebar zoom button, or set scrollzoom=True to re-enable wheel zoom.
+        "scrollzoom": kwargs.pop("scrollzoom", False),
+        "config": kwargs.pop("config", None),
         "show": kwargs.pop("show", not hold),
     }
 
@@ -940,7 +971,12 @@ class _PlotlyOps:
             margin=dict(l=0, r=0, t=0, b=0),
         )
         if cfg["show"]:
-            fig.show()
+            # scrollZoom off by default lets the notebook/page scroll instead of
+            # the wheel zooming the plot; zoom via the modebar zoom button or
+            # pass scrollzoom=True. A user-supplied config takes precedence.
+            config = dict(cfg.get("config") or {})
+            config.setdefault("scrollZoom", bool(cfg["scrollzoom"]))
+            fig.show(config=config)
 
     @staticmethod
     def _add(fig, h, trace):
@@ -1038,13 +1074,28 @@ class _PyVistaOps:
         if not cfg["show"]:
             return
         # In a Jupyter notebook pyvista renders a *static* image unless an
-        # interactive backend (e.g. 'trame') is active; forward jupyter_backend
-        # so users can request live rotation/zoom. Outside notebooks it opens an
-        # interactive native window as usual.
-        kw = {}
-        if cfg.get("jupyter_backend"):
-            kw["jupyter_backend"] = cfg["jupyter_backend"]
-        pl.show(**kw)
+        # interactive backend is active; forward jupyter_backend so users can
+        # request live rotation/zoom. Outside notebooks it opens an interactive
+        # native window as usual. Google Colab cannot use the websocket-based
+        # 'trame' server backend, so default to the self-contained client-side
+        # 'html' backend there, which is rotatable without a server.
+        jb = cfg.get("jupyter_backend")
+        if jb is None and "google.colab" in sys.modules:
+            jb = "html"
+        try:
+            pl.show(jupyter_backend=jb) if jb else pl.show()
+        except Exception as e:
+            import warnings
+
+            warnings.warn(
+                f"pyvista interactive backend '{jb}' failed ({e}); falling back "
+                "to the default. For rotatable plots in Google Colab, run once:\n"
+                "  !apt-get -qq install xvfb libgl1-mesa-glx\n"
+                "  import pyvista as pv; pv.start_xvfb()\n"
+                "  pv.set_jupyter_backend('html')\n"
+                "or use backend='plotly', which is interactive out of the box."
+            )
+            pl.show()
 
 
 def _plotmesh_pyvista(node, *args, **kwargs):
