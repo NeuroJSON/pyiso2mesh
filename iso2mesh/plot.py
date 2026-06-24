@@ -745,22 +745,37 @@ def plotmesh(node, *args, **kwargs):
 # _________________________________________________________________________________________________________
 
 
-def _faces_from_list(node, face):
+def _facet_polys(face):
     """
-    Fan-triangulate a cell-array style ``face`` (a list of facets, each either a
-    node-index array or a ``[indices, [group_id]]`` pair) into an (M,3) triangle
-    array (1-based) and a matching per-triangle tag vector.
+    Extract the original polygons from a cell-array style ``face`` (a list of
+    facets, each either a node-index array or a ``[indices, [group_id]]`` pair).
+    Returns a list of 1-based node-index arrays and a matching group-id array.
     """
-    tris, tags = [], []
+    polys, gids = [], []
     for fc in face:
         if (
             isinstance(fc, (list, tuple))
             and len(fc) >= 2
             and isinstance(fc[0], (list, tuple, np.ndarray))
         ):
-            idx, gid = np.asarray(fc[0]).ravel(), int(np.asarray(fc[1]).ravel()[0])
+            polys.append(np.asarray(fc[0]).ravel())
+            gids.append(int(np.asarray(fc[1]).ravel()[0]))
         else:
-            idx, gid = np.asarray(fc).ravel(), 1
+            polys.append(np.asarray(fc).ravel())
+            gids.append(1)
+    return polys, np.asarray(gids, dtype=int)
+
+
+def _faces_from_list(node, face):
+    """
+    Fan-triangulate a cell-array style ``face`` into an (M,3) triangle array
+    (1-based) and a matching per-triangle tag vector. The fan triangulation is
+    only used by renderers (e.g. plotly) that cannot draw n-gons directly; the
+    original polygon boundaries are recovered separately for the wireframe.
+    """
+    polys, gids = _facet_polys(face)
+    tris, tags = [], []
+    for idx, gid in zip(polys, gids):
         for t in range(1, len(idx) - 1):
             tris.append([idx[0], idx[t], idx[t + 1]])
             tags.append(gid)
@@ -804,11 +819,13 @@ def _plot_options(kwargs, default_cmap):
         "show_edges": kwargs.pop("show_edges", True),
         "edgecolor": kwargs.pop("edgecolor", kwargs.pop("edgecolors", "black")),
         "jupyter_backend": kwargs.pop("jupyter_backend", None),
-        # plotly: disable wheel-zoom by default so the page/output can scroll
-        # (esp. in Colab's short output frame); zoom stays available via the
-        # modebar zoom button, or set scrollzoom=True to re-enable wheel zoom.
+        # plotly: disable wheel-zoom by default to avoid accidental zooming while
+        # scrolling; re-enable with scrollzoom=True. Bound the figure height so
+        # the plot fits Colab's output frame. All are overridable per call.
         "scrollzoom": kwargs.pop("scrollzoom", False),
         "config": kwargs.pop("config", None),
+        "height": kwargs.pop("height", 500),
+        "width": kwargs.pop("width", None),
         "show": kwargs.pop("show", not hold),
     }
 
@@ -826,6 +843,24 @@ def _edge_lines(node, face):
     seg[0::3] = node[e[:, 0], :3]
     seg[1::3] = node[e[:, 1], :3]
     return seg[:, 0], seg[:, 1], seg[:, 2]
+
+
+def _polygon_edge_lines(node, polys):
+    """
+    Return nan-separated x/y/z polylines tracing the *closed boundary* of each
+    polygon facet (1-based). Used for the plotly wireframe so PLC polygons show
+    only their outline, not the internal fan-triangulation diagonals.
+    """
+    xs, ys, zs = [], [], []
+    for p in polys:
+        idx = np.asarray(p, dtype=int).ravel() - 1
+        if idx.size < 2:
+            continue
+        loop = node[np.append(idx, idx[0]), :3]  # repeat first vertex to close
+        xs.extend(loop[:, 0].tolist() + [np.nan])
+        ys.extend(loop[:, 1].tolist() + [np.nan])
+        zs.extend(loop[:, 2].tolist() + [np.nan])
+    return np.array(xs), np.array(ys), np.array(zs)
 
 
 def _render_mesh(node, args, kwargs, ops):
@@ -849,10 +884,15 @@ def _render_mesh(node, args, kwargs, ops):
         ops.points(canvas, handles, pts, vals, _opt_color(opt), cfg)
 
     if face is not None:
+        # Recover original polygons (for n-gon rendering / boundary-only edges).
+        # A selector filters triangles, breaking the polygon mapping, so skip it.
+        polys = gids = None
+        if isinstance(face, list) and not selector:
+            polys, gids = _facet_polys(face)
         face = _select_rows(node, _as_face_array(node, face), 3, selector)
         if face is None:
             return None
-        ops.surface(canvas, handles, node, face, cfg)
+        ops.surface(canvas, handles, node, face, cfg, polys, gids)
 
     if elem is not None:
         elem = _select_rows(node, np.asarray(elem), 4, selector)
@@ -900,7 +940,7 @@ class _PlotlyOps:
         fig.add_trace(tr)
         h["obj"].append(tr)
 
-    def surface(self, fig, h, node, face, cfg):
+    def surface(self, fig, h, node, face, cfg, polys=None, gids=None):
         node_vals = node.shape[1] > 3
         common = dict(
             x=node[:, 0],
@@ -942,9 +982,13 @@ class _PlotlyOps:
                 ),
             )
 
-        # Mesh3d has no native edges; overlay a wireframe as a line trace
+        # Mesh3d has no native edges; overlay a wireframe as a line trace. For
+        # PLC polygons draw only the facet boundaries (not the triangulation).
         if cfg["show_edges"]:
-            xe, ye, ze = _edge_lines(node, face)
+            if polys is not None:
+                xe, ye, ze = _polygon_edge_lines(node, polys)
+            else:
+                xe, ye, ze = _edge_lines(node, face)
             self._add(
                 fig,
                 h,
@@ -964,16 +1008,21 @@ class _PlotlyOps:
         self.surface(fig, h, node, _tetra_surface(elem), cfg)
 
     def finalize(self, fig, cfg):
-        fig.update_layout(
+        layout = dict(
             scene=dict(
                 xaxis_title="x", yaxis_title="y", zaxis_title="z", aspectmode="data"
             ),
             margin=dict(l=0, r=0, t=0, b=0),
         )
+        if cfg.get("height"):
+            layout["height"] = cfg["height"]
+        if cfg.get("width"):
+            layout["width"] = cfg["width"]
+        fig.update_layout(**layout)
         if cfg["show"]:
-            # scrollZoom off by default lets the notebook/page scroll instead of
-            # the wheel zooming the plot; zoom via the modebar zoom button or
-            # pass scrollzoom=True. A user-supplied config takes precedence.
+            # scrollZoom off by default to avoid accidental zooming; pass
+            # scrollzoom=True to enable wheel zoom. A user-supplied config still
+            # takes precedence.
             config = dict(cfg.get("config") or {})
             config.setdefault("scrollZoom", bool(cfg["scrollzoom"]))
             fig.show(config=config)
@@ -1013,6 +1062,20 @@ def _vtk_cells(conn, n):
     """Build a VTK connectivity array [n, i0..i_{n-1}, ...] (0-based)."""
     c = conn[:, :n].astype(np.int64) - 1
     return np.hstack((np.full((c.shape[0], 1), n, dtype=np.int64), c)).ravel()
+
+
+def _vtk_polygon_cells(polys):
+    """
+    Build a VTK connectivity array for arbitrary polygons (0-based): for each
+    facet, [nverts, i0, i1, ...]. VTK renders n-gons natively, so PLC facets
+    stay as single polygons (no triangulation artifact under show_edges).
+    """
+    cells = []
+    for p in polys:
+        idx = (np.asarray(p, dtype=np.int64).ravel() - 1).tolist()
+        cells.append(len(idx))
+        cells.extend(idx)
+    return np.asarray(cells, dtype=np.int64)
 
 
 class _PyVistaOps:
@@ -1059,10 +1122,21 @@ class _PyVistaOps:
             point_size=8,
         )
 
-    def surface(self, pl, h, node, face, cfg):
+    def surface(self, pl, h, node, face, cfg, polys=None, gids=None):
         pts = np.ascontiguousarray(node[:, :3], dtype=float)
-        surf = self.pv.PolyData(pts, _vtk_cells(face, 3))
-        self._add(pl, h, surf, cfg, scalar=_mesh_scalar(node, face, 3))
+        if polys is not None:
+            # native polygon cells -> show_edges traces facet outlines only
+            surf = self.pv.PolyData(pts, _vtk_polygon_cells(polys))
+            if node.shape[1] > 3:
+                scalar = ("nodeval", node[:, 3])
+            elif gids is not None and np.unique(gids).size > 1:
+                scalar = ("tag", gids.astype(float))
+            else:
+                scalar = None
+        else:
+            surf = self.pv.PolyData(pts, _vtk_cells(face, 3))
+            scalar = _mesh_scalar(node, face, 3)
+        self._add(pl, h, surf, cfg, scalar=scalar)
 
     def tetra(self, pl, h, node, elem, cfg):
         pts = np.ascontiguousarray(node[:, :3], dtype=float)
