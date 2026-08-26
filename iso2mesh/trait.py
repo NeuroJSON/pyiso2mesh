@@ -543,34 +543,28 @@ def faceneighbors(t, opt=None):
         (t[:, [0, 1, 2]], t[:, [0, 1, 3]], t[:, [0, 2, 3]], t[:, [1, 2, 3]])
     )
     faces = np.sort(faces, axis=1)
-
-    # Find unique faces and their indices
-    _, ix, jx = np.unique(faces, axis=0, return_index=True, return_inverse=True)
-
-    vec = np.histogram(jx, bins=np.arange(max(jx) + 2))[0]
-    qx = np.where(vec == 2)[0]
-
-    nn = np.max(t)
     ne = t.shape[0]
+
+    # Group identical faces by sorting a single integer key: np.unique on the
+    # face rows (axis=0) lexsorts and is an order of magnitude slower
+    m = int(faces.max()) + 1
+    key = (faces[:, 0].astype(np.int64) * m + faces[:, 1]) * m + faces[:, 2]
+    order = np.argsort(key, kind="stable")
+    ks = key[order]
+    first = np.flatnonzero(np.r_[True, ks[1:] != ks[:-1]])
+    count = np.diff(np.r_[first, ks.size])
+
+    # a face shared by exactly 2 elements links them; faces sit in the stacked
+    # array at row (faceid * ne + elemid)
+    pos = first[count == 2]
+    g1, g2 = order[pos], order[pos + 1]
+
     facenb = np.zeros_like(t)
-
-    # Identify duplicate faces and their element pairings
-    ujx, ii = np.unique(jx, return_index=True)
-    jx2 = jx[::-1]
-    _, ii2 = np.unique(jx2, return_index=True)
-    ii2 = len(jx2) - 1 - ii2
-
-    # List of element pairs that share a common face
-    iddup = np.vstack((ii[qx], ii2[qx])).T
-    faceid = np.ceil((iddup + 1) / ne).astype(int)
-    eid = np.mod(iddup + 1, ne)
-    eid[eid == 0] = ne
+    facenb[g1 % ne, g1 // ne] = g2 % ne + 1
+    facenb[g2 % ne, g2 // ne] = g1 % ne + 1
 
     # Handle special cases based on the second argument
     if opt is not None:
-        for i in range(len(qx)):
-            facenb[eid[i, 0] - 1, faceid[i, 0] - 1] = eid[i, 1]
-            facenb[eid[i, 1] - 1, faceid[i, 1] - 1] = eid[i, 0]
         if opt == "surface":
             facenb = faces[np.where(facenb.T.flatten() == 0)[0], :]
         elif opt == "rowmajor":
@@ -579,10 +573,6 @@ def faceneighbors(t, opt=None):
             facenb = faces[np.where(facenb.flatten() == 0)[0], :]
         else:
             raise ValueError(f'Unsupported option "{opt}".')
-    else:
-        for i in range(len(qx)):
-            facenb[eid[i, 0] - 1, faceid[i, 0] - 1] = eid[i, 1]
-            facenb[eid[i, 1] - 1, faceid[i, 1] - 1] = eid[i, 0]
 
     return facenb
 
