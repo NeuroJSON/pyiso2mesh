@@ -1983,8 +1983,7 @@ def tsearchn(node, elem, points):
     if elem is None:
         return _tsearchn_delaunay(node, points)
 
-    elem = np.asarray(elem) - 1  # Convert to 0-indexed internally
-    return _tsearchn_custom(node, elem, points)
+    return tsearchn_precomputed(node, elem, points)[:2]
 
 
 def _tsearchn_delaunay(node, points):
@@ -2007,78 +2006,6 @@ def _tsearchn_delaunay(node, points):
         b = np.einsum("ijk,ik->ij", T[:, :3], p)
         bary[inside, :3] = b
         bary[inside, 3] = 1.0 - b.sum(axis=1)
-
-    return idx, bary
-
-
-def _tsearchn_custom(node, elem, points):
-    """Custom mesh with spatial indexing."""
-    from scipy.spatial import cKDTree
-
-    n_points = len(points)
-    idx = np.full(n_points, np.nan)
-    bary = np.full((n_points, 4), np.nan)
-
-    # Precompute tetrahedra centroids and bounding radii
-    tet_verts = node[elem]  # (M, 4, 3)
-    centroids = tet_verts.mean(axis=1)  # (M, 3)
-
-    # Bounding radius: max distance from centroid to any vertex
-    radii = np.sqrt(((tet_verts - centroids[:, None, :]) ** 2).sum(axis=2).max(axis=1))
-
-    # Build KDTree on centroids
-    tree = cKDTree(centroids)
-
-    # Precompute inverse transformation matrices for all tetrahedra
-    v3 = tet_verts[:, 3, :]  # (M, 3)
-    T = tet_verts[:, :3, :] - v3[:, None, :]  # (M, 3, 3)
-    T = T.transpose(0, 2, 1)  # (M, 3, 3)
-
-    # Compute inverses, handling degenerate tets
-    invT = np.zeros_like(T)
-    valid_tet = np.ones(len(elem), dtype=bool)
-    for i in range(len(elem)):
-        try:
-            invT[i] = np.linalg.inv(T[i])
-        except np.linalg.LinAlgError:
-            valid_tet[i] = False
-
-    # Query radius: use max bounding radius + margin
-    max_radius = radii.max() * 1.5
-
-    # Find candidate tetrahedra for each point
-    candidate_lists = tree.query_ball_point(points, max_radius)
-
-    # Process each point
-    for i, candidates in enumerate(candidate_lists):
-        if not candidates:
-            continue
-
-        candidates = [c for c in candidates if valid_tet[c]]
-        if not candidates:
-            continue
-
-        # Filter by actual bounding radius
-        dist = np.linalg.norm(points[i] - centroids[candidates], axis=1)
-        candidates = [c for c, d in zip(candidates, dist) if d <= radii[c] * 1.01]
-
-        if not candidates:
-            continue
-
-        # Check barycentric coordinates
-        p = points[i] - v3[candidates]  # (C, 3)
-        b = np.einsum("cij,cj->ci", invT[candidates], p)  # (C, 3)
-        b4 = 1.0 - b.sum(axis=1)
-
-        # Find first containing tetrahedron
-        tol = -1e-10
-        inside = (b >= tol).all(axis=1) & (b4 >= tol)
-
-        if inside.any():
-            j = np.where(inside)[0][0]
-            idx[i] = candidates[j] + 1  # Convert to 1-indexed
-            bary[i, :3] = b[j]
-            bary[i, 3] = b4[j]
 
     return idx, bary
 
@@ -2119,13 +2046,9 @@ def tsearchn_precomputed(node, elem, points, precomp=None):
         v3 = tet_verts[:, 3, :]
         T = (tet_verts[:, :3, :] - v3[:, None, :]).transpose(0, 2, 1)
 
+        valid = np.abs(np.linalg.det(T)) > 0
         invT = np.zeros_like(T)
-        valid = np.ones(len(elem), dtype=bool)
-        for i in range(len(elem)):
-            try:
-                invT[i] = np.linalg.inv(T[i])
-            except np.linalg.LinAlgError:
-                valid[i] = False
+        invT[valid] = np.linalg.inv(T[valid])
 
         precomp = {
             "tree": cKDTree(centroids),
@@ -2140,33 +2063,45 @@ def tsearchn_precomputed(node, elem, points, precomp=None):
     n_points = len(points)
     idx = np.full(n_points, np.nan)
     bary = np.full((n_points, 4), np.nan)
+    nelem = len(precomp["radii"])
 
-    candidates_list = precomp["tree"].query_ball_point(points, precomp["max_radius"])
+    def locate(i, cand):
+        cand = np.asarray(cand, dtype=int)
+        cand = cand[precomp["valid"][cand]]
+        dist = np.linalg.norm(points[i] - precomp["centroids"][cand], axis=1)
+        cand = cand[dist <= precomp["radii"][cand] * 1.01]
+        if not cand.size:
+            return False
 
-    for i, candidates in enumerate(candidates_list):
-        candidates = [c for c in candidates if precomp["valid"][c]]
-        if not candidates:
-            continue
-
-        dist = np.linalg.norm(points[i] - precomp["centroids"][candidates], axis=1)
-        candidates = [
-            c for c, d in zip(candidates, dist) if d <= precomp["radii"][c] * 1.01
-        ]
-
-        if not candidates:
-            continue
-
-        p = points[i] - precomp["v3"][candidates]
-        b = np.einsum("cij,cj->ci", precomp["invT"][candidates], p)
+        b = np.einsum(
+            "cij,cj->ci", precomp["invT"][cand], points[i] - precomp["v3"][cand]
+        )
         b4 = 1.0 - b.sum(axis=1)
 
         tol = -1e-10
         inside = (b >= tol).all(axis=1) & (b4 >= tol)
+        if not inside.any():
+            return False
 
-        if inside.any():
-            j = np.where(inside)[0][0]
-            idx[i] = candidates[j] + 1  # Convert to 1-indexed
-            bary[i, :3] = b[j]
-            bary[i, 3] = b4[j]
+        j = np.argmax(inside)
+        idx[i] = cand[j] + 1  # Convert to 1-indexed
+        bary[i, :3] = b[j]
+        bary[i, 3] = b4[j]
+        return True
+
+    # test the nearest centroids first: a single global search radius returns
+    # most of the mesh as candidates when the element sizes vary
+    todo = np.arange(n_points)
+    for k in (32, 256):
+        if not todo.size or k >= nelem:
+            break
+        nn = np.atleast_2d(precomp["tree"].query(points[todo], k=k)[1])
+        todo = np.array(
+            [i for r, i in enumerate(todo) if not locate(i, nn[r])], dtype=int
+        )
+
+    # exact fallback, also the path for points lying outside the mesh
+    for i in todo:
+        locate(i, precomp["tree"].query_ball_point(points[i], precomp["max_radius"]))
 
     return idx, bary, precomp

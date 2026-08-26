@@ -1751,6 +1751,35 @@ class TestUtilities(unittest.TestCase):
 
         self.assertEqual(result, (2, 0.5))
 
+    def test_tsearchn_point_location(self):
+        """Test enclosing tetrahedron search and barycentric coordinates"""
+        no, fc, el = meshabox([0, 0, 0], [10, 10, 10], 20)
+        pts = np.array([[5.0, 5.0, 5.0], [0.5, 0.5, 0.5], [-1.0, -1.0, -1.0]])
+
+        idx, bary = tsearchn(no, el[:, :4], pts)
+
+        # last point is outside the box, the first two are inside
+        self.assertTrue(np.all(np.isfinite(idx[:2])))
+        self.assertTrue(np.isnan(idx[2]) and np.all(np.isnan(bary[2])))
+
+        # barycentric weights sum to 1 and rebuild the query point
+        inside = np.int32(idx[:2]) - 1
+        np.testing.assert_allclose(bary[:2].sum(axis=1), 1.0, atol=1e-10)
+        np.testing.assert_allclose(
+            np.einsum("pij,pi->pj", no[el[inside, :4] - 1], bary[:2]),
+            pts[:2],
+            atol=1e-10,
+        )
+
+        # every node sits in one of the tetrahedra sharing it
+        idx, bary = tsearchn(no, el[:, :4], no)
+        self.assertTrue(np.all(np.isfinite(idx)))
+        np.testing.assert_allclose(
+            np.einsum("pij,pi->pj", no[el[np.int32(idx) - 1, :4] - 1], bary),
+            no,
+            atol=1e-10,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
