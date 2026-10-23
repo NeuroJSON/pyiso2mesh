@@ -1442,8 +1442,20 @@ def meshrefine(node, elem, *args, **kwargs):
         externalpt = np.unique(externalpt, axis=0)
         allnode = np.vstack([newnode, externalpt])
 
-        # define the convex hull as the external surface
-        outface = ConvexHull(allnode, qhull_options="QJ").simplices + 1
+        # define the convex hull as the external surface; the boundary of a Delaunay
+        # tessellation keeps every node on the hull, so the hull triangles that lie on the mesh
+        # surface coincide with its faces and cancel below (as in iso2mesh for Octave); a joggled
+        # (QJ) hull triangulates such coplanar parts differently and gives an invalid PLC
+        try:
+            tet = Delaunay(allnode, qhull_options="Qt Qbb Qc").simplices
+            # drop the zero-volume (flat) simplices on coplanar boundary nodes, as delaunayn in Octave:
+            # their faces would otherwise become part of the hull surface
+            edge = allnode[tet[:, :3]] - allnode[tet[:, 1:]]
+            relvol = np.abs(np.linalg.det(edge))[:, None] / np.sqrt(np.sum(edge**2, axis=2))
+            tet = tet[~np.all(relvol < 1e3 * np.finfo(float).eps, axis=1)]
+            outface = volface(tet + 1)[0]
+        except Exception:
+            outface = ConvexHull(allnode, qhull_options="QJ").simplices + 1
         outface = np.sort(outface, axis=1)
 
         face = volface(newelem[:, :4])[0]  # adjust for 1-based indexing
