@@ -152,6 +152,8 @@ def meshacylinder(c0, c1, r, tsize=None, maxvol=None, ndiv=20):
     v0 = c1 - c0
     len_axis = np.linalg.norm(v0)
 
+    tsizegiven, maxvolgiven = tsize is not None, maxvol is not None
+
     if tsize is None:
         tsize = min(np.append(r, len_axis)) / 10
 
@@ -181,6 +183,12 @@ def meshacylinder(c0, c1, r, tsize=None, maxvol=None, ndiv=20):
 
     if tsize == 0.0 and maxvol == 0.0:
         return no, face
+
+    # as meshacylinder.m, the mesh uses tsize = len/10 and maxvol = tsize^3 when they are not given
+    if not tsizegiven:
+        tsize = len_axis / 10
+    if not maxvolgiven:
+        maxvol = tsize**3
 
     node, elem, *_ = surf2mesh(
         no,
