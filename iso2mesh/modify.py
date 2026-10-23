@@ -836,14 +836,14 @@ def mergemesh(node, elem, *args):
 
             if el.shape[1] == 4 and X >= 0:
                 el = np.column_stack(
-                    (el, np.ones((el.shape[0], 1), dtype=int) * (i // 2 + 1))
+                    (el, np.ones((el.shape[0], 1), dtype=int) * (i // 2 + 2))
                 )
             newnode = np.vstack((newnode, no))
             newelem = np.vstack((newelem, el))
         elif el.shape[1] == 3 and newelem.shape[1] == 4:
             el[:, :3] += baseno
             el = np.column_stack(
-                (el, np.ones((el.shape[0], 1), dtype=int) * (i // 2 + 1))
+                (el, np.ones((el.shape[0], 1), dtype=int) * (i // 2 + 2))
             )
             newnode = np.vstack((newnode, no))
             newelem = np.vstack((newelem, el))
