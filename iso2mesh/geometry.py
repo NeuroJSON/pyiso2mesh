@@ -79,7 +79,7 @@ def meshabox(p0, p1, maxvol=None, nodesize=1, **kwargs):
 # _________________________________________________________________________________________________________
 
 
-def meshunitsphere(tsize, maxvol=None):
+def meshunitsphere(tsize, maxvol=None, dovol=True):
     dim = 60
     esize = tsize * dim
     thresh = dim / 2 - 1
@@ -102,7 +102,10 @@ def meshunitsphere(tsize, maxvol=None):
 
     node = (node - 30) / 28
     r0 = np.sqrt(np.sum(node**2, axis=1))
-    node = node / r0[:, None]
+    node = node * (1.0 / r0)[:, None]  # multiply by the reciprocal as MATLAB does, for bit-identical nodes
+
+    if not dovol:  # the surface only, as [node, face] = meshunitsphere(...) in MATLAB
+        return node, face[:, :3], None
 
     if not maxvol:
         maxvol = tsize**3
@@ -118,11 +121,13 @@ def meshunitsphere(tsize, maxvol=None):
 # _________________________________________________________________________________________________________
 
 
-def meshasphere(c0, r, tsize, maxvol=None):
+def meshasphere(c0, r, tsize, maxvol=None, dovol=True):
     if maxvol is None:
         maxvol = tsize**3
 
-    if maxvol is not None:
+    if not dovol:  # the surface only, as [node, face] = meshasphere(...) in MATLAB
+        node, face, elem = meshunitsphere(tsize / r, dovol=False)
+    elif maxvol is not None:
         node, face, elem = meshunitsphere(tsize / r, maxvol=maxvol / (r**3))
     else:
         node, face, elem = meshunitsphere(tsize / r)
