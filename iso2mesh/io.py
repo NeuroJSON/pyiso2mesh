@@ -398,8 +398,8 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
     This function is part of the iso2mesh toolbox.
     """
     dobbx = 0
-    if forcebox != None:
-        dobbx = any([forcebox])
+    if forcebox is not None:  # as savesurfpoly.m: a non-empty, all-nonzero forcebox (scalar or 8 corner sizes)
+        dobbx = np.size(forcebox) > 0 and bool(np.all(np.asarray(forcebox)))
 
     faceid = (
         f[:, 3]
@@ -423,10 +423,12 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
         if not isinstance(v, list) and len(v.shape) > 1 and v.shape[1] == 4
         else v
     )
-    if p0 is None or len(p0) > 0 and v.size > 0:
+    # an empty p0/p1 defaults to the bounding box of the nodes; a given one is kept (savesurfpoly.m)
+    if (p0 is None or len(p0) == 0) and v.size > 0:
         p0 = np.min(v, axis=0)
-    if p1 is None or len(p0) > 0 and v.size > 0:
+    if (p1 is None or len(p1) == 0) and v.size > 0:
         p1 = np.max(v, axis=0)
+    p0, p1 = np.asarray(p0, dtype=float), np.asarray(p1, dtype=float)
 
     # Handle edges
     edges = surfedge(f)[0] if not isinstance(f, list) else []
@@ -709,9 +711,10 @@ def savesurfpoly(v, f, holelist, regionlist, p0, p1, fname, forcebox=None):
                         )
                     )
 
-        if nodesize:
-            if len(nodesize) + len(forcebox) == node.shape[0]:
-                nodesize = np.concatenate((nodesize, forcebox))
+        if nodesize is not None and len(nodesize) > 0:
+            boxsize = np.ravel(forcebox) if forcebox is not None else np.array([])
+            if len(nodesize) + len(boxsize) == node.shape[0]:  # sizes of the 8 bounding box corners
+                nodesize = np.concatenate((nodesize, boxsize))
             with open(fname.replace(".poly", ".mtr"), "wt") as fid:
                 fid.write("{} 1\n".format(len(nodesize)))
                 np.savetxt(fid, nodesize, fmt="%.16f")
