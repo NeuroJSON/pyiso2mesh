@@ -444,6 +444,16 @@ def vol2surf(img, ix, iy, iz, opt, dofix=0, method="cgalsurf", isovalues=None):
 # _________________________________________________________________________________________________________
 
 
+def _num2str(x):
+    """format a real scalar as num2str in MATLAB: an integer as is, otherwise with
+    max(floor(log10(|x|)) + 5, 5) significant digits"""
+    x = float(np.ravel(x)[0])
+    if x == int(x):
+        return "%d" % int(x)
+    ndgt = max(int(np.floor(np.log10(abs(x)))) + 5, 5)
+    return "%.*g" % (min(ndgt, 16), x)
+
+
 def surf2mesh(
     v,
     f,
@@ -530,35 +540,36 @@ def surf2mesh(
             cmdopt = eval("ISO2MESH_TETGENOPT")
         except:
             cmdopt = ""
-    cmdstr = f'"{mcpath(method, exesuff)}" -A -q1.414a{maxvol} {moreopt} ' + mwpath(
-        "post_vmesh.poly"
-    )
-    try:
-        if not sys.platform.startswith("win"):
+    # format maxvol as num2str in MATLAB (an empty -a option when not given, so that tetgen uses the
+    # per-region limits); full precision gives tetgen a slightly different volume limit and mesh
+    maxvolstr = "" if maxvol is None or np.size(maxvol) == 0 else _num2str(maxvol)
+    if not cmdopt:
+        cmdstr = f'"{mcpath(method, exesuff)}" -A -q1.414a{maxvolstr} {moreopt} ' + mwpath(
+            "post_vmesh.poly"
+        )
+    else:
+        cmdstr = f'"{mcpath(method, exesuff)}" {cmdopt} ' + mwpath("post_vmesh.poly")
+
+    # the tetgen binary of the iso2mesh tools (mcpath) is used first; the tetgen python
+    # module installed in the system is only a fallback when that binary fails
+    status, cmdout = subprocess.getstatusoutput(cmdstr)
+
+    if status == 0 and os.path.isfile(mwpath("post_vmesh.1.node")):
+        node, elem, face = readtetgen(mwpath("post_vmesh.1"))
+    else:
+        try:
+            if sys.platform.startswith("win"):
+                raise ImportError("the tetgen module is not used on Windows")
             import tetgen
 
+            deletemeshfile(mwpath("post_vmesh.1.*"))
             tgen = tetgen.TetGen(filename=mwpath("post_vmesh.poly"))
             mesh = tgen.tetrahedralize(flags=cmdopt)
             node = mesh["vertices"]
             elem = mesh["tetrahedra"]
             face = mesh["faces"]
-    except:
-        pass
-
-    if "mesh" not in locals():
-        if not cmdopt:
-            status, cmdout = subprocess.getstatusoutput(cmdstr)
-        else:
-            cmdstr = f'"{mcpath(method, exesuff)}" {cmdopt} ' + mwpath(
-                "post_vmesh.poly"
-            )
-            status, cmdout = subprocess.getstatusoutput(cmdstr)
-
-        if status != 0:
+        except Exception:
             raise RuntimeError(f"Tetgen command failed: {cmdstr}\n{cmdout}")
-
-        # Read generated mesh
-        node, elem, face = readtetgen(mwpath("post_vmesh.1"))
 
     print("Volume mesh generation complete")
     return node, elem, face
